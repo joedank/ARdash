@@ -1,0 +1,26 @@
+{
+  "name": "vue-node-core",
+  "version": "1.0.0",
+  "description": "Core setup for Vue.js and Node.js website project",
+  "scripts": {
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "backend:dev": "cd backend && npm run dev",
+    "backend:start": "cd backend && npm run start",
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "start": "concurrently \"npm run backend:start\" \"cd frontend && npm run preview\"",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+  },
+  "keywords": [
+    "vue",
+    "node",
+    "express",
+    "pinia"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "axios": "^1.8.4",
+    "concurrently": "^8.2.2"
+  }
+}

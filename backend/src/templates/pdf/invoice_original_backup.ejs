@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title><%= type === 'invoice' ? 'Invoice' : 'Estimate' %> <%= data.invoiceNumber || data.estimateNumber %></title>
+    <style>
+        /* Modern PDF Template CSS */
+        body {
+            font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            color: #333;
+            margin: 0;
+            padding: 20px 30px;
+            line-height: 1.5;
+            background-color: #fff;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 22pt;
+            font-weight: 700;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+            margin: 0 0 15px 0;
+        }
+
+        h2 {
+            font-size: 16pt;
+            font-weight: 600;
+            margin: 20px 0 10px 0;
+        }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .text-bold { font-weight: 600; }
+        .text-muted { color: #6c757d; }
+
+        /* Layout Containers */
+        .container {
+            width: 100%;
+            max-width: 100%;
+            padding: 0;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            clear: both;
+        }
+
+        .row {
+            display: flex;
+            width: 100%;
+            clear: both;
+        }
+
+        .col {
+            flex: 1;
+        }
+
+        /* Header Styling */
+        .document-header {
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid <%= settings.pdf_secondary_color || '#F5F7FA' %>;
+        }
+
+        .logo-container {
+            float: left;
+            width: 40%;
+        }
+
+        .logo-container img {
+            max-width: 200px;
+            max-height: 70px;
+            object-fit: contain;
+        }
+
+        .company-info {
+            float: right;
+            width: 40%;
+            text-align: right;
+        }
+
+        .document-info {
+            margin: 30px 0;
+            padding: 15px;
+            background-color: <%= settings.pdf_secondary_color || '#F5F7FA' %>;
+            border-radius: 5px;
+        }
+
+        .document-title {
+            float: right;
+            text-align: right;
+            width: 40%;
+        }
+
+        .document-meta {
+            float: left;
+            width: 60%;
+        }
+
+        .document-meta-item {
+            margin-right: 30px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .document-meta-label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 3px;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+        }
+
+        .document-meta-value {
+            font-size: 12pt;
+        }
+
+        /* Client/Billing Section */
+        .client-section {
+            margin-bottom: 40px;
+        }
+
+        .client-details {
+            float: left;
+            width: 50%;
+        }
+
+        .billing-details {
+            float: right;
+            width: 40%;
+            text-align: right;
+        }
+
+        .section-title {
+            font-size: 12pt;
+            text-transform: uppercase;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        th {
+            background-color: <%= settings.primary_color || '#2D7D9A' %>;
+            color: white;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 15px;
+            border-radius: 3px 3px 0 0;
+        }
+
+        td {
+            padding: 12px 15px;
+            vertical-align: top;
+            border-bottom: 1px solid #eee;
+        }
+
+        .item-table {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-radius: 3px;
+        }
+
+        .item-table tbody tr:nth-child(even) {
+            background-color: <%= settings.pdf_secondary_color || '#F5F7FA' %>;
+        }
+
+        .item-table th.text-right,
+        .item-table td.text-right {
+            text-align: right;
+        }
+
+        /* Totals Section */
+        .totals-section {
+            float: right;
+            width: 40%;
+            margin-top: 20px;
+        }
+
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .totals-row.grand-total {
+            font-weight: 700;
+            font-size: 14pt;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+            border-top: 2px solid <%= settings.primary_color || '#2D7D9A' %>;
+            border-bottom: none;
+            padding-top: 12px;
+        }
+
+        /* Notes & Terms */
+        .notes-section {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .note-block {
+            margin-bottom: 20px;
+        }
+
+        .note-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+        }
+
+        /* Footer */
+        .document-footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            color: #6c757d;
+            font-size: 10pt;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-size: 8pt;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .status-draft { background-color: #6c757d; }
+        .status-sent { background-color: #007bff; }
+        .status-viewed { background-color: #17a2b8; }
+        .status-paid { background-color: #28a745; }
+        .status-overdue { background-color: #dc3545; }
+        .status-accepted { background-color: #28a745; }
+        .status-rejected { background-color: #dc3545; }
+
+        /* Utilities */
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="document-header clearfix">
+            <div class="logo-container">
+                <% if (logoDataUri) { %>
+                    <img src="<%= logoDataUri %>" alt="<%= settings.company_name %> Logo">
+                <% } %>
+            </div>
+            <div class="company-info">
+                <div class="text-bold"><%= settings.company_name %></div>
+                <% if (settings.company_address) { %><div><%= nl2br(settings.company_address) %></div><% } %>
+                <% if (settings.company_phone) { %><div>Phone: <%= settings.company_phone %></div><% } %>
+                <% if (settings.company_email) { %><div>Email: <%= settings.company_email %></div><% } %>
+                <% if (settings.company_website) { %><div>Website: <%= settings.company_website %></div><% } %>
+            </div>
+        </div>
+        
+        <!-- Document Info Section -->
+        <div class="document-info clearfix">
+            <div class="document-title">
+                <h1><%= type === 'invoice' ? 'INVOICE' : 'ESTIMATE' %></h1>
+                <div class="text-bold" style="font-size: 14pt;">
+                    #<%= data.invoiceNumber || data.estimateNumber %>
+                </div>
+                <% if (data.status) { %>
+                <div style="margin-top: 10px;">
+                    <span class="status-badge status-<%= data.status.toLowerCase() %>">
+                        <%= data.status %>
+                    </span>
+                </div>
+                <% } %>
+            </div>
+            
+            <div class="document-meta">
+                <div class="document-meta-item">
+                    <div class="document-meta-label"><%= type === 'invoice' ? 'Invoice Date' : 'Estimate Date' %></div>
+                    <div class="document-meta-value"><%= formatDate(data.dateCreated) %></div>
+                </div>
+                
+                <div class="document-meta-item">
+                    <div class="document-meta-label"><%= type === 'invoice' ? 'Due Date' : 'Valid Until' %></div>
+                    <div class="document-meta-value"><%= type === 'invoice' ? formatDate(data.dateDue) : formatDate(data.validUntil) %></div>
+                </div>
+                
+                <% if (type === 'invoice') { 
+                    const totalPaid = data.payments ? data.payments.reduce((sum, p) => sum + parseFloat(p.amount), 0) : 0;
+                    const balance = data.total - totalPaid;
+                %>
+                <div class="document-meta-item">
+                    <div class="document-meta-label">Amount Due</div>
+                    <div class="document-meta-value text-bold"><%= formatCurrency(balance) %></div>
+                </div>
+                <% } %>
+            </div>
+        </div>
+        
+        <!-- Client Section -->
+        <div class="client-section clearfix">
+            <div class="client-details">
+                <div class="section-title">Bill To</div>
+                <div class="text-bold"><%= client.display_name %></div>
+                <% if (client.company) { %><div><%= client.company %></div><% } %>
+                <% if (clientAddress) { %>
+                    <% if (clientAddress.street_address) { %><div><%= clientAddress.street_address %></div><% } %>
+                    <% let cityStateZip = [clientAddress.city, clientAddress.state, clientAddress.postal_code].filter(Boolean).join(' '); %>
+                    <% if (cityStateZip) { %><div><%= cityStateZip %></div><% } %>
+                    <% if (clientAddress.country) { %><div><%= clientAddress.country %></div><% } %>
+                <% } %>
+                <% if (client.email) { %><div>Email: <%= client.email %></div><% } %>
+                <% if (client.phone) { %><div>Phone: <%= client.phone %></div><% } %>
+            </div>
+        </div>
+        
+        <!-- Items Table -->
+        <table class="item-table">
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Item</th>
+                    <th style="width: 15%;" class="text-right">Qty</th>
+                    <th style="width: 15%;" class="text-right">Price</th>
+                    <th style="width: 15%;" class="text-right">Tax</th>
+                    <th style="width: 15%;" class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% data.items.forEach(item => { %>
+                <tr>
+                    <td>
+                        <div class="text-bold"><%= item.description %></div>
+                        <% if (item.notes) { %><div class="text-muted"><%= nl2br(item.notes) %></div><% } %>
+                    </td>
+                    <td class="text-right"><%= item.quantity %></td>
+                    <td class="text-right"><%= formatCurrency(item.price) %></td>
+                    <td class="text-right"><%= item.taxRate ? item.taxRate + '%' : '-' %></td>
+                    <td class="text-right text-bold"><%= formatCurrency(item.itemTotal) %></td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+        
+        <!-- Totals Section -->
+        <div class="totals-section">
+            <div class="totals-row">
+                <div>Subtotal</div>
+                <div><%= formatCurrency(data.subtotal) %></div>
+            </div>
+            
+            <% if (data.taxTotal > 0) { %>
+            <div class="totals-row">
+                <div>Tax</div>
+                <div><%= formatCurrency(data.taxTotal) %></div>
+            </div>
+            <% } %>
+            
+            <% if (data.discountAmount > 0) { %>
+            <div class="totals-row">
+                <div>Discount</div>
+                <div>-<%= formatCurrency(data.discountAmount) %></div>
+            </div>
+            <% } %>
+            
+            <div class="totals-row">
+                <div><b>Total</b></div>
+                <div><b><%= formatCurrency(data.total) %></b></div>
+            </div>
+            
+            <% if (type === 'invoice') {
+                const totalPaid = data.payments ? data.payments.reduce((sum, p) => sum + parseFloat(p.amount), 0) : 0;
+                const balance = data.total - totalPaid;
+            %>
+            <div class="totals-row">
+                <div>Paid</div>
+                <div><%= formatCurrency(totalPaid) %></div>
+            </div>
+            
+            <div class="totals-row grand-total">
+                <div>Balance Due</div>
+                <div><%= formatCurrency(balance) %></div>
+            </div>
+            <% } %>
+        </div>
+        
+        <div class="clearfix"></div>
+        
+        <!-- Payment History (if invoice and payments exist) -->
+        <% if (type === 'invoice' && data.payments && data.payments.length > 0) { %>
+            <h2>Payment History</h2>
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <% data.payments.forEach(payment => { %>
+                    <tr>
+                        <td><%= formatDate(payment.paymentDate) %></td>
+                        <td><%= formatCurrency(payment.amount) %></td>
+                        <td><%= payment.paymentMethod || '-' %></td>
+                        <td><%= payment.notes || '-' %></td>
+                    </tr>
+                <% }); %>
+                </tbody>
+            </table>
+        <% } %>
+        
+        <!-- Notes & Terms Section -->
+        <div class="notes-section">
+            <% if (data.terms) { %>
+                <div class="note-block">
+                    <div class="note-title">Terms & Conditions</div>
+                    <div><%= nl2br(data.terms) %></div>
+                </div>
+            <% } %>
+            
+            <% if (data.notes) { %>
+                <div class="note-block">
+                    <div class="note-title">Notes</div>
+                    <div><%= nl2br(data.notes) %></div>
+                </div>
+            <% } %>
+        </div>
+        
+        <!-- Footer -->
+        <div class="document-footer">
+            <div><%= type === 'invoice' ? settings.pdf_invoice_footer || 'Thank you for your business.' : settings.pdf_estimate_footer || 'Thank you for considering our services.' %></div>
+        </div>
+    </div>
+</body>
+</html>

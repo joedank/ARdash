@@ -1,0 +1,36 @@
+/* Import Tailwind CSS v4 */
+@import "tailwindcss";
+
+/* Define proper CSS layer ordering for PrimeVue */
+@layer primevue;
+
+/* Define dark mode variant for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Basic theme styling */
+html.dark {
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
+}
+
+/* Dark/light mode styling without Tailwind classes */
+.dark body {
+  background-color: #111827;
+  color: #fff;
+}
+
+.light body {
+  background-color: #f9fafb; /* Slightly off-white for better contrast with white cards */
+  color: #111827;
+}
+
+/* Base font styling */
+body {
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s, color 0.3s;
+}

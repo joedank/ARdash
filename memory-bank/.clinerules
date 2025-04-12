@@ -1,0 +1,419 @@
+## Project Intelligence Rules
+
+### Router Component Association Pattern
+
+- **Problem:** Missing component associations in router configuration can cause navigation failures.
+- **Pattern:** Ensure every route path (including parent routes) has an associated component.
+- **Example Issue:** Projects link failing because the parent `/projects` route had no component.
+- **Solution:** Implement proper parent and child route configuration:
+  ```javascript
+  // Incorrect (missing component for parent route)
+  {
+    path: '/projects',
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: ':id',
+        name: 'project-detail',
+        component: ProjectDetail
+      }
+    ]
+  }
+  
+  // Correct (component for both parent and child routes)
+  {
+    path: '/projects',
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'projects-list',
+        component: ProjectsView
+      },
+      {
+        path: ':id',
+        name: 'project-detail',
+        component: ProjectDetail
+      }
+    ]
+  }
+  ```
+- **Key Learning:** 
+  - Parent routes need components just like child routes do
+  - The empty path (`''`) is used for the default component of a parent route
+  - When deleting view components, always check the router configuration
+  - Navigation links target routes, not components directly, so router configuration is essential
+
+### Web Deployment with Development Mode Pattern
+
+- **Problem:** Need to expose a development environment for temporary external access while maintaining development features.
+- **Pattern:** Configure Nginx Proxy Manager with Vite development server and proper CORS settings.
+- **Example Use:** Make the application accessible at job.806040.xyz while keeping development features.
+- **Solution:** Implement a three-part configuration:
+  ```javascript
+  // 1. Vite Configuration (vite.config.js)
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true
+      },
+      '/uploads': {
+        target: 'http://localhost:3000',
+        changeOrigin: true
+      }
+    },
+    host: '0.0.0.0',  // Allow network access
+    allowedHosts: ['job.806040.xyz', 'localhost']  // Explicitly allow domains
+  }
+  
+  // 2. API Service Environment Detection (api.service.js)
+  const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const apiService = axios.create({
+    baseURL: isDevelopment ? 'http://localhost:3000/api' : '/api',
+    withCredentials: true  // Important for cross-domain cookies
+  });
+  
+  // 3. Backend CORS Configuration (app.js)
+  const corsOptions = {
+    origin: [
+      'http://localhost:5173',
+      'https://job.806040.xyz'
+    ],
+    credentials: true,  // Important for authentication
+  };
+  ```
+- **Key Learning:** 
+  - Vite development server needs `host: '0.0.0.0'` to accept external connections
+  - Environment detection allows conditional API endpoints without code changes
+  - CORS must explicitly include external domains
+  - WebSocket support in Nginx is essential for hot module replacement
+  - Proper cookie handling requires `withCredentials: true` on both ends
+
+### Mobile-First Form Design Pattern
+
+- **Problem:** Form layouts that work well on desktop can be cramped and difficult to use on mobile devices.
+- **Pattern:** Reorganize form elements into a stacked vertical layout for mobile with appropriate spacing.
+- **Example Issue:** Materials section shows truncated input fields on mobile, making it hard to read entered data.
+- **Solution:** Use a stacked vertical layout with full-width fields for better mobile readability:
+  ```html
+  <!-- Improved Mobile Layout Pattern -->
+  <div class="space-y-4 mb-4">  <!-- More vertical spacing between items -->
+    <div class="border-b pb-4">  <!-- Visual separation with border -->
+      <!-- Full-width primary field -->
+      <div class="mb-3">  <!-- Proper spacing between field groups -->
+        <label class="block text-sm font-medium mb-1">Material</label>
+        <BaseInput v-model="item.name" placeholder="Material name" />
+      </div>
+      
+      <!-- Equal-width related fields in a row -->
+      <div class="flex gap-2">
+        <div class="flex-1">  <!-- Flex-1 for equal width fields -->
+          <label class="block text-sm font-medium mb-1">Qty</label>
+          <BaseInput v-model="item.quantity" type="number" />
+        </div>
+        <div class="flex-1">
+          <label class="block text-sm font-medium mb-1">Unit</label>
+          <BaseSelect v-model="item.unit" :options="unitOptions" />
+        </div>
+      </div>
+    </div>
+  </div>
+  ```
+
+- **Key Learning:** 
+  - Place primary fields at full width on top for greater visibility
+  - Group related fields with proper visual hierarchy
+  - Use borders and increased spacing for better visual separation
+  - Flex layout provides more adaptable sizing than fixed widths
+  - Stacked vertical layout works better on mobile than horizontal rows
+
+### Form Field Alignment Pattern
+
+- **Problem:** Form field elements like inputs, selects, and labels can misalign, creating an inconsistent visual experience.
+- **Pattern:** Wrap form fields in container divs with consistent styling and structure.
+- **Example Issue:** Dropdown menus not aligning with adjacent text inputs
+- **Solution:** Implement consistent field wrapping and labeling:
+  ```html
+  <!-- Consistent Field Wrapping Pattern -->
+  <div class="grid grid-cols-3 gap-3 mb-2">
+    <div class="col-span-1">
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Length (ft)</label>
+      <BaseInput v-model="measurement.length" type="number" />
+    </div>
+    <div class="col-span-1">
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Width (ft)</label>
+      <BaseInput v-model="measurement.width" type="number" />
+    </div>
+    <div class="col-span-1">
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Square Footage</label>
+      <div class="px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
+        {{ calculateSquareFootage(measurement) }}
+      </div>
+    </div>
+  </div>
+  ```
+- **Key Learning:** Form fields should be wrapped in container elements with explicit sizing and spacing for consistent alignment. Labels should use consistent styling and spacing to maintain visual harmony.
+
+### Action Button Positioning Pattern
+
+- **Problem:** Fixed/sticky position action buttons can disrupt scrolling and hide content, especially on mobile.
+- **Pattern:** Use static positioning in a natural content flow for better readability.
+- **Example Issue:** Save button hiding content at bottom of page; mobile users struggling to see both content and actions
+- **Solution:** Replace fixed/sticky positioning with static positioning in the natural flow:
+  ```html
+  <div class="static bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-between z-10 mt-6">
+    <BaseButton variant="secondary" size="sm">Secondary Action</BaseButton>
+    <div class="flex-1"></div>
+    <div class="flex space-x-2">
+      <BaseButton variant="primary" size="sm">Primary Action</BaseButton>
+    </div>
+  </div>
+  ```
+- **Key Learning:** 
+  - Static positioning allows natural content flow and prevents overlapping issues
+  - Adding margin-top (mt-6) creates visual separation from preceding content
+  - Flex layout with `justify-between` still creates balanced button arrangements
+  - Better for accessibility as all content is visible without obscuring other elements
+  - Provides a more predictable and natural reading experience on mobile devices
+
+### Automatic Calculation Pattern
+
+- **Problem:** Derived values (like square footage) need to be calculated in real-time based on user input.
+- **Pattern:** Create reactive computed functions that update automatically.
+- **Example Use:** Square footage calculation from length and width
+- **Solution:** Implement a calculation function that handles edge cases:
+  ```javascript
+  // Calculate derived value based on user input
+  const calculateSquareFootage = (measurement) => {
+    if (!measurement.length || !measurement.width) return '0 sq ft';
+    
+    const length = parseFloat(measurement.length) || 0;
+    const width = parseFloat(measurement.width) || 0;
+    const area = length * width;
+    
+    return `${area.toFixed(2)} sq ft`;
+  };
+  ```
+- **Key Learning:** 
+  - Parse input values to ensure proper numeric handling
+  - Provide default values (0) for missing or invalid inputs
+  - Format output consistently with appropriate units
+  - Handle edge cases gracefully (empty fields, invalid inputs)
+  - Keep calculations separate from display formatting
+
+### Component Naming Pattern
+
+- **Problem:** Component names in imports and template references must match exactly to avoid "Failed to resolve component" errors.
+- **Pattern:** Ensure component names in imports and template references are consistent.
+- **Example Error:** `[Vue warn]: Failed to resolve component: ServiceMatchReview`
+- **Solution:** Always double-check component references in templates match their import statements exactly:
+  ```javascript
+  // INCORRECT
+  import ProductMatchReview from './ProductMatchReview.vue';
+  
+  // In template
+  <ServiceMatchReview />
+  
+  // CORRECT
+  import ProductMatchReview from './ProductMatchReview.vue';
+  
+  // In template
+  <ProductMatchReview />
+  ```
+- **Key Learning:** Even small naming inconsistencies can cause component resolution failures. Review template references carefully, especially after renaming components.
+
+### Backend Validation Pattern for Complex JSON Structures
+
+- **Problem:** Backend validation needs to adapt to evolving data structures from the frontend.
+- **Pattern:** Design flexible validation that can handle both legacy and new data formats.
+- **Example Issue:** Validation error when frontend sends array-based measurement items but backend expects a single measurement object.
+- **Solution:** Implement conditional validation that checks for multiple possible data formats:
+  ```javascript
+  // In sequelize model validation
+  validate: {
+    isValidContent(value) {
+      // Validation for measurements category
+      if (this.category === 'measurements') {
+        // Support for new structure with items array
+        if (Array.isArray(value.items) && value.items.length > 0) {
+          const hasValidItem = value.items.some(item => 
+            item.dimensions && 
+            typeof item.dimensions === 'object' && 
+            item.description && 
+            typeof item.description === 'string'
+          );
+          
+          if (!hasValidItem) {
+            throw new Error('Measurements must include at least one item with dimensions and description');
+          }
+        } 
+        // Support for legacy structure
+        else if (!value.dimensions || typeof value.dimensions !== 'object') {
+          throw new Error('Measurements must include dimensions');
+        }
+        else if (!value.description || typeof value.description !== 'string') {
+          throw new Error('Measurements must include a description of what is being measured');
+        }
+      }
+    }
+  }
+  ```
+- **Key Learning:**
+  - Use conditional checks to support multiple data formats
+  - Implement backward compatibility with legacy data structures
+  - Check for array existence before attempting to iterate
+  - Provide clear, specific error messages for each validation failure
+  - Use `some()` array method to check if at least one item meets criteria
+
+### Server Restart Requirement Pattern
+
+- **Problem:** New API routes aren't recognized after adding them to route files.
+- **Pattern:** Backend server needs to be restarted after route changes to register new endpoints.
+- **Example Error:** 404 (Not Found) for newly added endpoints
+- **Solution:** Use the services script to restart the backend server after route changes:
+  ```bash
+  ./services.sh restart backend
+  ```
+- **Key Learning:** Express.js loads routes at startup and doesn't dynamically reload them when files change. Always restart the server after modifying route definitions.
+
+### Assessment Data Utilization Pattern
+
+- **Problem:** Assessment data contains valuable information but isn't integrated with the estimate generation process.
+- **Pattern:** Leverage existing assessment data (measurements, conditions, materials) in LLM-based estimate generation.
+- **Solution:** Structured data flow from projects to LLM processing:
+  1. Fetch assessment data through a dedicated endpoint
+  2. Format assessment data specifically for LLM consumption
+  3. Provide clear visual feedback when assessment data is used
+  4. Reduce required user input based on available assessment data
+- **Key Learning:** Structured data integration between different modules requires:
+  - Consistent data formatting
+  - Clear visual feedback
+  - Reduced duplicate data entry
+  - Proper contextual prompting for LLM
+
+### Dynamic Content Loading Pattern
+
+- **Problem:** Project loading requires consistent UI state management.
+- **Pattern:** Loading indicators during asynchronous data fetching.
+- **Solution:** Implement clear loading state with contextual messaging:
+  ```html
+  <div v-if="loadingProjects" class="text-center py-2">
+    <svg class="animate-spin h-5 w-5 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+    <p class="text-xs mt-1">Loading projects...</p>
+  </div>
+  ```
+- **Key Learning:** Explicit loading states improve user experience during asynchronous operations.
+
+### LLM Prompt Design Pattern
+
+- **Problem:** LLM prompts need to accommodate different input data sources while maintaining reliable output formatting.
+- **Pattern:** Specialized prompts for different input scenarios with consistent output expectations.
+- **Solution:** Create specialized prompt variants with conditional logic:
+  ```javascript
+  // Base prompt for standard analysis
+  const initialAnalysisPrompt = `...`;
+  
+  // Enhanced prompt for assessment data integration
+  const initialAnalysisWithAssessmentPrompt = `...`;
+  
+  // Select prompt based on data availability
+  const prompt = assessmentData ? initialAnalysisWithAssessmentPrompt : initialAnalysisPrompt;
+  ```
+- **Key Learning:** LLM prompt design benefits from specialization while maintaining consistent output formatting.
+
+### Entity Selection Pattern 
+
+- **Problem:** Users need to select related entities for data integration.
+- **Pattern:** Use dropdown selectors for related entities with descriptive display formatting.
+- **Solution:** Format entity names with relevant contextual information:
+  ```html
+  <select v-model="assessmentProjectId">
+    <option value="" disabled>Select a project</option>
+    <option v-for="project in availableProjects" :key="project.id" :value="project.id">
+      {{ project.client?.display_name || 'Unknown Client' }} - {{ formatDate(project.scheduled_date) }}
+    </option>
+  </select>
+  ```
+- **Key Learning:** Entity selection requires:
+  - Clear entity identification (client name + date)
+  - Fallback for missing data ('Unknown Client')
+  - Disabled placeholder option
+  - Loading state for asynchronous data
+
+### Modal Navigation and Z-Index Pattern
+
+- **Problem:** Modals need proper stacking and preservation during navigation.
+- **Pattern:** Z-index management with proper closing event handlers.
+- **Solution:** Implement consistent modal behavior:
+  ```javascript
+  // Ensure proper z-index and modal persistence
+  <div class="relative z-50 mt-16">
+    <!-- Modal content -->
+  </div>
+  
+  // Use custom events to close from within
+  const emit = defineEmits(['close']);
+  
+  // After an action that should close the modal
+  emit('close');
+  ```
+- **Key Learning:** Modal interfaces require careful management of:
+  - Z-index values to control stacking order
+  - Event handlers to control closing behavior
+  - Proper navigation without losing modal state
+
+### Workflow Enforcement Pattern
+
+- **Problem:** Users can skip steps in a process, leading to confusion and data integrity issues.
+- **Pattern:** Use conditional UI element visibility to enforce proper workflow progression.
+- **Example Issue:** Users could mark an assessment as complete without first converting it to an active job.
+- **Solution:** Conditionally show or hide action buttons based on the project's current state:
+  ```javascript
+  // Only show "Mark Complete" button for active jobs
+  <BaseButton
+    v-if="project?.type === 'active' && project?.status !== 'completed'"
+    variant="primary"
+    size="sm"
+    @click="updateStatus('completed')"
+    :disabled="project?.status === 'completed'"
+  >
+    Mark Complete
+  </BaseButton>
+  ```
+- **Key Learning:**
+  - Use conditional rendering (`v-if`) to show/hide workflow actions based on state
+  - Combine multiple conditions for precise control over button visibility
+  - Guide users through the correct process without allowing shortcuts
+  - Maintain data integrity by enforcing proper state transitions
+  - Reduce user confusion by only showing contextually appropriate actions
+
+### Dynamic Project Import Pattern
+
+- **Problem:** Project data needs to be imported into LLM workflows
+- **Pattern:** Fetch and display project data within LLM interfaces
+- **Solution:** Two-step process for data selection and fetching:
+  ```javascript
+  // 1. Load available projects
+  const loadProjects = async () => {
+    const response = await projectsService.getAllProjects({ type: 'assessment' });
+    availableProjects.value = response.data
+      .filter(p => p.type === 'assessment' && ['pending', 'in_progress'].includes(p.status))
+      .sort((a, b) => new Date(b.scheduled_date) - new Date(a.scheduled_date));
+  };
+  
+  // 2. Fetch specific project data
+  const fetchAssessmentData = async () => {
+    const response = await estimateService.getAssessmentData(assessmentProjectId.value);
+    assessmentData.value = response.data;
+    useAssessmentData.value = true;
+  };
+  ```
+- **Key Learning:** Data import workflows should prioritize:
+  - User control over what data to import
+  - Clear visual feedback about import status
+  - Ability to clear imported data
+  - Filtering to show only relevant import sources

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title><%= type === 'invoice' ? 'Invoice' : 'Estimate' %> <%= data.invoiceNumber || data.estimateNumber %></title>
+    <style>
+        /* Modern PDF Template CSS */
+        body {
+            font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            color: #333;
+            margin: 0;
+            padding: 20px 30px;
+            line-height: 1.5;
+            background-color: #fff;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 22pt;
+            font-weight: 700;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+            margin: 0 0 5px 0;
+        }
+
+        h2 {
+            font-size: 16pt;
+            font-weight: 600;
+            margin: 20px 0 10px 0;
+        }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .text-bold { font-weight: 600; }
+        .text-muted { color: #6c757d; }
+
+        /* Layout Containers */
+        .container {
+            width: 100%;
+            max-width: 100%;
+            padding: 0;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            clear: both;
+        }
+
+        .row {
+            display: flex;
+            width: 100%;
+            clear: both;
+        }
+
+        .col {
+            flex: 1;
+        }
+
+        /* Header Styling */
+        .document-header {
+            padding-bottom: 20px;
+            border-bottom: 2px solid <%= settings.pdf_secondary_color || '#F5F7FA' %>;
+            margin-bottom: 10px; /* Reduced from 40px to 10px */
+        }
+
+        .logo-container {
+            float: left;
+            width: 40%;
+        }
+
+        .logo-container img {
+            max-width: 200px;
+            max-height: 70px;
+            object-fit: contain;
+        }
+
+        .document-title-container {
+            float: right;
+            width: 40%;
+            text-align: right;
+        }
+
+        /* Secondary Info Below Line */
+        .secondary-info {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0 25px 0;
+            margin-bottom: 15px;
+        }
+
+        .date-info {
+            flex: 1;
+            text-align: left;
+        }
+
+        .status-info {
+            flex: 1;
+            text-align: right;
+        }
+
+        /* Client/Billing Section */
+        .bill-to-section {
+            margin-top: 25px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 12pt;
+            text-transform: uppercase;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        th {
+            background-color: <%= settings.primary_color || '#2D7D9A' %>;
+            color: white;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 15px;
+            border-radius: 3px 3px 0 0;
+        }
+
+        td {
+            padding: 12px 15px;
+            vertical-align: top;
+            border-bottom: 1px solid #eee;
+        }
+
+        .item-table {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-radius: 3px;
+        }
+
+        .item-table tbody tr:nth-child(even) {
+            background-color: <%= settings.pdf_secondary_color || '#F5F7FA' %>;
+        }
+
+        .item-table th.text-right,
+        .item-table td.text-right {
+            text-align: right;
+        }
+
+        /* Bottom Section with Bill To and Totals side by side */
+        .bottom-section {
+            display: flex;
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+
+        .bill-to-column {
+            flex: 1;
+            padding-right: 20px;
+        }
+
+        /* Totals Section */
+        .totals-section {
+            flex: 1;
+            text-align: right;
+        }
+
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .totals-row.grand-total {
+            font-weight: 700;
+            font-size: 14pt;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+            border-top: 2px solid <%= settings.primary_color || '#2D7D9A' %>;
+            border-bottom: none;
+            padding-top: 12px;
+        }
+
+        /* Notes & Terms */
+        .notes-section {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .note-block {
+            margin-bottom: 20px;
+        }
+
+        .note-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: <%= settings.primary_color || '#2D7D9A' %>;
+        }
+
+        /* Footer */
+        .document-footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            color: #6c757d;
+            font-size: 10pt;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            font-size: 8pt;
+            font-weight: bold;
+            color: white;
+        }
+
+        .status-draft { background-color: #6c757d; }
+        .status-paid { background-color: #28a745; }
+        .status-overdue { background-color: #dc3545; }
+        .status-accepted { background-color: #28a745; }
+        .status-rejected { background-color: #dc3545; }
+
+        /* Utilities */
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="document-header clearfix">
+            <!-- Logo on left -->
+            <div class="logo-container">
+                <% if (logoDataUri) { %>
+                    <img src="<%= logoDataUri %>" alt="<%= settings.company_name %> Logo">
+                <% } %>
+            </div>
+
+            <!-- Document Title on right -->
+            <div class="document-title-container">
+                <h1><%= type === 'invoice' ? 'INVOICE' : 'ESTIMATE' %></h1>
+                <div class="text-bold" style="font-size: 14pt;">
+                    #<%= data.invoiceNumber || data.estimateNumber %>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secondary Info Below Line -->
+        <div class="secondary-info">
+            <div class="date-info">
+                <%= formatDate(data.dateCreated) %>
+            </div>
+
+            <div class="status-info">
+                <% if (data.status && data.status !== 'Sent') { %>
+                    <span class="status-badge status-<%= data.status.toLowerCase() %>">
+                        <%= data.status %>
+                    </span>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <table class="item-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%;">Item</th>
+                    <th style="width: 20%;" class="text-right">Qty</th>
+                    <th style="width: 15%;" class="text-right">Price</th>
+                    <th style="width: 15%;" class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% data.items.forEach(item => { %>
+                <tr>
+                    <td>
+                        <div class="text-bold"><%= item.description %></div>
+                        <% if (item.notes) { %><div class="text-muted"><%= nl2br(item.notes) %></div><% } %>
+                    </td>
+                    <td class="text-right"><%= item.quantity %><% if (item.unit && item.unit !== 'each') { %> (<%= item.unit %>)<% } %></td>
+                    <td class="text-right"><%= formatCurrency(item.price) %></td>
+                    <td class="text-right text-bold"><%= formatCurrency(item.itemTotal) %></td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+
+        <!-- Bottom Section with Bill To and Totals -->
+        <div class="bottom-section">
+            <!-- Bill To Column (Left) -->
+            <div class="bill-to-column">
+                <div class="section-title">Bill To</div>
+                <div class="text-bold"><%= client.display_name %></div>
+                <% if (client.company) { %><div><%= client.company %></div><% } %>
+                <% if (clientAddress) { %>
+                    <% if (clientAddress.street_address) { %><div><%= clientAddress.street_address %></div><% } %>
+                    <% let cityStateZip = [clientAddress.city, clientAddress.state, clientAddress.postal_code].filter(Boolean).join(' '); %>
+                    <% if (cityStateZip) { %><div><%= cityStateZip %></div><% } %>
+                <% } %>
+            </div>
+
+            <!-- Totals Section (Right) -->
+            <div class="totals-section">
+                <div class="totals-row">
+                    <div>Subtotal</div>
+                    <div><%= formatCurrency(data.subtotal) %></div>
+                </div>
+
+                <% if (data.taxTotal > 0) { %>
+                <div class="totals-row">
+                    <div>Tax</div>
+                    <div><%= formatCurrency(data.taxTotal) %></div>
+                </div>
+                <% } %>
+
+                <% if (data.discountAmount > 0) { %>
+                <div class="totals-row">
+                    <div>Discount</div>
+                    <div>-<%= formatCurrency(data.discountAmount) %></div>
+                </div>
+                <% } %>
+
+                <div class="totals-row">
+                    <div><b>Total</b></div>
+                    <div><b><%= formatCurrency(data.total) %></b></div>
+                </div>
+
+                <% if (type === 'invoice') {
+                    const totalPaid = data.payments ? data.payments.reduce((sum, p) => sum + parseFloat(p.amount), 0) : 0;
+                    const balance = data.total - totalPaid;
+                %>
+                <div class="totals-row">
+                    <div>Paid</div>
+                    <div><%= formatCurrency(totalPaid) %></div>
+                </div>
+
+                <div class="totals-row grand-total">
+                    <div>Balance Due</div>
+                    <div><%= formatCurrency(balance) %></div>
+                </div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Payment History (if invoice and payments exist) -->
+        <% if (type === 'invoice' && data.payments && data.payments.length > 0) { %>
+            <h2>Payment History</h2>
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <% data.payments.forEach(payment => { %>
+                    <tr>
+                        <td><%= formatDate(payment.paymentDate) %></td>
+                        <td><%= formatCurrency(payment.amount) %></td>
+                        <td><%= payment.paymentMethod || '-' %></td>
+                        <td><%= payment.notes || '-' %></td>
+                    </tr>
+                <% }); %>
+                </tbody>
+            </table>
+        <% } %>
+
+        <!-- Notes & Terms Section -->
+        <div class="notes-section">
+            <% if (data.terms) { %>
+                <div class="note-block">
+                    <div class="note-title">Terms & Conditions</div>
+                    <div><%= nl2br(data.terms) %></div>
+                </div>
+            <% } %>
+
+            <% if (data.notes) { %>
+                <div class="note-block">
+                    <div class="note-title">Notes</div>
+                    <div><%= nl2br(data.notes) %></div>
+                </div>
+            <% } %>
+        </div>
+
+        <!-- Footer -->
+        <div class="document-footer">
+            <div><%= type === 'invoice' ? settings.pdf_invoice_footer || 'Thank you for your business.' : settings.pdf_estimate_footer || 'Thank you for considering our services.' %></div>
+        </div>
+    </div>
+</body>
+</html>
