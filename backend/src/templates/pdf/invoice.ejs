@@ -296,7 +296,13 @@
                     </td>
                     <td class="text-right"><%= item.quantity %><% if (item.unit && item.unit !== 'each') { %> (<%= item.unit %>)<% } %></td>
                     <td class="text-right"><%= formatCurrency(item.price) %></td>
-                    <td class="text-right text-bold"><%= formatCurrency(item.itemTotal) %></td>
+                    <td class="text-right text-bold">
+                        <% 
+                        // Calculate the item total if it's not available
+                        const itemTotal = item.item_total || item.itemTotal || (parseFloat(item.price || 0) * parseFloat(item.quantity || 0));
+                        %>
+                        <%= formatCurrency(itemTotal) %>
+                    </td>
                 </tr>
                 <% }); %>
             </tbody>
@@ -307,11 +313,17 @@
             <!-- Bill To Column (Left) -->
             <div class="bill-to-column">
                 <div class="section-title">Bill To</div>
-                <div class="text-bold"><%= client.display_name %></div>
+                <div class="text-bold"><%= client.displayName || client.display_name %></div>
                 <% if (client.company) { %><div><%= client.company %></div><% } %>
                 <% if (clientAddress) { %>
-                    <% if (clientAddress.street_address) { %><div><%= clientAddress.street_address %></div><% } %>
-                    <% let cityStateZip = [clientAddress.city, clientAddress.state, clientAddress.postal_code].filter(Boolean).join(' '); %>
+                    <% if (clientAddress.streetAddress || clientAddress.street_address) { %>
+                        <div><%= clientAddress.streetAddress || clientAddress.street_address %></div>
+                    <% } %>
+                    <% let cityStateZip = [
+                        clientAddress.city, 
+                        clientAddress.state, 
+                        clientAddress.postalCode || clientAddress.postal_code
+                    ].filter(Boolean).join(', '); %>
                     <% if (cityStateZip) { %><div><%= cityStateZip %></div><% } %>
                 <% } %>
             </div>
