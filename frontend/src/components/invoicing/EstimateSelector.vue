@@ -23,10 +23,10 @@
         <div class="flex justify-between items-start">
           <div>
             <h3 class="text-base font-medium text-gray-900 dark:text-white">
-              Estimate {{ selectedEstimate.number }}
+              {{ selectedEstimate.estimateNumber }}
             </h3>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              {{ formatDate(selectedEstimate.date_created) }}
+              {{ formatDate(selectedEstimate.dateCreated) }}
             </p>
             <p class="mt-1 text-xs">
               <span class="px-2 py-0.5 rounded-full" 
@@ -184,10 +184,10 @@
                   <div class="flex justify-between items-start">
                     <div>
                       <h4 class="font-medium text-gray-900 dark:text-white">
-                        Estimate {{ estimate.number }}
+                        {{ estimate.estimateNumber }}
                       </h4>
                       <p class="text-sm text-gray-600 dark:text-gray-400">
-                        {{ formatDate(estimate.date_created) }}
+                        {{ formatDate(estimate.dateCreated) }}
                       </p>
                       <p class="text-xs mt-1">
                         <span class="px-2 py-0.5 rounded-full" 
@@ -217,7 +217,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
-import estimatesService from '@/services/estimates.service';
+import estimatesService from '@/services/standardized-estimates.service';
 
 const props = defineProps({
   modelValue: {
@@ -273,7 +273,7 @@ const filteredEstimates = computed(() => {
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(estimate => {
-      const number = estimate.number?.toLowerCase() || '';
+      const number = estimate.estimateNumber?.toLowerCase() || '';
       return number.includes(query);
     });
   }
@@ -365,8 +365,9 @@ const loadEstimates = async () => {
     isLoading.value = true;
     const response = await estimatesService.listEstimates({ clientId: props.clientId }, 0, 100);
     
-    if (response && response.data) {
+    if (response.success) {
       estimates.value = response.data.estimates || [];
+      console.log('Loaded estimates:', estimates.value);
     } else {
       console.error('Error loading estimates:', response);
       estimates.value = [];
