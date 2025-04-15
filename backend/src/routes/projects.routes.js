@@ -28,6 +28,38 @@ router.post('/', authenticate, controller.post);
 router.get('/today', authenticate, controller.getTodayProjects);
 
 /**
+ * @route   GET /api/projects/current-active
+ * @desc    Get the current active job
+ * @access  Private
+ * @note    This route doesn't require UUID validation as it has no parameters
+ */
+router.get('/current-active', authenticate, controller.getCurrentActiveJob);
+
+/**
+ * @route   GET /api/projects/upcoming
+ * @desc    Get upcoming projects
+ * @access  Private
+ * @note    This route doesn't require UUID validation as it only uses query parameters
+ */
+router.get('/upcoming', authenticate, controller.getUpcomingProjects);
+
+/**
+ * @route   GET /api/projects/assessments
+ * @desc    Get assessment projects
+ * @access  Private
+ * @note    This route doesn't require UUID validation as it only uses query parameters
+ */
+router.get('/assessments', authenticate, controller.getAssessmentProjects);
+
+/**
+ * @route   GET /api/projects/recently-completed
+ * @desc    Get recently completed projects
+ * @access  Private
+ * @note    This route doesn't require UUID validation as it only uses query parameters
+ */
+router.get('/recently-completed', authenticate, controller.getRecentlyCompletedProjects);
+
+/**
  * @route   GET /api/projects/:id
  * @desc    Get project details
  * @access  Private

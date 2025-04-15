@@ -1,13 +1,13 @@
-# Active Context: Docker Containerization, PDF Generation, Project Management, and Vue Component Fixes
+# Active Context: UUID Validation, Project Dashboard, and Data Structure Standardization
 
 ## Current Focus
-- Dockerizing the application for consistent development and deployment
-- Resolving PDF generation issues in containerized environment
-- Ensuring proper communication between frontend, backend, and database containers
-- Standardizing service patterns across the application
-- Improving project management with enhanced deletion capabilities
-- Fixing Vue component syntax issues to ensure proper rendering
-- Addressing data structure mismatches between components
+- Fixing UUID validation issues in API endpoints that don't require path parameters
+- Optimizing project dashboard for single active job workflow with proper error handling
+- Improving error handling in service layer to prevent cascading failures
+- Standardizing route documentation related to parameter validation
+- Ensuring consistent API response formats for both success and error cases
+- Addressing data structure mismatches between frontend and backend
+- Improving dashboard information hierarchy for better workflow clarity
 
 ## Environment Details
 - Frontend: Vue.js 3 with Vite running in Docker container on port 5173
@@ -18,63 +18,55 @@
 
 ## Recent Challenges
 
-### Vue Component Structure Issues
-- Improper component tag syntax causing rendering errors
-- HTML comments inside attribute areas showing up as visible text
-- Missing required props causing console warnings
-- Client objects not displaying properly in edit forms
-- Data structure mismatches between component expectations
+### API Endpoint UUID Validation Issues
+- UUID validation incorrectly applied to routes without URL parameters
+- Error handling inconsistencies in service methods
+- 400 Bad Request errors preventing dashboard from displaying data
+- Frontend service error handling not properly showing user-friendly messages
 
-### Docker Configuration Issues
-- Port conflicts between host and container environments
-- Database connection issues when running in containers
-- Volume mounting and permissions for persistent data
-- Container startup order and dependency management
+### Data Structure Standardization
+- Standardized services expecting consistent field naming
+- Converting between snake_case (backend) and camelCase (frontend)
+- Ensuring proper error and response format consistency
+- Managing bidirectional relationships between related entities
 
-### PDF Generation in Docker
-- Puppeteer requires specific dependencies in Alpine-based containers
-- Chromium installation and configuration in Docker environment
-- File system access for PDF storage and retrieval
-- Error handling for PDF generation process
-
-### Data Type Compatibility
-- ENUM type conversion issues between PostgreSQL and Sequelize
-- Handling of payment_method field in Payment model
-- Client view dependencies on column types
+### Empty Result Handling
+- Service methods not consistently handling empty result sets
+- Need for explicit null or empty array returns instead of errors
+- Proper logging of expected vs. unexpected empty results
+- Frontend conditional rendering based on empty state
 
 ### Project Management Challenges
-- Circular references between assessments and jobs causing transaction errors
-- Bidirectional relationships complicating deletion operations
-- Need for transparent deletion process with user control
-- Transaction management for complex delete operations
+- Circular references between assessments and jobs affecting dashboard display
+- Bidirectional relationships complicating data retrieval
+- Need for transparent error handling in dashboard components
+- Efficient loading of independent dashboard sections
 
 ## Current Solutions
 
-### Frontend Component Structure
-- Implemented consistent Vue component tag structure pattern
-- Fixed self-closing tags for components without children
-- Ensured attributes are properly placed inside opening tags
-- Removed HTML comments from attribute areas
-- Added form state reset pattern to prevent data contamination
-- Implemented proper object structure for component data binding
-- Added debugging logs to troubleshoot data flow issues
+### API Routing and Validation
+- Added explicit documentation for routes that don't require UUID validation
+- Enhanced controller methods with clear comments about parameter expectations
+- Improved service methods with proper empty result handling
+- Added comprehensive error handling in service layer to prevent cascading errors
 
-### Docker Environment
-- Using Alpine-based Node.js images with specific dependencies for Puppeteer
-- Setting environment variables for Puppeteer to use system Chromium
-- Creating necessary directory structure for uploads
-- Using wait-for-it script to ensure proper service startup order
+### Error Handling and Logging
+- Implemented standardized error response format across all controllers
+- Enhanced logging to capture context of errors (request details, parameters, etc.)
+- Service methods now handling all DB errors and returning appropriate responses
+- Frontend services properly handling and displaying error messages
 
-### PDF Generation
-- Enhanced Puppeteer configuration with Docker-specific arguments
-- Improved error handling and logging throughout PDF generation process
-- Direct file reading instead of streaming for better reliability
-- Proper content type and disposition headers for browser download
+### Dashboard Structure
+- Implemented independent loading states for each dashboard section
+- Enhanced error handling to prevent entire dashboard failure if one section fails
+- Added visual hierarchy that matches company workflow (active job, assessments, upcoming, completed)
+- Created empty state handling for each dashboard section
 
-### Module System Compatibility
-- Updated fix-imports.js to use ES modules instead of CommonJS
-- Proper re-exporting of services for backward compatibility
-- Consistent error handling across service layers
+### Project Data Standardization
+- Standardized project services consistent with API adapter pattern
+- Proper conversion between snake_case and camelCase through dedicated utility functions
+- Consistent response format with success flag, message, and normalized data
+- Applying system patterns consistently across service implementations
 
 ### Project Management
 - Enhanced dependency checking before deletion operations

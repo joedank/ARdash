@@ -1,3 +1,190 @@
+[2025-04-17 10:30] - **Fixed UUID Validation in Project Dashboard Routes**
+
+**Issues Identified and Fixed:**
+1. Project dashboard was showing UUID validation errors for routes that don't have ID parameters:
+   - `GET /api/projects/current-active` returning 400 Bad Request with "Invalid UUID format for parameter 'id'"
+   - Same error occurring for `/api/projects/assessments`, `/api/projects/upcoming`, and `/api/projects/recently-completed`
+   - Error prevented dashboard from displaying any project data
+
+2. Root cause identified in routes and controller implementation:
+   - Routes were implicitly expecting UUID validation but were not ID-specific routes
+   - Service methods weren't properly handling empty result sets and error cases
+   - The routes were supposed to fetch collections of projects without needing any ID parameter
+
+**Solution Implemented:**
+1. Updated routes with explicit documentation noting they don't require UUID validation:
+   ```javascript
+   /**
+    * @route   GET /api/projects/current-active
+    * @desc    Get the current active job
+    * @access  Private
+    * @note    This route doesn't require UUID validation as it has no parameters
+    */
+   router.get('/current-active', authenticate, controller.getCurrentActiveJob);
+   ```
+
+2. Enhanced service methods with proper error handling and empty result handling:
+   ```javascript
+   async getCurrentActiveJob() {
+     try {
+       const activeJob = await Project.findOne({
+         where: { type: 'active', status: 'in_progress' },
+         include: [...],
+         order: [['updated_at', 'DESC']]
+       });
+       
+       // If no active job is found, return null without error
+       if (!activeJob) {
+         logger.info('No active job found');
+         return null;
+       }
+       
+       return activeJob;
+     } catch (error) {
+       logger.error('Error getting current active job:', error);
+       throw error;
+     }
+   }
+   ```
+
+3. Added explicit comments in controllers clarifying these endpoints don't use URL parameters:
+   ```javascript
+   const getCurrentActiveJob = async (req, res, next) => {
+     try {
+       // This endpoint doesn't use any URL parameters, so no UUID validation needed
+       const activeJob = await projectService.getCurrentActiveJob();
+       // ...
+     }
+   };
+   ```
+
+**Key Learnings:**
+- Routes without URL path parameters don't need UUID validation middleware
+- Service methods should handle empty result sets with explicit null or empty array returns
+- Proper error handling at the service level prevents cascading errors to the frontend
+- Routes need clear documentation about parameter expectations and validation requirements
+- Dashboard is now able to properly display all project categories: current active job, assessments, upcoming jobs, and recently completed projects
+
+---
+
+[2025-04-16 21:15] - **Implemented Workflow-Focused Project Dashboard**
+
+**Issues Identified and Fixed:**
+1. Project dashboard not optimized for small company workflow:
+   - Company typically only works on one active job at a time
+   - Current UI showed all projects with equal emphasis
+   - Project list didn't clearly distinguish between workflow phases
+   - Difficult to quickly identify the current focus
+
+2. Implemented Workflow-Focused Dashboard pattern:
+   - Created specialized backend endpoints for different project categories
+   - Restructured UI with clear hierarchy focusing on current active job
+   - Organized projects into logical workflow phases
+   - Improved information architecture with clear section headings and descriptions
+
+**Solution Implemented:**
+1. Added specialized backend service methods:
+   ```javascript
+   // Get the current active job (most recently updated 'in_progress' job)
+   async getCurrentActiveJob() {
+     const activeJob = await Project.findOne({
+       where: { type: 'active', status: 'in_progress' },
+       include: [...], // Relations
+       order: [['updated_at', 'DESC']]
+     });
+     return activeJob;
+   }
+   ```
+
+2. Created additional endpoints for different project categories:
+   ```javascript
+   // Get assessment projects
+   router.get('/assessments', authenticate, controller.getAssessmentProjects);
+   
+   // Get upcoming projects
+   router.get('/upcoming', authenticate, controller.getUpcomingProjects);
+   
+   // Get recently completed projects
+   router.get('/recently-completed', authenticate, controller.getRecentlyCompletedProjects);
+   ```
+
+3. Reorganized dashboard UI with clear section hierarchy:
+   - Current Active Job (highlighted with blue border)
+   - In Assessment Phase (projects being evaluated)
+   - Upcoming Jobs (scheduled for future dates)
+   - Recently Completed (reference for finished work)
+
+4. Added descriptive section headers and explanatory text
+
+**Key Learnings:**
+- UI should match the actual workflow of the company
+- Specialized database queries are more efficient than frontend filtering
+- Visual hierarchy should reflect business priorities
+- Clear section headers with descriptions improve usability
+- Independent section loading improves perceived performance
+- Dashboard design should prioritize the most important information
+
+---
+
+[2025-04-16 00:30] - **Implemented Project Conversion Filtering and Relationship Indicators**
+
+**Issues Identified and Fixed:**
+1. Project management was showing duplicate entries for related projects (assessment/active job):
+   - Both the assessment and its converted job were showing in the projects list
+   - UI looked cluttered and confusing with duplicate data
+   - Relationships between projects weren't visually clear
+
+2. Implemented Data-Driven Conditional Display pattern:
+   - Added backend filtering to show only non-converted assessments by default
+   - Added frontend toggle to show/hide converted assessments when needed
+   - Included relationship data in API responses (`assessment` and `convertedJob`)
+   - Added visual indicators (arrow icons) to show conversion relationships
+
+**Solution Implemented:**
+1. Updated project service to filter based on `converted_to_job_id`:
+   ```javascript
+   if (filters.includeConverted !== true) {
+     where.converted_to_job_id = null;
+   }
+   ```
+
+2. Added relationship includes to API responses:
+   ```javascript
+   include: [..., {
+     model: Project,
+     as: 'assessment',
+     required: false
+   }, {
+     model: Project,
+     as: 'convertedJob',
+     required: false
+   }]
+   ```
+
+3. Added toggle UI with clear visual design:
+   ```html
+   <div class="flex items-center space-x-2">
+     <input
+       type="checkbox"
+       id="showConverted"
+       v-model="showConvertedProjects"
+     />
+     <label for="showConverted">
+       Show converted assessments
+     </label>
+   </div>
+   ```
+
+4. Added conversion indicators to project type display
+
+**Key Learnings:**
+- Data-driven filtering at the API level is more efficient than client-side filtering
+- Clear visual indicators help users understand relationships
+- Toggle controls give users explicit control over UI complexity
+- Self-referential database relationships require special handling in includes and filters
+- Including related models in API responses allows frontend to show relationship context
+
+---
 # Progress Log
 
 [2025-04-15 23:45] - **Fixed Vue Component Tag Syntax and Client Display in Edit Forms**

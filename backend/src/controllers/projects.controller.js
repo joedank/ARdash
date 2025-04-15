@@ -300,6 +300,77 @@ const updateAdditionalWork = async (req, res, next) => {
   }
 };
 
+/**
+ * Get the current active job
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const getCurrentActiveJob = async (req, res, next) => {
+  try {
+    // This endpoint doesn't use any URL parameters, so no UUID validation needed
+    const activeJob = await projectService.getCurrentActiveJob();
+    return res.json(success(activeJob, 'Current active job retrieved successfully'));
+  } catch (err) {
+    logger.error('Error getting current active job:', err);
+    next(err);
+  }
+};
+
+/**
+ * Get upcoming projects
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const getUpcomingProjects = async (req, res, next) => {
+  try {
+    // This endpoint only uses query parameters, not URL parameters, so no UUID validation needed
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 5;
+    const projects = await projectService.getUpcomingProjects(limit);
+    return res.json(success(projects, 'Upcoming projects retrieved successfully'));
+  } catch (err) {
+    logger.error('Error getting upcoming projects:', err);
+    next(err);
+  }
+};
+
+/**
+ * Get assessment projects
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const getAssessmentProjects = async (req, res, next) => {
+  try {
+    // This endpoint only uses query parameters, not URL parameters, so no UUID validation needed
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 10;
+    const projects = await projectService.getAssessmentProjects(limit);
+    return res.json(success(projects, 'Assessment projects retrieved successfully'));
+  } catch (err) {
+    logger.error('Error getting assessment projects:', err);
+    next(err);
+  }
+};
+
+/**
+ * Get recently completed projects
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const getRecentlyCompletedProjects = async (req, res, next) => {
+  try {
+    // This endpoint only uses query parameters, not URL parameters, so no UUID validation needed
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 5;
+    const projects = await projectService.getRecentlyCompletedProjects(limit);
+    return res.json(success(projects, 'Recently completed projects retrieved successfully'));
+  } catch (err) {
+    logger.error('Error getting recently completed projects:', err);
+    next(err);
+  }
+};
+
 module.exports = {
   photoUpload,
   getAll,
@@ -315,5 +386,9 @@ module.exports = {
   convertToEstimate,
   convertToJob,
   updateAdditionalWork,
-  checkProjectDependencies
+  checkProjectDependencies,
+  getCurrentActiveJob,
+  getUpcomingProjects,
+  getAssessmentProjects,
+  getRecentlyCompletedProjects
 };

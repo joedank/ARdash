@@ -1,3 +1,157 @@
+### API Route Parameter Validation Pattern
+
+- **Problem**: Some API routes have UUID validation unnecessarily applied to non-parameter routes
+- **Pattern**: Explicit validation middleware application based on route parameter presence
+- **Solution**: Only apply UUID validation middleware to routes with ID parameters
+
+```javascript
+// Routes with ID parameters use UUID validation
+router.get('/:id', authenticate, validateUuid('id'), controller.get);
+
+// Routes without ID parameters skip UUID validation
+router.get('/current-active', authenticate, controller.getCurrentActiveJob);
+```
+
+- **Key Aspects**:
+  - Clear documentation in route definition comments about validation requirements
+  - Explicit non-application of UUID validation for collection routes
+  - Controller methods document their parameter expectations
+  - Service methods handle empty results appropriately
+  - Frontend services properly handle both success and error responses
+
+### Data-Driven Conditional Display Pattern
+
+- **Problem**: Project management shows duplicate entries for related projects (assessment and converted job) cluttering the UI
+- **Pattern**: Implement database-driven filtering with toggle option for additional visibility
+- **Solution**: Filter out converted assessments by default while maintaining relationship data
+
+```javascript
+// Backend filtering based on converted_to_job_id
+if (filters.includeConverted !== true) {
+  where.converted_to_job_id = null; // Only show non-converted assessments by default
+}
+
+// Frontend toggle with clear visual indicators
+<div class="flex items-center space-x-2">
+  <input
+    type="checkbox"
+    id="showConverted"
+    v-model="showConvertedProjects"
+    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+  />
+  <label for="showConverted" class="text-sm">
+    Show converted assessments
+  </label>
+</div>
+
+// Visual conversion indicator
+<span 
+  v-if="project.convertedJob || project.assessment" 
+  class="ml-1 inline-flex items-center" 
+  title="This project has been converted"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500">
+    <!-- Arrow icon path -->
+  </svg>
+</span>
+```
+
+- **Key Aspects**:
+  - The database filtering occurs at the API level for efficiency
+  - Relationship data is always included in the API response for complete context
+  - Conversion indicators with arrow icons provide visual cues about relationships
+  - User toggle provides explicit control over view complexity
+  - Reduces UI clutter while maintaining data integrity
+  - Visual indicators make relationships clear when viewing both items
+
+### Workflow-Focused Dashboard Pattern
+
+- **Problem**: Small construction companies typically focus on one job at a time, but project dashboards often show all projects with equal emphasis
+- **Pattern**: Structure dashboard to highlight the current active job while providing context about the project pipeline
+- **Solution**: Create specialized API endpoints with focused queries and a UI hierarchy that matches the company's workflow
+
+```javascript
+// Backend service - Get the current active job (most recently updated)
+async getCurrentActiveJob() {
+  const activeJob = await Project.findOne({
+    where: {
+      type: 'active',
+      status: 'in_progress'
+    },
+    include: [ /* Relations */ ],
+    order: [
+      ['updated_at', 'DESC']
+    ]
+  });
+  
+  return activeJob;
+}
+
+// Frontend - Highlight current job with visual emphasis
+<div 
+  v-if="currentActiveJob" 
+  class="border-2 border-blue-400 dark:border-blue-600 rounded-lg overflow-hidden shadow-md"
+>
+  <ProjectCard
+    :project="currentActiveJob"
+    @click="navigateToProject(currentActiveJob.id)"
+    class="cursor-pointer"
+  />
+</div>
+```
+
+- **Key Aspects**:
+  - Separate API endpoints for different project categories (active job, assessments, upcoming, completed)
+  - Database queries optimized for each specific use case rather than frontend filtering
+  - Visual hierarchy that matches the company's actual workflow
+  - Clear section headings with descriptive text explaining their purpose
+  - Prominent display of the current active job with visual emphasis
+  - Contextual grouping of projects by workflow phase (assessment, upcoming, completed)
+  - Independent loading states for each section to improve perceived performance
+
+### Data-Driven Conditional Display Pattern
+
+- **Problem**: Project management shows duplicate entries for related projects (assessment and converted job) cluttering the UI
+- **Pattern**: Implement database-driven filtering with toggle option for additional visibility
+- **Solution**: Filter out converted assessments by default while maintaining relationship data
+
+```javascript
+// Backend filtering based on converted_to_job_id
+if (filters.includeConverted !== true) {
+  where.converted_to_job_id = null; // Only show non-converted assessments by default
+}
+
+// Frontend toggle with clear visual indicators
+<div class="flex items-center space-x-2">
+  <input
+    type="checkbox"
+    id="showConverted"
+    v-model="showConvertedProjects"
+    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+  />
+  <label for="showConverted" class="text-sm">
+    Show converted assessments
+  </label>
+</div>
+
+// Visual conversion indicator
+<span 
+  v-if="project.convertedJob || project.assessment" 
+  class="ml-1 inline-flex items-center" 
+  title="This project has been converted"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500">
+    <!-- Arrow icon path -->
+  </svg>
+</span>
+```
+
+- **Key Aspects**:
+  - The database filtering occurs at the API level for efficiency
+  - Relationship data is always included in the API response for complete context
+  - Conversion indicators with arrow icons provide visual cues about relationships
+  - User toggle provides explicit control over view complexity
+  - Reduces UI clutter while maintaining data integrity
 ### Vue Component Tag Structure Pattern
 
 - **Problem**: Improper component tag structure can cause rendering issues and unexpected behavior in Vue templates
@@ -354,6 +508,66 @@ if (estimateResponse.success && estimateResponse.data && Array.isArray(estimateR
   - Frontend components, after any case normalization (e.g., snake_case to camelCase by a service), must access the associated data using the corresponding (potentially normalized) key (e.g., `items` if the alias was `items`).
   - Mismatches (e.g., backend alias `items`, frontend access `estimateItems`) will lead to data not being displayed, even if fetched correctly.
   - Verify aliases in model definitions when debugging missing associated data issues.
+
+### Service Method Empty Result Handling Pattern
+
+- **Problem**: Service methods often don't handle empty result sets properly, causing errors when no data is found
+- **Pattern**: Consistent empty result handling pattern with explicit returns and error handling
+- **Solution**: Return null or empty arrays for expected empty results, with proper logging
+
+```javascript
+// Handle empty result for a single entity
+async getCurrentActiveJob() {
+  try {
+    const activeJob = await Project.findOne({
+      where: { type: 'active', status: 'in_progress' },
+      include: [...], // Relations
+      order: [['updated_at', 'DESC']]
+    });
+    
+    // If no active job is found, return null without error
+    if (!activeJob) {
+      logger.info('No active job found');
+      return null; // Explicit null return, not an error
+    }
+    
+    return activeJob;
+  } catch (error) {
+    logger.error('Error getting current active job:', error);
+    throw error; // Only throw for unexpected errors
+  }
+}
+
+// Handle empty result for collections
+async getUpcomingProjects(limit = 5) {
+  try {
+    const projects = await Project.findAll({
+      where: { /* criteria */ },
+      include: [...], // Relations
+      limit
+    });
+    
+    // Return empty array if no projects found, not an error
+    if (!projects || projects.length === 0) {
+      logger.info('No upcoming projects found');
+      return [];
+    }
+    
+    return projects;
+  } catch (error) {
+    logger.error('Error getting upcoming projects:', error);
+    throw error; // Only throw for unexpected errors
+  }
+}
+```
+
+- **Key Aspects**:
+  - Distinguish between expected empty results and unexpected errors
+  - For single entities: return null for expected empty results
+  - For collections: return empty array ([]) for expected empty results
+  - Add appropriate logging for both empty results and errors
+  - Use try/catch blocks to handle unexpected errors
+  - Frontend components handle null and empty array returns properly
 
 ### Entity ID Dual Property Pattern
 

@@ -959,6 +959,215 @@ class ProjectService {
     // Return the updated project with full details
     return await this.getProjectWithDetails(projectId);
   }
+  
+  /**
+   * Get the current active job (the most recently updated 'in_progress' job)
+   * @returns {Promise<Object|null>} The current active job or null if none found
+   */
+  async getCurrentActiveJob() {
+    try {
+      const activeJob = await Project.findOne({
+        where: {
+          type: 'active',
+          status: 'in_progress'
+        },
+        include: [{
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'display_name', 'company', 'email', 'phone'],
+          include: [{
+            model: ClientAddress,
+            as: 'addresses'
+          }]
+        }, {
+          model: ClientAddress,
+          as: 'address',
+          required: false
+        }, {
+          model: Estimate,
+          as: 'estimate',
+          required: false,
+          include: [{
+            model: EstimateItem,
+            as: 'items'
+          }]
+        }, {
+          // Include related assessment if this is an active job
+          model: Project,
+          as: 'assessment',
+          required: false
+        }],
+        order: [
+          ['updated_at', 'DESC']
+        ]
+      });
+      
+      // If no active job is found, return null without error
+      if (!activeJob) {
+        logger.info('No active job found');
+        return null;
+      }
+      
+      return activeJob;
+    } catch (error) {
+      logger.error('Error getting current active job:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get upcoming projects (scheduled for future dates)
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Array>} Upcoming projects
+   */
+  async getUpcomingProjects(limit = 5) {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of day
+      
+      // Format as YYYY-MM-DD string for DATEONLY comparison
+      const formattedDate = today.toISOString().split('T')[0];
+      
+      const projects = await Project.findAll({
+        where: {
+          scheduled_date: {
+            [Op.gt]: formattedDate // Greater than today
+          },
+          status: {
+            [Op.ne]: 'completed' // Not completed
+          },
+          type: 'active' // Only active jobs
+        },
+        include: [{
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'display_name', 'company', 'email', 'phone'],
+          include: [{
+            model: ClientAddress,
+            as: 'addresses'
+          }]
+        }, {
+          model: ClientAddress,
+          as: 'address',
+          required: false
+        }, {
+          model: Estimate,
+          as: 'estimate',
+          required: false
+        }],
+        order: [
+          ['scheduled_date', 'ASC'] // Earliest first
+        ],
+        limit
+      });
+      
+      // Return empty array if no projects found
+      if (!projects || projects.length === 0) {
+        logger.info('No upcoming projects found');
+        return [];
+      }
+      
+      return projects;
+    } catch (error) {
+      logger.error('Error getting upcoming projects:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get assessment projects that haven't been converted to jobs
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Array>} Assessment projects
+   */
+  async getAssessmentProjects(limit = 10) {
+    try {
+      const projects = await Project.findAll({
+        where: {
+          type: 'assessment',
+          converted_to_job_id: null, // Not converted to job yet
+          status: {
+            [Op.ne]: 'completed' // Not completed
+          }
+        },
+        include: [{
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'display_name', 'company', 'email', 'phone'],
+          include: [{
+            model: ClientAddress,
+            as: 'addresses'
+          }]
+        }, {
+          model: ClientAddress,
+          as: 'address',
+          required: false
+        }],
+        order: [
+          ['updated_at', 'DESC'] // Most recently updated first
+        ],
+        limit
+      });
+      
+      // Return empty array if no projects found
+      if (!projects || projects.length === 0) {
+        logger.info('No assessment projects found');
+        return [];
+      }
+      
+      return projects;
+    } catch (error) {
+      logger.error('Error getting assessment projects:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get recently completed projects
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Array>} Recently completed projects
+   */
+  async getRecentlyCompletedProjects(limit = 5) {
+    try {
+      const projects = await Project.findAll({
+        where: {
+          status: 'completed',
+          type: 'active' // Only active jobs, not assessments
+        },
+        include: [{
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'display_name', 'company', 'email', 'phone'],
+          include: [{
+            model: ClientAddress,
+            as: 'addresses'
+          }]
+        }, {
+          model: ClientAddress,
+          as: 'address',
+          required: false
+        }, {
+          model: Estimate,
+          as: 'estimate',
+          required: false
+        }],
+        order: [
+          ['updated_at', 'DESC'] // Most recently completed first
+        ],
+        limit
+      });
+      
+      // Return empty array if no projects found
+      if (!projects || projects.length === 0) {
+        logger.info('No recently completed projects found');
+        return [];
+      }
+      
+      return projects;
+    } catch (error) {
+      logger.error('Error getting recently completed projects:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new ProjectService();
