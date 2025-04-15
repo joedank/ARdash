@@ -1,0 +1,18 @@
+// Function to add to projects.controller.js
+/**
+ * Get rejected assessment projects
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const getRejectedProjects = async (req, res, next) => {
+  try {
+    // This endpoint only uses query parameters, not URL parameters, so no UUID validation needed
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 5;
+    const projects = await projectService.getRejectedProjects(limit);
+    return res.json(success(projects, 'Rejected assessment projects retrieved successfully'));
+  } catch (err) {
+    logger.error('Error getting rejected assessment projects:', err);
+    next(err);
+  }
+};

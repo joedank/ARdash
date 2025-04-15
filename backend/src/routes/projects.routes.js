@@ -60,6 +60,14 @@ router.get('/assessments', authenticate, controller.getAssessmentProjects);
 router.get('/recently-completed', authenticate, controller.getRecentlyCompletedProjects);
 
 /**
+ * @route   GET /api/projects/rejected
+ * @desc    Get rejected assessment projects
+ * @access  Private
+ * @note    This route doesn't require UUID validation as it only uses query parameters
+ */
+router.get('/rejected', authenticate, controller.getRejectedProjects);
+
+/**
  * @route   POST /api/projects/update-upcoming
  * @desc    Update status of upcoming projects when their scheduled date arrives
  * @access  Private
