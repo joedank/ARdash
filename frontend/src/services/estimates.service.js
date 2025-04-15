@@ -153,13 +153,39 @@ class EstimatesService {
    * @returns {Promise} Response data from the analysis endpoint.
    */
   async analyzeScope(payload) {
-    // Ensure payload is structured correctly
-    const dataToSend = {
-      description: payload.description,
-      ...(payload.targetPrice !== undefined && { targetPrice: payload.targetPrice }),
-      ...(payload.assessmentData && { assessmentData: payload.assessmentData })
-    };
-    return apiService.post('/estimates/llm/analyze', dataToSend);
+    const TIMEOUT_MS = 60000; // 60 seconds
+    
+    try {
+      // Ensure payload is structured correctly
+      const dataToSend = {
+        description: payload.description,
+        ...(payload.targetPrice !== undefined && { targetPrice: payload.targetPrice }),
+        ...(payload.assessmentData && { assessmentData: payload.assessmentData }),
+        ...(payload.assessmentOptions && { assessmentOptions: payload.assessmentOptions })
+      };
+
+      // Create an abort controller for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      
+      const response = await apiService.post('/estimates/llm/analyze', dataToSend, {
+        signal: controller.signal,
+        timeout: TIMEOUT_MS
+      });
+      
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
+        // Handle timeout specifically
+        console.error('LLM request timed out');
+        return {
+          success: false,
+          message: 'Request timed out. The AI service is taking longer than expected to respond.'
+        };
+      }
+      throw error;
+    }
   }
   
   /**
@@ -235,6 +261,15 @@ class EstimatesService {
     };
     
     return apiService.post('/estimates/llm/generate', payload);
+  }
+
+  /**
+   * Process an external LLM response to generate estimate line items
+   * @param {Object} payload - Object containing responseText and optional assessmentData
+   * @returns {Promise} Response data with parsed line items
+   */
+  async processExternalLlmResponse(payload) {
+    return apiService.post('/estimates/llm/process-external', payload);
   }
 
   /**

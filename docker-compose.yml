@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: management_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/00-init.sh:/docker-entrypoint-initdb.d/00-init.sh
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/01-create-role.sql:/docker-entrypoint-initdb.d/01-create-role.sql
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/backups/management_db_20250414_145056.sql:/docker-entrypoint-initdb.d/02-init.sql
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d management_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Node.js Backend
+  backend:
+    build:
+      context: /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      # Use named volume for node_modules to prevent host overriding
+      - backend_node_modules:/app/node_modules
+      # Mount source code for development
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend:/app
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/logs:/app/logs
+      - uploads_data:/app/uploads
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/wait-for-it.sh:/app/wait-for-it.sh
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_NAME=management_db
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - API_PREFIX=/api
+      - JWT_SECRET=docker-jwt-secret
+      - JWT_EXPIRES_IN=365d
+      - JWT_REFRESH_EXPIRES_IN=365d
+      - DEEPSEEK_API_KEY=sk-aebbce11d90a4a5190d6be5ccf1ee504
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app_network
+    command: >
+      sh -c "
+        if [ ! -f src/utils/database.original.js ] && [ -f src/utils/database.js ]; then
+          cp src/utils/database.js src/utils/database.original.js;
+        fi
+        if [ -f src/utils/database.docker.js ]; then
+          cp src/utils/database.docker.js src/utils/database.js;
+        fi
+        echo 'Waiting for database to be ready...'
+        chmod +x ./wait-for-it.sh
+        ./wait-for-it.sh db:5432 -t 60 -- npm start
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Vue.js Frontend
+  frontend:
+    build:
+      context: /Volumes/4TB/Users/josephmcmyne/myProjects/management/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      # Use named volume for node_modules to prevent host overriding
+      - frontend_node_modules:/app/node_modules
+      # Mount source code for development
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/frontend:/app
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/wait-for-it.sh:/app/wait-for-it.sh
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app_network
+    command: >
+      sh -c "
+        if [ ! -f vite.config.original.js ] && [ -f vite.config.js ]; then
+          cp vite.config.js vite.config.original.js;
+        fi
+        if [ -f vite.config.docker.js ]; then
+          cp vite.config.docker.js vite.config.js;
+        fi
+        echo 'Waiting for backend to be ready...'
+        chmod +x ./wait-for-it.sh
+        ./wait-for-it.sh backend:3000 -t 30 -- node fix-imports.js && npm run dev
+      "
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  uploads_data:
+  backend_node_modules:
+  frontend_node_modules:

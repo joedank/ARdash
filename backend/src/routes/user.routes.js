@@ -1,6 +1,7 @@
 const express = require('express');
 const userController = require('../controllers/user.controller');
 const { authenticate } = require('../middleware/auth.middleware');
+const { validateUuid } = require('../middleware/uuidValidator');
 
 const router = express.Router();
 
@@ -8,7 +9,7 @@ const router = express.Router();
 router.get('/', userController.getAllUsers);
 
 // GET /api/users/:id
-router.get('/:id', userController.getUserById);
+router.get('/:id', validateUuid('id'), userController.getUserById);
 
 // POST /api/users
 router.post('/', userController.createUser);

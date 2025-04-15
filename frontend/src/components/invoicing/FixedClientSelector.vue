@@ -25,12 +25,12 @@
             <h3 class="text-base font-medium text-gray-900 dark:text-white">
               {{ getDisplayName(selectedClient) }}
             </h3>
-            <p v-if="selectedClient.company || (selectedClient.contactInfo && selectedClient.contactInfo.company)" class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              {{ selectedClient.company || (selectedClient.contactInfo && selectedClient.contactInfo.company) }}
+            <p v-if="getClientCompany(selectedClient)" class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              {{ getClientCompany(selectedClient) }}
             </p>
           </div>
           <div class="flex gap-2">
-            <button 
+            <button
               type="button"
               @click="openSelector"
               class="text-sm px-3 py-1.5 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/40"
@@ -43,14 +43,14 @@
           </div>
         </div>
         <div class="mt-3 text-sm text-gray-600 dark:text-gray-400">
-          <p v-if="selectedClient.email || (selectedClient.contactInfo && selectedClient.contactInfo.email)">
-            <span class="font-medium">Email:</span> {{ selectedClient.email || (selectedClient.contactInfo && selectedClient.contactInfo.email) }}
+          <p v-if="getClientEmail(selectedClient)">
+            <span class="font-medium">Email:</span> {{ getClientEmail(selectedClient) }}
           </p>
-          <p v-if="selectedClient.phone || (selectedClient.contactInfo && selectedClient.contactInfo.phone)">
-            <span class="font-medium">Phone:</span> {{ selectedClient.phone || (selectedClient.contactInfo && selectedClient.contactInfo.phone) }}
+          <p v-if="getClientPhone(selectedClient)">
+            <span class="font-medium">Phone:</span> {{ getClientPhone(selectedClient) }}
           </p>
-          <p v-if="selectedClient.address || (selectedClient.contactInfo && selectedClient.contactInfo.address)">
-            <span class="font-medium">Address:</span> {{ formatAddress(selectedClient.address || (selectedClient.contactInfo && selectedClient.contactInfo.address)) }}
+          <p v-if="getClientAddressString(selectedClient)">
+            <span class="font-medium">Address:</span> {{ getClientAddressString(selectedClient) }}
           </p>
         </div>
       </div>
@@ -195,17 +195,17 @@
                       <h4 class="font-medium text-gray-900 dark:text-white">
                         {{ getDisplayName(client) }}
                       </h4>
-                      <p v-if="client.company || (client.contactInfo && client.contactInfo.company)" class="text-sm text-gray-600 dark:text-gray-400">
-                        {{ client.company || (client.contactInfo && client.contactInfo.company) }}
+                      <p v-if="getClientCompany(client)" class="text-sm text-gray-600 dark:text-gray-400">
+                        {{ getClientCompany(client) }}
                       </p>
                     </div>
                   </div>
                   <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    <p v-if="client.email || (client.contactInfo && client.contactInfo.email)">
-                      {{ client.email || (client.contactInfo && client.contactInfo.email) }}
+                    <p v-if="getClientEmail(client)">
+                      {{ getClientEmail(client) }}
                     </p>
-                    <p v-if="client.phone || (client.contactInfo && client.contactInfo.phone)">
-                      {{ client.phone || (client.contactInfo && client.contactInfo.phone) }}
+                    <p v-if="getClientPhone(client)">
+                      {{ getClientPhone(client) }}
                     </p>
                   </div>
                 </div>
@@ -221,6 +221,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import clientsService from '@/services/clients.service';
+import { normalizeClient } from '@/utils/casing';
 
 const props = defineProps({
   modelValue: {
@@ -270,30 +271,56 @@ watch(selectedClient, (newValue) => {
   emit('update', newValue);
 });
 
-// Helper function to get display name from client object
+// Helper function to get display name from client object (uses normalized data)
 const getDisplayName = (client) => {
-  // First try direct displayName property
+  if (!client) return 'Unnamed Client';
+  
+  // Rely on normalized displayName
   if (client.displayName) {
     return client.displayName;
   }
   
-  // Then try contactInfo.display_name (from backend)
-  if (client.contactInfo && client.contactInfo.display_name) {
-    return client.contactInfo.display_name;
-  }
-  
-  // Fallback options
+  // Fallback options if displayName is somehow missing after normalization
   if (client.name) {
     return client.name;
   }
-  
-  if (client.email || (client.contactInfo && client.contactInfo.email)) {
-    return client.email || client.contactInfo.email;
+  if (client.email) {
+    return client.email;
+  }
+  if (client.phone) {
+    return client.phone;
   }
   
   // Final fallback
-  return 'Unnamed Client';
+  return 'Unnamed Client'; // Should rarely be needed if normalization works
 };
+
+// Helper function to get client company (uses normalized data)
+const getClientCompany = (client) => {
+  if (!client) return '';
+  return client.company || ''; // Rely on normalized company
+};
+
+// Helper function to get client email (uses normalized data)
+const getClientEmail = (client) => {
+  if (!client) return '';
+  return client.email || ''; // Rely on normalized email
+};
+
+// Helper function to get client phone (uses normalized data)
+const getClientPhone = (client) => {
+  if (!client) return '';
+  return client.phone || ''; // Rely on normalized phone
+};
+
+// Helper function to get client address string (uses normalized data)
+const getClientAddressString = (client) => {
+  if (!client) return '';
+  const addressString = client.address || ''; // Rely on normalized address string if available
+  // Existing formatAddress logic can be reused or integrated here
+  return formatAddress(addressString);
+};
+
 
 // Computed properties
 const filteredClients = computed(() => {
@@ -329,15 +356,15 @@ const loadClients = async () => {
     if (response && response.success && response.data) {
       console.log('Clients loaded successfully:', response.data.length);
       
-      // Set clientId property for each client for backend compatibility
+      // Normalize clients and ensure clientId is present
       clients.value = response.data.map(client => {
-        // Ensure each client has a clientId field (needed for backend)
-        // If client has a contactInfo with client_id, use that, otherwise use the client's id
-        const clientId = client.contactInfo?.client_id || client.id;
+        const normalized = normalizeClient(client); // Normalize first
+        // Ensure clientId is present after normalization
+        const clientId = normalized.id || normalized.clientId || client.contactInfo?.client_id || client.id;
         
         return {
-          ...client,
-          clientId
+          ...normalized,
+          clientId // Ensure clientId is explicitly set if needed elsewhere
         };
       });
       
@@ -359,8 +386,11 @@ const showAddClientForm = () => {
   isAddingClient.value = true;
 };
 const selectClient = (client) => {
-  console.log('Selected client:', client);
-  selectedClient.value = client;
+  console.log('Selected client (raw):', client);
+  // Normalize the client object before assigning it
+  const normalizedClient = normalizeClient(client);
+  console.log('Selected client (normalized):', normalizedClient);
+  selectedClient.value = normalizedClient;
   isModalOpen.value = false;
 };
 

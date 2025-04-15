@@ -15,7 +15,7 @@
               <input
                 type="text"
                 id="company_name"
-                v-model="settings.company_name"
+                v-model="settings.companyName"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="Your Company Name"
               />
@@ -27,7 +27,7 @@
               <input
                 type="text"
                 id="company_address"
-                v-model="settings.company_address"
+                v-model="settings.companyAddress"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="123 Business St, City, State 12345"
               />
@@ -39,7 +39,7 @@
               <input
                 type="text"
                 id="company_phone"
-                v-model="settings.company_phone"
+                v-model="settings.companyPhone"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="(555) 123-4567"
               />
@@ -51,7 +51,7 @@
               <input
                 type="email"
                 id="company_email"
-                v-model="settings.company_email"
+                v-model="settings.companyEmail"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="info@yourcompany.com"
               />
@@ -63,7 +63,7 @@
               <input
                 type="text"
                 id="company_website"
-                v-model="settings.company_website"
+                v-model="settings.companyWebsite"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="www.yourcompany.com"
               />
@@ -114,13 +114,13 @@
               </label>
               <div class="flex items-center gap-2">
                 <ColorPicker
-                  v-model="settings.primary_color"
+                  v-model="settings.primaryColor"
                   format="hex"
                   defaultColor="#3b82f6"
                   inputId="primary_color"
-                  @change="(e) => handleColorChange(e.value, 'primary_color')"
+                  @change="(e) => handleColorChange(e.value, 'primaryColor')"
                 />
-                <span class="text-sm text-gray-600 dark:text-gray-400">{{ settings.primary_color }}</span>
+                <span class="text-sm text-gray-600 dark:text-gray-400">{{ settings.primaryColor }}</span>
               </div>
             </div>
             
@@ -131,13 +131,13 @@
               </label>
               <div class="flex items-center gap-2">
                 <ColorPicker
-                  v-model="settings.pdf_secondary_color"
+                  v-model="settings.pdfSecondaryColor"
                   format="hex"
                   defaultColor="#64748b"
                   inputId="pdf_secondary_color"
-                  @change="(e) => handleColorChange(e.value, 'pdf_secondary_color')"
+                  @change="(e) => handleColorChange(e.value, 'pdfSecondaryColor')"
                 />
-                <span class="text-sm text-gray-600 dark:text-gray-400">{{ settings.pdf_secondary_color }}</span>
+                <span class="text-sm text-gray-600 dark:text-gray-400">{{ settings.pdfSecondaryColor }}</span>
               </div>
             </div>
 
@@ -148,13 +148,13 @@
               </label>
               <div class="flex items-center gap-2">
                 <ColorPicker
-                  v-model="settings.pdf_background_color"
+                  v-model="settings.pdfBackgroundColor"
                   format="hex"
                   defaultColor="#f8f9fa"
                   inputId="pdf_background_color"
-                  @change="(e) => handleColorChange(e.value, 'pdf_background_color')"
+                  @change="(e) => handleColorChange(e.value, 'pdfBackgroundColor')"
                 />
-                <span class="text-sm text-gray-600 dark:text-gray-400">{{ settings.pdf_background_color }}</span>
+                <span class="text-sm text-gray-600 dark:text-gray-400">{{ settings.pdfBackgroundColor }}</span>
               </div>
             </div>
 
@@ -165,13 +165,13 @@
               </label>
               <div class="flex items-center gap-2">
                 <ColorPicker
-                  v-model="settings.pdf_table_border_color"
+                  v-model="settings.pdfTableBorderColor"
                   format="hex"
                   defaultColor="#e2e8f0"
                   inputId="pdf_table_border_color"
-                  @change="(e) => handleColorChange(e.value, 'pdf_table_border_color')"
+                  @change="(e) => handleColorChange(e.value, 'pdfTableBorderColor')"
                 />
-                <span class="text-sm text-gray-600 dark:text-gray-400">{{ settings.pdf_table_border_color }}</span>
+                <span class="text-sm text-gray-600 dark:text-gray-400">{{ settings.pdfTableBorderColor }}</span>
               </div>
             </div>
 
@@ -183,7 +183,7 @@
               <input
                 type="number"
                 id="pdf_page_margin"
-                v-model="settings.pdf_page_margin"
+                v-model="settings.pdfPageMargin"
                 min="0"
                 max="100"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
@@ -199,7 +199,7 @@
               <input
                 type="text"
                 id="pdf_watermark_text"
-                v-model="settings.pdf_watermark_text"
+                v-model="settings.pdfWatermarkText"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="Leave empty for no watermark"
               />
@@ -218,7 +218,7 @@
               <input
                 type="text"
                 id="invoice_prefix"
-                v-model="settings.invoice_prefix"
+                v-model="settings.invoicePrefix"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="INV-"
               />
@@ -230,7 +230,7 @@
               <input
                 type="number"
                 id="invoice_due_days"
-                v-model="settings.invoice_due_days"
+                v-model="settings.invoiceDueDays"
                 min="1"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="30"
@@ -242,7 +242,7 @@
               </label>
               <textarea
                 id="default_invoice_terms"
-                v-model="settings.default_invoice_terms"
+                v-model="settings.defaultInvoiceTerms"
                 rows="3"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="Payment is due within {due_days} days from the date of invoice."
@@ -257,7 +257,7 @@
               </label>
               <textarea
                 id="pdf_invoice_footer"
-                v-model="settings.pdf_invoice_footer"
+                v-model="settings.pdfInvoiceFooter"
                 rows="2"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="Thank you for your business."
@@ -277,7 +277,7 @@
               <input
                 type="text"
                 id="estimate_prefix"
-                v-model="settings.estimate_prefix"
+                v-model="settings.estimatePrefix"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="EST-"
               />
@@ -289,7 +289,7 @@
               <input
                 type="number"
                 id="estimate_valid_days"
-                v-model="settings.estimate_valid_days"
+                v-model="settings.estimateValidDays"
                 min="1"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="30"
@@ -301,7 +301,7 @@
               </label>
               <textarea
                 id="default_estimate_terms"
-                v-model="settings.default_estimate_terms"
+                v-model="settings.defaultEstimateTerms"
                 rows="3"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="This estimate is valid for {valid_days} days from the date issued."
@@ -316,7 +316,7 @@
               </label>
               <textarea
                 id="pdf_estimate_footer"
-                v-model="settings.pdf_estimate_footer"
+                v-model="settings.pdfEstimateFooter"
                 rows="2"
                 class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:text-white"
                 placeholder="Thank you for considering our services."
@@ -357,43 +357,44 @@
 </template>
 
 <script setup>
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 import { ref, onMounted } from 'vue';
 import ColorPicker from 'primevue/colorpicker';
 import settingsService from '@/services/settings.service';
 import apiService from '@/services/api.service';
 import { BACKEND_URL } from '@/config';
 
-// State
+// State (using camelCase keys)
 const settings = ref({
   // Company Info
-  company_name: '',
-  company_address: '',
-  company_phone: '',
-  company_email: '',
-  company_website: '',
-  company_logo_path: '',
+  companyName: '',
+  companyAddress: '',
+  companyPhone: '',
+  companyEmail: '',
+  companyWebsite: '',
+  companyLogoPath: '',
   
   // PDF Appearance
-  primary_color: '#3b82f6',
-  pdf_secondary_color: '#64748b',
-  pdf_background_color: '#f8f9fa',
-  pdf_table_border_color: '#e2e8f0',
-  pdf_page_margin: '50',
-  pdf_header_margin: '30',
-  pdf_footer_margin: '30',
-  pdf_watermark_text: '',
+  primaryColor: '#3b82f6',
+  pdfSecondaryColor: '#64748b',
+  pdfBackgroundColor: '#f8f9fa',
+  pdfTableBorderColor: '#e2e8f0',
+  pdfPageMargin: '50',
+  pdfHeaderMargin: '30',
+  pdfFooterMargin: '30',
+  pdfWatermarkText: '',
   
   // Invoice Settings
-  invoice_prefix: 'INV-',
-  invoice_due_days: '30',
-  default_invoice_terms: 'Payment is due within {due_days} days from the date of invoice. Late payments are subject to a 1.5% monthly fee.',
-  pdf_invoice_footer: 'Thank you for your business. Please contact us with any questions regarding this invoice.',
+  invoicePrefix: 'INV-',
+  invoiceDueDays: '30',
+  defaultInvoiceTerms: 'Payment is due within {due_days} days from the date of invoice. Late payments are subject to a 1.5% monthly fee.', // Placeholder {due_days} remains snake_case as it's for string replacement
+  pdfInvoiceFooter: 'Thank you for your business. Please contact us with any questions regarding this invoice.',
   
   // Estimate Settings
-  estimate_prefix: 'EST-',
-  estimate_valid_days: '30',
-  default_estimate_terms: 'This estimate is valid for {valid_days} days from the date issued. To accept this estimate, please sign and return.',
-  pdf_estimate_footer: 'Thank you for considering our services. Please contact us with any questions regarding this estimate.'
+  estimatePrefix: 'EST-',
+  estimateValidDays: '30',
+  defaultEstimateTerms: 'This estimate is valid for {valid_days} days from the date issued. To accept this estimate, please sign and return.', // Placeholder {valid_days} remains snake_case
+  pdfEstimateFooter: 'Thank you for considering our services. Please contact us with any questions regarding this estimate.'
 });
 
 // Logo upload state
@@ -411,16 +412,20 @@ onMounted(async () => {
     const response = await settingsService.getAllSettings();
     
     if (response && response.success && response.data) {
-      // Populate settings from response
+      // Populate settings from response, converting keys to camelCase
+      const camelCaseSettings = {};
       for (const setting of response.data) {
-        if (setting.key in settings.value) {
-          settings.value[setting.key] = setting.value;
+        const camelKey = toCamelCase(setting.key); // Convert snake_case key to camelCase
+        if (camelKey in settings.value) { // Check if the camelCase key exists in our ref
+          camelCaseSettings[camelKey] = setting.value;
         }
       }
+      // Assign the converted settings to the ref
+      Object.assign(settings.value, camelCaseSettings);
       
-      // Set logo preview if available
-      if (settings.value.company_logo_path) {
-        logoPreview.value = `${BACKEND_URL}/uploads/logos/${settings.value.company_logo_path}`;
+      // Set logo preview if available (using camelCase key)
+      if (settings.value.companyLogoPath) {
+        logoPreview.value = `${BACKEND_URL}/uploads/logos/${settings.value.companyLogoPath}`;
       }
     }
   } catch (err) {
@@ -469,7 +474,7 @@ const handleLogoUpload = async (event) => {
     if (response && response.success && response.data) {
       // Update logo preview with full backend URL
       logoPreview.value = `${BACKEND_URL}${response.data.path}`;
-      settings.value.company_logo_path = response.data.filename;
+      settings.value.companyLogoPath = response.data.filename; // Use camelCase
       
       uploadStatus.value = {
         type: 'success',
@@ -537,8 +542,8 @@ const saveSettings = async () => {
     isSaving.value = true;
     saveStatus.value = null;
 
-    // Validate and normalize color values
-    const colorFields = ['primary_color', 'pdf_secondary_color', 'pdf_background_color', 'pdf_table_border_color'];
+    // Validate and normalize color values (using camelCase keys)
+    const colorFields = ['primaryColor', 'pdfSecondaryColor', 'pdfBackgroundColor', 'pdfTableBorderColor'];
     for (const field of colorFields) {
       // Normalize color format before validation
       settings.value[field] = normalizeHexColor(settings.value[field]);
@@ -555,48 +560,51 @@ const saveSettings = async () => {
       updatedSettings[key] = value;
     });
     
-    // Group settings by type
+    // Group settings by type (using camelCase keys)
     const groups = {
       company: [
-        'company_name',
-        'company_address',
-        'company_phone',
-        'company_email',
-        'company_website',
-        'company_logo_path'
+        'companyName',
+        'companyAddress',
+        'companyPhone',
+        'companyEmail',
+        'companyWebsite',
+        'companyLogoPath'
       ],
       appearance: [
-        'primary_color',
-        'pdf_secondary_color',
-        'pdf_background_color',
-        'pdf_table_border_color',
-        'pdf_page_margin',
-        'pdf_header_margin',
-        'pdf_footer_margin',
-        'pdf_watermark_text'
+        'primaryColor',
+        'pdfSecondaryColor',
+        'pdfBackgroundColor',
+        'pdfTableBorderColor',
+        'pdfPageMargin',
+        'pdfHeaderMargin',
+        'pdfFooterMargin',
+        'pdfWatermarkText'
       ],
       invoice: [
-        'invoice_prefix',
-        'invoice_due_days',
-        'default_invoice_terms',
-        'pdf_invoice_footer'
+        'invoicePrefix',
+        'invoiceDueDays',
+        'defaultInvoiceTerms',
+        'pdfInvoiceFooter'
       ],
       estimate: [
-        'estimate_prefix',
-        'estimate_valid_days',
-        'default_estimate_terms',
-        'pdf_estimate_footer'
+        'estimatePrefix',
+        'estimateValidDays',
+        'defaultEstimateTerms',
+        'pdfEstimateFooter'
       ]
     };
     
     // Save settings by group
     for (const [group, keys] of Object.entries(groups)) {
       const groupSettings = {};
-      keys.forEach(key => {
+      keys.forEach(key => { // key here is camelCase from the groups object
         groupSettings[key] = settings.value[key];
       });
       
-      await settingsService.updateMultipleSettings(groupSettings, group);
+      // Convert the groupSettings object keys to snake_case before sending
+      const snakeCaseGroupSettings = toSnakeCase(groupSettings);
+      
+      await settingsService.updateMultipleSettings(snakeCaseGroupSettings, group);
     }
     
     saveStatus.value = {

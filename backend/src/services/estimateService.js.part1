@@ -1,0 +1,72 @@
+const { Estimate, EstimateItem, Invoice, Settings, Client, ClientAddress, SourceMap } = require('../models');
+const { ValidationError } = require('../utils/errors');
+const { Op } = require('sequelize');
+const fs = require('fs').promises;
+const path = require('path');
+const logger = require('../utils/logger');
+const pdfService = require('./pdfService');
+const invoiceService = require('./invoiceService'); // Keep for convertToInvoice
+
+/**
+ * Service for handling estimate operations
+ */
+class EstimateService {
+  /**
+   * Generate a new estimate number
+   * @returns {Promise<string>} - New estimate number
+   */
+  async generateEstimateNumber() {
+    try {
+      const prefix = await this.getSetting('estimate_prefix') || 'EST-';
+      let number = 1;
+      let newEstimateNumber;
+      let existingEstimate = null;
+
+      // Find the highest existing number first
+      const highestEstimate = await Estimate.findOne({
+        order: [['estimateNumber', 'DESC']],
+        paranoid: false // Include soft-deleted records
+      });
+
+      if (highestEstimate && highestEstimate.estimateNumber) {
+        const numberPart = highestEstimate.estimateNumber.substring(prefix.length);
+        const parsedNumber = parseInt(numberPart, 10);
+        if (!isNaN(parsedNumber)) {
+          number = parsedNumber + 1;
+        }
+      }
+
+      // Loop to ensure uniqueness
+      do {
+        newEstimateNumber = `${prefix}${number.toString().padStart(5, '0')}`;
+        logger.debug(`Attempting to generate estimate number: ${newEstimateNumber}`);
+        existingEstimate = await Estimate.findOne({
+          where: { estimateNumber: newEstimateNumber },
+          paranoid: false // Include soft-deleted records
+        });
+
+        if (existingEstimate) {
+          logger.warn(`Estimate number ${newEstimateNumber} already exists (possibly soft-deleted). Incrementing.`);
+          number++;
+        }
+      } while (existingEstimate);
+
+      logger.debug(`Final unique estimate number generated: ${newEstimateNumber}`);
+      return newEstimateNumber;
+    } catch (error) {
+      logger.error('Error generating estimate number:', error);
+      const fallbackNumber = `EST-${Math.floor(100000 + Math.random() * 900000)}`;
+      logger.warn(`Falling back to random estimate number: ${fallbackNumber}`);
+      return fallbackNumber;
+    }
+  }
+
+  /**
+   * Get a setting value by key
+   * @param {string} key - Setting key
+   * @returns {Promise<string|null>} - Setting value or null
+   */
+  async getSetting(key) {
+    const setting = await Settings.findOne({ where: { key } });
+    return setting ? setting.value : null;
+  }

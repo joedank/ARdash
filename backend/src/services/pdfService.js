@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const logger = require('../utils/logger');
 const { Settings, ClientAddress, Client } = require('../models');
+const fieldAdapter = require('../utils/field-adapter');
 
 /**
  * Service for generating PDF documents (invoices and estimates) using Puppeteer and EJS
@@ -83,9 +84,9 @@ class PDFService {
       // Generate PDF using the new method
       const pdfPath = await this.generatePdf({
         type: 'invoice',
-        data: invoice.toJSON(), // Pass plain JSON object
-        client: invoice.client.toJSON(), // Pass plain JSON object
-        clientAddress: clientAddress ? clientAddress.toJSON() : null, // Pass plain JSON object or null
+        data: fieldAdapter.toFrontend(invoice.toJSON()), // Normalize data to camelCase
+        client: fieldAdapter.toFrontend(invoice.client.toJSON()), // Normalize client to camelCase
+        clientAddress: clientAddress ? fieldAdapter.toFrontend(clientAddress.toJSON()) : null, // Normalize address to camelCase
         filename,
         outputDir: uploadsDir
       });
@@ -187,15 +188,25 @@ class PDFService {
       };
 
       // --- Render HTML ---
-      const templatePath = path.join(__dirname, '../templates/pdf/invoice.ejs'); // Assuming one template for now
+      const templatePath = path.join(__dirname, '../templates/pdf/invoice.ejs'); // Use the correct template path
       const htmlContent = await ejs.renderFile(templatePath, templateData);
 
       // --- Launch Puppeteer ---
       logger.info('Launching Puppeteer browser...');
       browser = await puppeteer.launch({
-        headless: true, // Use true for server environments
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] // Necessary for some environments
+        headless: 'new', // Use new headless mode
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null, // Use the environment variable if set
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage', // Overcome limited resource problems
+          '--disable-gpu', // Disable GPU hardware acceleration
+          '--disable-features=AudioServiceOutOfProcess', // Disable audio processing
+          '--disable-extensions', // Disable extensions
+          '--disable-software-rasterizer' // Disable software rasterizer
+        ]
       });
+      logger.info('Puppeteer browser launched successfully');
       const page = await browser.newPage();
 
       // --- Generate PDF ---

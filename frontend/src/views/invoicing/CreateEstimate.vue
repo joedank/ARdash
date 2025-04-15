@@ -29,8 +29,8 @@
                 @update:modelValue="updateClient"
               />
               <!-- Hidden inputs to store IDs -->
-               <input type="hidden" v-model="estimate.client_fk_id">
-               <input type="hidden" v-model="estimate.address_id">
+               <input type="hidden" v-model="estimate.clientId">
+               <input type="hidden" v-model="estimate.addressId">
             </div>
 
             <div class="col-span-1 space-y-4">
@@ -209,8 +209,10 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router'; // Import useRoute
 import ClientSelector from '@/components/invoicing/ClientSelector.vue';
 import LineItemsEditor from '@/components/invoicing/LineItemsEditor.vue';
-import estimatesService from '@/services/estimates.service'; // Correct service import
+import estimatesService from '@/services/estimates.service'; // Legacy service import
+import { default as standardizedEstimatesService } from '@/services/standardized-estimates.service'; // Import standardized service
 import settingsService from '@/services/settings.service';
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 
 const router = useRouter();
 const route = useRoute(); // Initialize useRoute
@@ -221,8 +223,8 @@ const isEditing = computed(() => !!estimateId.value); // Determine if editing
 // State
 const estimate = ref({ // Renamed invoice -> estimate
   client: null, // Client object from selector
-  client_fk_id: '', // Foreign key to Client model
-  address_id: '', // Foreign key to ClientAddress model
+  clientId: '', // Using camelCase for frontend, will convert to snake_case for API
+  addressId: '', // Using camelCase for frontend, will convert to snake_case for API
   estimateNumber: '', // Renamed
   dateCreated: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
   validUntil: '', // Renamed dateDue -> validUntil
@@ -233,7 +235,8 @@ const estimate = ref({ // Renamed invoice -> estimate
   total: 0,
   notes: '',
   terms: '',
-  status: 'draft'
+  status: 'draft',
+  projectId: null // Using camelCase for frontend
 });
 
 const errors = ref({
@@ -249,16 +252,17 @@ const isSubmitting = ref(false);
 const isGeneratingNumber = ref(true);
 const formError = ref('');
 
-// Update client_fk_id and address_id when client/address selection changes
+// Update clientId and addressId when client/address selection changes
 const updateClient = (client) => {
   // The client object passed from ClientSelector now includes selectedAddressId
-  if (client && client.id) { // Check for client.id from the selected client object
-    estimate.value.client_fk_id = client.id; // Use client.id for the foreign key
-    estimate.value.address_id = client.selectedAddressId || null;
+  // and should already be normalized to camelCase
+  if (client && client.clientId) { // Check for client.clientId (camelCase)
+    estimate.value.clientId = client.clientId; // Use clientId from the normalized client object
+    estimate.value.addressId = client.selectedAddressId || null;
     errors.value.client = ''; // Clear client error if selected
   } else {
-    estimate.value.client_fk_id = '';
-    estimate.value.address_id = null;
+    estimate.value.clientId = '';
+    estimate.value.addressId = null;
   }
 };
 
@@ -287,29 +291,48 @@ const loadEstimateData = async () => {
     isSubmitting.value = true; // Use submitting state for loading indicator
     const response = await estimatesService.getEstimate(estimateId.value);
     if (response && response.success && response.data) {
+      // Convert the API response (snake_case) to camelCase, but preserve the client object
       const loadedEstimate = response.data;
+
+      // Store client object separately since it might already be normalized
+      const clientData = loadedEstimate.client;
+
+      // Delete the client property to avoid it being processed
+      delete loadedEstimate.client;
+
+      // Convert the main estimate data to camelCase
+      const camelCaseEstimate = toCamelCase(loadedEstimate);
+
+      // Reattach the client object
+      camelCaseEstimate.client = clientData;
+
+      // Recursively normalize nested arrays like items
+      if (Array.isArray(camelCaseEstimate.items)) {
+        camelCaseEstimate.items = camelCaseEstimate.items.map(item => toCamelCase(item));
+      }
 
       // Map loaded data to the estimate ref
       estimate.value = {
         ...estimate.value, // Keep potential defaults if some fields are missing
-        client: loadedEstimate.client || null, // Assuming client object is included
-        client_fk_id: loadedEstimate.client_fk_id || loadedEstimate.clientId, // Handle potential naming variations
-        address_id: loadedEstimate.address_id,
-        estimateNumber: loadedEstimate.estimateNumber,
-        dateCreated: loadedEstimate.dateCreated ? new Date(loadedEstimate.dateCreated).toISOString().split('T')[0] : '',
-        validUntil: loadedEstimate.validUntil ? new Date(loadedEstimate.validUntil).toISOString().split('T')[0] : '',
-        items: loadedEstimate.items || [],
-        subtotal: loadedEstimate.subtotal || 0,
-        taxTotal: loadedEstimate.taxTotal || 0,
-        discountAmount: loadedEstimate.discountAmount || 0,
-        total: loadedEstimate.total || 0,
-        notes: loadedEstimate.notes || '',
-        terms: loadedEstimate.terms || '',
-        status: loadedEstimate.status || 'draft' // Load existing status
+        client: camelCaseEstimate.client || null, // Normalized client object
+        clientId: camelCaseEstimate.clientId || camelCaseEstimate.clientFkId, // Handle potential naming variations
+        addressId: camelCaseEstimate.addressId,
+        estimateNumber: camelCaseEstimate.estimateNumber,
+        dateCreated: camelCaseEstimate.dateCreated ? new Date(camelCaseEstimate.dateCreated).toISOString().split('T')[0] : '',
+        validUntil: camelCaseEstimate.validUntil ? new Date(camelCaseEstimate.validUntil).toISOString().split('T')[0] : '',
+        items: camelCaseEstimate.items || [],
+        subtotal: camelCaseEstimate.subtotal || 0,
+        taxTotal: camelCaseEstimate.taxTotal || 0,
+        discountAmount: camelCaseEstimate.discountAmount || 0,
+        total: camelCaseEstimate.total || 0,
+        notes: camelCaseEstimate.notes || '',
+        terms: camelCaseEstimate.terms || '',
+        status: camelCaseEstimate.status || 'draft', // Load existing status
+        projectId: camelCaseEstimate.projectId // Include project ID if available
       };
 
       // Ensure client object is correctly set for ClientSelector if needed
-      if (estimate.value.client_fk_id && !estimate.value.client) {
+      if (estimate.value.clientId && !estimate.value.client) {
         console.warn("Client object not fully loaded for estimate, ClientSelector might need to fetch details.");
       }
 
@@ -406,8 +429,8 @@ const validateForm = () => {
     status: '' // Added status error
   };
 
-  // Client validation (check fk_id)
-  if (!estimate.value.client_fk_id) {
+  // Client validation (check clientId)
+  if (!estimate.value.clientId) {
     errors.value.client = 'Client is required';
     isValid = false;
   }
@@ -446,8 +469,8 @@ const validateForm = () => {
 
 // Save as draft
 const saveDraft = async () => {
-  // Basic validation (check fk_id)
-  if (!estimate.value.client_fk_id) {
+  // Basic validation (check clientId)
+  if (!estimate.value.clientId) {
     errors.value.client = 'Client is required';
     return;
   }
@@ -479,10 +502,16 @@ const saveEstimateToServer = async (status) => {
     isSubmitting.value = true;
     formError.value = '';
 
-    // Prepare estimate data for API
-    const estimateDataPayload = {
-      client_fk_id: estimate.value.client_fk_id, // Use foreign key
-      address_id: estimate.value.address_id, // Include selected address
+    // Debug client information before submission
+    console.log('Before preparing estimate data:');
+    console.log('estimate.value.client:', estimate.value.client);
+    console.log('estimate.value.clientId:', estimate.value.clientId);
+    console.log('estimate.value.addressId:', estimate.value.addressId);
+
+    // Prepare estimate data for API using standardized approach
+    const estimateData = {
+      clientId: estimate.value.clientId,
+      addressId: estimate.value.addressId,
       estimateNumber: estimate.value.estimateNumber,
       dateCreated: estimate.value.dateCreated,
       validUntil: estimate.value.validUntil,
@@ -495,40 +524,43 @@ const saveEstimateToServer = async (status) => {
       terms: estimate.value.terms,
       status,
       generatePdf: status === 'sent', // Only generate PDF if sending immediately
-      project_id: estimate.value.project_id // Include project_id if it exists
+      projectId: estimate.value.projectId // Use camelCase for projectId
     };
 
+    // Use the standardized service instead of direct snake_case conversion
     let response;
     if (isEditing.value) {
       // Update existing estimate
-      response = await estimatesService.updateEstimate(estimateId.value, estimateDataPayload);
+      console.log("Updating estimate:", estimateId.value, "with data:", estimateData);
+      response = await standardizedEstimatesService.update(estimateId.value, estimateData);
     } else {
       // Create new estimate
-      response = await estimatesService.createEstimate(estimateDataPayload);
+      console.log("Creating estimate with data:", estimateData);
+      response = await standardizedEstimatesService.create(estimateData);
     }
 
     if (response && response.success && response.data) {
       // If this estimate was created from a project, handle redirection back to project
-      if (!isEditing.value && response.success && estimate.value.project_id) {
+      if (!isEditing.value && response.success && estimate.value.projectId) {
         // Get the original project service
         const projectsService = await import('@/services/projects.service');
-                  
+
         try {
           // Redirect back to the project page
-          router.push(`/projects/${estimate.value.project_id}`);
+          router.push(`/projects/${estimate.value.projectId}`);
           return; // Exit early to prevent the default redirection
         } catch (error) {
           console.error('Error navigating back to project:', error);
         }
       }
-      
+
       // Default navigation if not redirecting to a project
       router.push(`/invoicing/estimates`);
     } else {
       formError.value = response?.message || `Failed to ${isEditing.value ? 'update' : 'create'} estimate. Please try again.`;
     }
   } catch (error) {
-    console.error(`Error ${isEditing.value ? 'updating' : 'creating'} estimate:`, error); // Reverted to console
+    console.error(`Error ${isEditing.value ? 'updating' : 'creating'} estimate:`, error);
     formError.value = error.message || `An unexpected error occurred while ${isEditing.value ? 'updating' : 'creating'} the estimate. Please try again.`;
   } finally {
     isSubmitting.value = false;
@@ -540,23 +572,24 @@ onMounted(async () => { // Make onMounted async
   // Check for query parameters
   const clientId = route.query.clientId;
   const projectId = route.query.projectId;
-  
+
   if (clientId) {
-    // Set client_fk_id from query parameter
-    estimate.value.client_fk_id = clientId;
-    
+    // Set clientId from query parameter (camelCase for frontend)
+    estimate.value.clientId = clientId;
+
     // Try to fetch the client details if needed for the client selector
     try {
       const clientsService = await import('@/services/clients.service');
       if (clientsService.default && clientsService.default.getClientById) {
         const response = await clientsService.default.getClientById(clientId);
         if (response && response.success && response.data) {
+          // clientsService returns normalized data, so we can use it directly
           estimate.value.client = response.data;
           // If client has addresses, select the first one or primary one
           if (response.data.addresses && response.data.addresses.length > 0) {
-            const primaryAddress = response.data.addresses.find(addr => addr.is_primary);
+            const primaryAddress = response.data.addresses.find(addr => addr.isPrimary); // camelCase
             const addressToUse = primaryAddress || response.data.addresses[0];
-            estimate.value.address_id = addressToUse.id;
+            estimate.value.addressId = addressToUse.id;
             if (estimate.value.client) {
               estimate.value.client.selectedAddressId = addressToUse.id;
             }
@@ -567,17 +600,17 @@ onMounted(async () => { // Make onMounted async
       console.error('Error fetching client details:', error);
     }
   }
-  
+
   // Store projectId for later use when saving the estimate
   if (projectId) {
-    // Store the projectId to associate with the estimate
-    estimate.value.project_id = projectId;
+    // Store the projectId to associate with the estimate (camelCase for frontend)
+    estimate.value.projectId = projectId;
   }
-  
+
   // Check for prefilled items from LLM generator
   const prefill = route.query.prefill;
   const items = route.query.items;
-  
+
   if (prefill === 'true' && items) {
     try {
       const prefillItems = JSON.parse(decodeURIComponent(items));
@@ -597,7 +630,7 @@ onMounted(async () => { // Make onMounted async
       console.error('Error parsing prefilled items:', error);
     }
   }
-  
+
   await loadEstimateData(); // Call the correct loading function
 });
 </script>

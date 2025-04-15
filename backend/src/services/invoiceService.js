@@ -83,10 +83,10 @@ class InvoiceService {
     try {
       // Log the entire incoming data object
       logger.debug('Entering createInvoice with invoiceData:', JSON.stringify(invoiceData, null, 2));
-      // Ensure client exists using client_fk_id as the primary identifier
-      const clientId = invoiceData.client_fk_id;
+      // Ensure client exists using client_id as the primary identifier
+      const clientId = invoiceData.client_id;
       if (!clientId) {
-        throw new Error('Client ID (client_fk_id) is required');
+        throw new Error('Client ID (client_id) is required');
       }
       const client = await Client.findByPk(clientId, {
         include: [
@@ -117,7 +117,7 @@ class InvoiceService {
       // Set terms if not provided
       if (!invoiceData.terms) {
         let terms = await this.getSetting('default_invoice_terms') || '';
-        terms = terms.replace('{due_days}', 
+        terms = terms.replace('{due_days}',
           await this.getSetting('invoice_due_days') || '30');
         invoiceData.terms = terms;
       }
@@ -127,7 +127,7 @@ class InvoiceService {
       // and that the database schema is correct after migrations.
       const invoice = await Invoice.create({
         ...invoiceData, // Spread the incoming data (should include dateCreated, dateDue as strings)
-        client_fk_id: clientId,
+        client_id: clientId, // Use the standardized field name
         address_id: invoiceData.address_id,
         subtotal: 0,
         taxTotal: 0,
@@ -187,7 +187,7 @@ class InvoiceService {
       }
 
       // Prevent updating certain fields if invoice is not in draft status
-      if (invoice.status !== 'draft' && 
+      if (invoice.status !== 'draft' &&
           (invoiceData.clientId || invoiceData.invoiceNumber)) {
         throw new Error('Cannot change client or invoice number for non-draft invoices');
       }
@@ -236,8 +236,8 @@ class InvoiceService {
         include: [
           { model: InvoiceItem, as: 'items' },
           { model: Payment, as: 'payments' },
-          { 
-            model: Client, 
+          {
+            model: Client,
             as: 'client',
             include: [
               { model: ClientAddress, as: 'addresses' }
@@ -249,23 +249,23 @@ class InvoiceService {
           }
         ]
       });
-      
+
       if (!invoice) {
         logger.warn(`Invoice not found with ID: ${invoiceId}`);
         return null;
       }
-      
+
       // Additional logging to debug client information
       if (!invoice.client) {
         logger.warn(`Client data not loaded for invoice ${invoiceId} with client_fk_id: ${invoice.client_fk_id}`);
-        
+
         // Try to load client data directly if the association failed
         if (invoice.client_fk_id) {
           try {
             const client = await Client.findByPk(invoice.client_fk_id, {
               include: [{ model: ClientAddress, as: 'addresses' }]
             });
-            
+
             if (client) {
               logger.info(`Successfully loaded client data directly: ${client.display_name}`);
               invoice.client = client;
@@ -279,7 +279,7 @@ class InvoiceService {
       } else {
         logger.info(`Client data loaded successfully: ${invoice.client.display_name || invoice.client.display_name}`);
       }
-      
+
       return invoice;
     } catch (error) {
       logger.error(`Error getting invoice details for ID ${invoiceId}:`, error);
@@ -303,7 +303,13 @@ class InvoiceService {
     }
 
     if (filters.clientId) {
-      where.client_fk_id = filters.clientId; // Use client_fk_id instead of clientId
+      // Support both client_id (standardized) and client_fk_id (legacy) fields
+      if (this._isUuid(filters.clientId)) {
+        where[Op.or] = [
+          { client_id: filters.clientId },
+          { client_fk_id: filters.clientId }
+        ];
+      }
     }
 
     if (filters.dateFrom) {
@@ -323,14 +329,21 @@ class InvoiceService {
     // Pagination
     const offset = page * limit;
 
+    // Log the query parameters
+    logger.info(`Invoice query: where=${JSON.stringify(where)}, limit=${limit}, offset=${offset}`);
+
+    // Execute count query separately for debugging
+    const count = await Invoice.count({ where });
+    logger.info(`Raw invoice count from database: ${count}`);
+
     // Execute query
-    const { count, rows } = await Invoice.findAndCountAll({
+    const { rows } = await Invoice.findAndCountAll({
       where,
       include: [
         { model: InvoiceItem, as: 'items' },
         { model: Payment, as: 'payments' },
-        { 
-          model: Client, 
+        {
+          model: Client,
           as: 'client',
           include: [
             { model: ClientAddress, as: 'addresses' }
@@ -346,13 +359,29 @@ class InvoiceService {
       offset
     });
 
-    return {
+    // Create pagination result
+    const result = {
       invoices: rows,
       total: count,
       page,
       limit,
       totalPages: Math.ceil(count / limit)
     };
+
+    logger.info(`Pagination result: total=${result.total}, totalPages=${result.totalPages}`);
+    return result;
+  }
+
+  /**
+   * Helper method to check if a string is a valid UUID
+   * @param {string} str - String to check
+   * @returns {boolean} - True if valid UUID
+   * @private
+   */
+  _isUuid(str) {
+    if (!str) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
   }
 
   /**
@@ -386,19 +415,19 @@ class InvoiceService {
 
       // Get the invoice
       const invoice = await Invoice.findByPk(invoiceId);
-      
+
       // Calculate total with discount
       const discountAmount = parseFloat(invoice.discountAmount) || 0;
       const total = subtotal + taxTotal - discountAmount;
-      
+
       // Get total payments
       const payments = await Payment.findAll({
         where: { invoiceId }
       });
-      
-      const totalPaid = payments.reduce((sum, payment) => 
+
+      const totalPaid = payments.reduce((sum, payment) =>
         sum + parseFloat(payment.amount), 0);
-      
+
       // Update invoice totals
       await invoice.update({
         subtotal,
@@ -434,20 +463,20 @@ class InvoiceService {
     }
 
     const total = parseFloat(invoice.total);
-    
+
     // If fully paid
     if (totalPaid >= total) {
       return 'paid';
     }
-    
+
     // Check if overdue
     const dueDate = new Date(invoice.dateDue);
     const today = new Date();
-    
+
     if (dueDate < today) {
       return 'overdue';
     }
-    
+
     // Default to sent or viewed (keep existing status)
     return invoice.status === 'viewed' ? 'viewed' : 'sent';
   }
@@ -459,20 +488,20 @@ class InvoiceService {
    */
   async markInvoiceAsSent(invoiceId) {
     const invoice = await Invoice.findByPk(invoiceId);
-    
+
     if (!invoice) {
       throw new Error('Invoice not found');
     }
-    
+
     if (invoice.status === 'draft') {
       await invoice.update({ status: 'sent' });
-      
+
       // Generate PDF if not already generated
       if (!invoice.pdfPath) {
         await this.generatePdf(invoiceId);
       }
     }
-    
+
     return this.getInvoiceWithDetails(invoiceId);
   }
 
@@ -483,15 +512,15 @@ class InvoiceService {
    */
   async markInvoiceAsViewed(invoiceId) {
     const invoice = await Invoice.findByPk(invoiceId);
-    
+
     if (!invoice) {
       throw new Error('Invoice not found');
     }
-    
+
     if (invoice.status === 'sent') {
       await invoice.update({ status: 'viewed' });
     }
-    
+
     return this.getInvoiceWithDetails(invoiceId);
   }
 
@@ -504,20 +533,20 @@ class InvoiceService {
   async addPayment(invoiceId, paymentData) {
     try {
       const invoice = await Invoice.findByPk(invoiceId);
-      
+
       if (!invoice) {
         throw new Error('Invoice not found');
       }
-      
+
       // Create the payment
       const payment = await Payment.create({
         ...paymentData,
         invoiceId
       });
-      
+
       // Recalculate totals
       await this.calculateInvoiceTotals(invoiceId);
-      
+
       return this.getInvoiceWithDetails(invoiceId);
     } catch (error) {
       logger.error(`Error adding payment to invoice ${invoiceId}:`, error);
@@ -533,16 +562,16 @@ class InvoiceService {
   async deleteInvoice(invoiceId) {
     try {
       const invoice = await Invoice.findByPk(invoiceId);
-      
+
       if (!invoice) {
         throw new Error('Invoice not found');
       }
-      
+
       // Allow deleting any invoice regardless of status
-      
+
       // Delete the invoice (will cascade to items)
       await invoice.destroy();
-      
+
       return true;
     } catch (error) {
       logger.error(`Error deleting invoice ${invoiceId}:`, error);
@@ -558,14 +587,14 @@ class InvoiceService {
   async generatePdf(invoiceId) {
     try {
       const invoice = await this.getInvoiceWithDetails(invoiceId);
-      
+
       if (!invoice) {
         throw new Error('Invoice not found');
       }
-      
+
       // Get client details from the invoice's client relationship
       const client = invoice.client;
-      
+
       if (!client) {
         throw new Error('Client not found');
       }
@@ -573,7 +602,7 @@ class InvoiceService {
       // Set up output directory and filename
       const uploadsDir = path.join(__dirname, '../../uploads/invoices');
       const filename = `invoice_${invoice.invoiceNumber.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-      
+
       // Prepare client information in the format expected by the PDF service
       const clientForPdf = {
         displayName: client.display_name,
@@ -581,7 +610,7 @@ class InvoiceService {
         email: client.email,
         phone: client.phone
       };
-      
+
       // Generate PDF using PDF service
       const pdfPath = await pdfService.generatePdf({
         type: 'invoice',
@@ -590,10 +619,10 @@ class InvoiceService {
         filename,
         outputDir: uploadsDir
       });
-      
+
       // Update invoice with PDF path
       await invoice.update({ pdfPath });
-      
+
       return pdfPath;
     } catch (error) {
       logger.error(`Error generating PDF for invoice ${invoiceId}:`, error);

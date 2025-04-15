@@ -59,7 +59,7 @@
       class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700"
     >
       <div class="text-sm text-gray-600 dark:text-gray-400">
-        Estimate: {{ project.estimate.estimate_number || project.estimate.estimateNumber }}
+        Estimate: {{ project.estimate.estimateNumber }}
       </div>
     </div>
 
@@ -132,17 +132,17 @@ const formatAddress = (address) => {
     return formatAddressParts(props.project.address);
   }
   
-  // Third try: Look up address by ID in client addresses array
-  if (props.project.address_id && props.project.client?.addresses && props.project.client.addresses.length > 0) {
-    const selectedAddress = props.project.client.addresses.find(addr => addr.id === props.project.address_id);
+  // Third try: Look up address by ID in client addresses array (use camelCase addressId)
+  if (props.project.addressId && props.project.client?.addresses && props.project.client.addresses.length > 0) {
+    const selectedAddress = props.project.client.addresses.find(addr => addr.id === props.project.addressId);
     if (selectedAddress) {
       return formatAddressParts(selectedAddress);
     }
   }
   
-  // Fourth try: Use first client address if available
+  // Fourth try: Use first client address if available (use camelCase isPrimary)
   if (props.project.client?.addresses && props.project.client.addresses.length > 0) {
-    const primaryAddress = props.project.client.addresses.find(addr => addr.is_primary) || props.project.client.addresses[0];
+    const primaryAddress = props.project.client.addresses.find(addr => addr.isPrimary) || props.project.client.addresses[0];
     return formatAddressParts(primaryAddress);
   }
   
@@ -150,13 +150,13 @@ const formatAddress = (address) => {
   return 'No address provided';
 };
 
-// Helper to format address parts
+// Helper to format address parts (use camelCase)
 const formatAddressParts = (address) => {
   const parts = [
-    address.street_address || address.street,
+    address.streetAddress || address.street, // Use streetAddress, fallback to street if needed
     address.city,
     address.state,
-    address.postal_code || address.zipCode || address.zip_code
+    address.postalCode || address.zipCode // Use postalCode, fallback to zipCode if needed
   ].filter(Boolean);
   
   return parts.length > 0 ? parts.join(', ') : 'Address details incomplete';
@@ -166,7 +166,7 @@ const formatAddressParts = (address) => {
 const getClientName = (client) => {
   if (!client) return 'Unknown Client';
   
-  return client.display_name || client.name || 'Unknown Client';
+  return client.displayName || client.name || 'Unknown Client'; // Use camelCase displayName
 };
 </script>
 

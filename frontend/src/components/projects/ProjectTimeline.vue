@@ -39,25 +39,30 @@ const props = defineProps({
 const isActive = computed(() => props.project.type === 'active');
 const isCompleted = computed(() => props.project.status === 'completed');
 
+
+const projectCreatedAt = computed(() => props.project.createdAt); // Rely on normalized createdAt
+const projectUpdatedAt = computed(() => props.project.updatedAt); // Rely on normalized updatedAt
+const projectAssessmentId = computed(() => props.project.assessmentId); // Rely on normalized assessmentId
+
 const timelineEvents = computed(() => {
   return [
     {
       label: 'Assessment',
-      timestamp: formatDate(props.project.created_at),
+      timestamp: formatDate(projectCreatedAt.value), // Use computed prop
       isComplete: true,
       icon: 'pi pi-file',
       step: 'assessment'
     },
     {
       label: 'Active',
-      timestamp: isActive.value ? formatDate(props.project.updated_at) : 'Pending',
+      timestamp: isActive.value ? formatDate(projectUpdatedAt.value) : 'Pending', // Use computed prop
       isComplete: isActive.value || isCompleted.value,
       icon: 'pi pi-cog',
       step: 'active'
     },
     {
       label: 'Completed',
-      timestamp: isCompleted.value ? formatDate(props.project.updated_at) : 'Pending',
+      timestamp: isCompleted.value ? formatDate(projectUpdatedAt.value) : 'Pending', // Use computed prop
       isComplete: isCompleted.value,
       icon: 'pi pi-check',
       step: 'completed'
@@ -66,8 +71,8 @@ const timelineEvents = computed(() => {
 });
 
 const navigateToStep = (step) => {
-  if (step === 'assessment' && isActive.value && props.project.assessment_id) {
-    router.push(`/projects/${props.project.assessment_id}`);
+  if (step === 'assessment' && isActive.value && projectAssessmentId.value) { // Use computed prop
+    router.push(`/projects/${projectAssessmentId.value}`); // Use computed prop
   }
 };
 

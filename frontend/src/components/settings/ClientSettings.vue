@@ -130,13 +130,13 @@
         <div>
           <div class="flex items-center mb-2">
             <h4 class="text-base font-medium text-gray-900 dark:text-white">
-              {{ selectedClient.display_name }}
+              {{ selectedClient.displayName }}
             </h4>
-            <BaseBadge :variant="getClientTypeBadgeVariant(selectedClient.client_type)" size="sm" class="ml-2">
-              {{ formatClientType(selectedClient.client_type) }}
+            <BaseBadge :variant="getClientTypeBadgeVariant(selectedClient.clientType)" size="sm" class="ml-2">
+              {{ formatClientType(selectedClient.clientType) }}
             </BaseBadge>
-            <BaseBadge :variant="selectedClient.is_active ? 'success' : 'danger'" size="sm" class="ml-1">
-              {{ selectedClient.is_active ? 'Active' : 'Inactive' }}
+            <BaseBadge :variant="selectedClient.isActive ? 'success' : 'danger'" size="sm" class="ml-1">
+              {{ selectedClient.isActive ? 'Active' : 'Inactive' }}
             </BaseBadge>
           </div>
           <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
@@ -150,17 +150,17 @@
         <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
           <h4 class="font-medium text-gray-900 dark:text-white mb-2">Billing Information</h4>
           <div class="text-sm space-y-2">
-            <div v-if="selectedClient.payment_terms" class="flex">
+            <div v-if="selectedClient.paymentTerms" class="flex">
               <span class="text-gray-500 dark:text-gray-400 w-32">Payment Terms:</span>
-              <span class="text-gray-900 dark:text-white">{{ selectedClient.payment_terms }}</span>
+              <span class="text-gray-900 dark:text-white">{{ selectedClient.paymentTerms }}</span>
             </div>
-            <div v-if="selectedClient.default_tax_rate !== null" class="flex">
+            <div v-if="selectedClient.defaultTaxRate !== null" class="flex">
               <span class="text-gray-500 dark:text-gray-400 w-32">Tax Rate:</span>
-              <span class="text-gray-900 dark:text-white">{{ selectedClient.default_tax_rate }}%</span>
+              <span class="text-gray-900 dark:text-white">{{ selectedClient.defaultTaxRate }}%</span>
             </div>
-            <div v-if="selectedClient.default_currency" class="flex">
+            <div v-if="selectedClient.defaultCurrency" class="flex">
               <span class="text-gray-500 dark:text-gray-400 w-32">Currency:</span>
-              <span class="text-gray-900 dark:text-white">{{ selectedClient.default_currency }}</span>
+              <span class="text-gray-900 dark:text-white">{{ selectedClient.defaultCurrency }}</span>
             </div>
           </div>
         </div>
@@ -175,18 +175,18 @@
         <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
           <h4 class="font-medium text-gray-900 dark:text-white mb-2">Addresses</h4>
           <div v-if="selectedClient.addresses && selectedClient.addresses.length > 0" class="space-y-3">
-            <div 
-              v-for="address in selectedClient.addresses" 
+            <div
+              v-for="address in selectedClient.addresses"
               :key="address.id"
               class="bg-gray-50 dark:bg-gray-800/50 rounded-md p-3"
             >
               <div class="flex items-center mb-1">
                 <h5 class="text-sm font-medium text-gray-900 dark:text-white">{{ address.name }}</h5>
-                <BaseBadge v-if="address.is_primary" variant="success" size="sm" class="ml-2">Primary</BaseBadge>
+                <BaseBadge v-if="address.isPrimary" variant="success" size="sm" class="ml-2">Primary</BaseBadge>
               </div>
               <div class="text-xs text-gray-600 dark:text-gray-400">
-                <p>{{ address.street_address }}</p>
-                <p>{{ address.city }}, {{ address.state }} {{ address.postal_code }}</p>
+                <p>{{ address.streetAddress }}</p>
+                <p>{{ address.city }}, {{ address.state }} {{ address.postalCode }}</p>
                 <p v-if="address.country && address.country !== 'USA'">{{ address.country }}</p>
               </div>
               <p v-if="address.notes" class="mt-1 text-xs text-gray-500 dark:text-gray-500 italic">{{ address.notes }}</p>
@@ -196,10 +196,10 @@
             No addresses available
           </div>
         </div>
-        
+
         <!-- Creation Date -->
-        <div v-if="selectedClient.created_at" class="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
-          Created on {{ formatDate(selectedClient.created_at) }}
+        <div v-if="selectedClient.createdAt" class="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+          Created on {{ formatDate(selectedClient.createdAt) }}
         </div>
       </div>
 
@@ -233,7 +233,7 @@
       <!-- Alert for form errors -->
       <BaseAlert
         v-if="formError"
-        variant="error"
+        variant="danger"
         :message="formError"
         dismissible
         class="mb-4"
@@ -254,10 +254,10 @@
               >
                 <BaseInput
                   id="client-name"
-                  v-model="clientForm.display_name"
+                  v-model="clientForm.displayName"
                   placeholder="Enter client name"
                   required
-                  :error="formErrors.display_name"
+                  :error="formErrors.displayName"
                 />
               </BaseFormGroup>
 
@@ -309,10 +309,10 @@
               >
                 <BaseSelect
                   id="client-type"
-                  v-model="clientForm.client_type"
+                  v-model="clientForm.clientType"
                   :options="clientTypeOptions.filter(t => t.value !== 'all')"
                   required
-                  :error="formErrors.client_type"
+                  :error="formErrors.clientType"
                 />
               </BaseFormGroup>
 
@@ -324,11 +324,11 @@
               >
                 <BaseToggleSwitch
                   id="client-status"
-                  v-model="clientForm.is_active"
-                  :error="formErrors.is_active"
+                  v-model="clientForm.isActive"
+                  :error="formErrors.isActive"
                 >
-                  <span class="ml-2 text-sm" :class="clientForm.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                    {{ clientForm.is_active ? 'Active' : 'Inactive' }}
+                  <span class="ml-2 text-sm" :class="clientForm.isActive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                    {{ clientForm.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </BaseToggleSwitch>
               </BaseFormGroup>
@@ -346,13 +346,13 @@
               >
                 <BaseInput
                   id="client-tax-rate"
-                  v-model="clientForm.default_tax_rate"
+                  v-model="clientForm.defaultTaxRate"
                   type="number"
                   step="0.01"
                   min="0"
                   max="100"
                   placeholder="Enter default tax rate (0-100)"
-                  :error="formErrors.default_tax_rate"
+                  :error="formErrors.defaultTaxRate"
                 />
               </BaseFormGroup>
 
@@ -363,9 +363,9 @@
               >
                 <BaseInput
                   id="client-payment-terms"
-                  v-model="clientForm.payment_terms"
+                  v-model="clientForm.paymentTerms"
                   placeholder="E.g., Net 30"
-                  :error="formErrors.payment_terms"
+                  :error="formErrors.paymentTerms"
                 />
               </BaseFormGroup>
 
@@ -376,10 +376,10 @@
               >
                 <BaseInput
                   id="client-currency"
-                  v-model="clientForm.default_currency"
+                  v-model="clientForm.defaultCurrency"
                   placeholder="E.g., USD"
                   maxlength="3"
-                  :error="formErrors.default_currency"
+                  :error="formErrors.defaultCurrency"
                 />
               </BaseFormGroup>
             </div>
@@ -424,24 +424,24 @@
             </div>
 
             <!-- Text explaining the importance of addresses based on client type -->
-            <div v-if="clientForm.client_type === 'property_manager'" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300">
+            <div v-if="clientForm.clientType === 'property_manager'" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300">
               <p>Property managers can have multiple addresses for different properties they manage. At least one primary address is required.</p>
             </div>
-            <div v-else-if="clientForm.client_type === 'resident'" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300">
+            <div v-else-if="clientForm.clientType === 'resident'" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-md text-sm text-blue-700 dark:text-blue-300">
               <p>Resident clients typically have a single address where they reside, but can have additional addresses if needed.</p>
             </div>
 
             <!-- Address List -->
             <div v-if="clientForm.addresses && clientForm.addresses.length > 0" class="space-y-4 mb-4">
-              <div 
-                v-for="(address, index) in clientForm.addresses" 
+              <div
+                v-for="(address, index) in clientForm.addresses"
                 :key="address.id || `new-address-${index}`"
                 class="border border-gray-200 dark:border-gray-700 rounded-md p-4"
               >
                 <div class="flex justify-between mb-2">
                   <div class="flex items-center">
                     <h4 class="font-medium text-gray-900 dark:text-white">{{ address.name }}</h4>
-                    <BaseBadge v-if="address.is_primary" variant="success" size="sm" class="ml-2">Primary</BaseBadge>
+                    <BaseBadge v-if="address.isPrimary" variant="success" size="sm" class="ml-2">Primary</BaseBadge>
                   </div>
                   <div class="flex space-x-2">
                     <button
@@ -457,7 +457,7 @@
                       type="button"
                       @click="removeAddress(index)"
                       class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
-                      :disabled="clientForm.addresses.length === 1 && address.is_primary"
+                      :disabled="clientForm.addresses.length === 1 && address.isPrimary"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -466,13 +466,13 @@
                   </div>
                 </div>
                 <div class="text-sm text-gray-600 dark:text-gray-400">
-                  <p>{{ address.street_address }}</p>
-                  <p>{{ address.city }}, {{ address.state }} {{ address.postal_code }}</p>
+                  <p>{{ address.streetAddress }}</p>
+                  <p>{{ address.city }}, {{ address.state }} {{ address.postalCode }}</p>
                   <p v-if="address.country && address.country !== 'USA'">{{ address.country }}</p>
                 </div>
               </div>
             </div>
-            
+
             <!-- No Addresses Message -->
             <div v-else class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md border border-yellow-100 dark:border-yellow-800 mb-4">
               <p class="text-yellow-700 dark:text-yellow-300 text-sm">No addresses added. Please add at least one address.</p>
@@ -483,7 +483,7 @@
               <h4 class="text-base font-medium text-gray-900 dark:text-white mb-3">
                 {{ isEditingAddress ? 'Edit Address' : 'Add New Address' }}
               </h4>
-              
+
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Address Name -->
                 <BaseFormGroup
@@ -510,10 +510,10 @@
                 >
                   <BaseInput
                     id="address-street"
-                    v-model="addressForm.street_address"
+                    v-model="addressForm.streetAddress"
                     placeholder="Enter street address"
                     required
-                    :error="addressErrors.street_address"
+                    :error="addressErrors.streetAddress"
                   />
                 </BaseFormGroup>
 
@@ -555,10 +555,10 @@
                 >
                   <BaseInput
                     id="address-postal"
-                    v-model="addressForm.postal_code"
+                    v-model="addressForm.postalCode"
                     placeholder="Enter postal code"
                     required
-                    :error="addressErrors.postal_code"
+                    :error="addressErrors.postalCode"
                   />
                 </BaseFormGroup>
 
@@ -583,8 +583,8 @@
                 >
                   <BaseToggleSwitch
                     id="address-primary"
-                    v-model="addressForm.is_primary"
-                    :error="addressErrors.is_primary"
+                    v-model="addressForm.isPrimary"
+                    :error="addressErrors.isPrimary"
                   >
                     <span class="ml-2 text-sm">Make this the primary address</span>
                   </BaseToggleSwitch>
@@ -656,7 +656,7 @@
     >
       <div class="py-2">
         <p class="text-gray-700 dark:text-gray-300">
-          Are you sure you want to delete client <span class="font-bold">{{ clientToDelete?.display_name }}</span>?
+          Are you sure you want to delete client <span class="font-bold">{{ clientToDelete?.displayName }}</span>? <!-- camelCase -->
         </p>
         <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">
           This action cannot be undone and will delete all associated addresses.
@@ -682,23 +682,17 @@
       </template>
     </BaseModal>
 
-    <!-- Toast Notification -->
-    <BaseToastNotification
-      v-if="showToast"
-      :id="toastId"
-      :variant="toastVariant"
-      :message="toastMessage"
-      @close="showToast = false"
-      position="bottom-right"
-      :auto-close="3000"
-    />
+    <!-- Toast Notification Removed - Handled by useErrorHandler -->
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { debounce } from 'lodash-es';
-import clientService from '@/services/clients.service';
+// Use standardized service
+import clientService from '@/services/clients.service.js';
+import useErrorHandler from '@/composables/useErrorHandler.js'; // Import error handler
 
 // Import Base Components
 import BaseButton from '@/components/base/BaseButton.vue';
@@ -709,7 +703,7 @@ import BaseBadge from '@/components/data-display/BaseBadge.vue';
 import BaseModal from '@/components/overlays/BaseModal.vue';
 import BaseDrawer from '@/components/overlays/BaseDrawer.vue';
 import BaseAlert from '@/components/feedback/BaseAlert.vue';
-import BaseToastNotification from '@/components/feedback/BaseToastNotification.vue';
+// BaseToastNotification removed as errors are handled by useErrorHandler
 import BaseFormGroup from '@/components/form/BaseFormGroup.vue';
 import BaseToggleSwitch from '@/components/form/BaseToggleSwitch.vue';
 
@@ -717,10 +711,13 @@ import BaseToggleSwitch from '@/components/form/BaseToggleSwitch.vue';
 import ClientTableResponsive from './client-tables/ClientTableResponsive.vue';
 import ClientTableCompact from './client-tables/ClientTableCompact.vue';
 
+// Instantiate error handler
+const { handleError } = useErrorHandler();
+
 // State
 const clients = ref([]);
 const loading = ref(false);
-const error = ref(null);
+// error ref removed as errors are handled by useErrorHandler
 const searchQuery = ref('');
 const typeFilter = ref('all');
 const statusFilter = ref('all');
@@ -733,7 +730,7 @@ const itemsPerPage = ref(10); // Or load from user preference/settings
 const totalItems = ref(0);
 
 // Sorting
-const sortConfig = ref({ key: 'display_name', order: 'asc' });
+const sortConfig = ref({ key: 'displayName', order: 'asc' }); // Use camelCase
 
 // Modals & Drawers
 const showClientModal = ref(false);
@@ -747,7 +744,7 @@ const selectedClient = ref(null);
 // Forms
 const clientForm = ref(getInitialClientForm());
 const formErrors = ref({});
-const formError = ref('');
+const formError = ref(''); // Keep for general form errors not tied to specific fields
 const formSubmitting = ref(false);
 const deleteSubmitting = ref(false);
 
@@ -757,11 +754,7 @@ const addressErrors = ref({});
 const isEditingAddress = ref(false);
 const editingAddressIndex = ref(-1);
 
-// Toast Notifications
-const showToast = ref(false);
-const toastMessage = ref('');
-const toastVariant = ref('success'); // 'success', 'error', 'info', 'warning'
-const toastId = ref('client-toast-1'); // Add unique ID for toast notifications
+// Toast Notifications Removed - Handled by useErrorHandler
 
 // Options
 const clientTypeOptions = [
@@ -785,7 +778,7 @@ const filteredClients = computed(() => {
   if (searchQuery.value) {
     const lowerQuery = searchQuery.value.toLowerCase();
     filtered = filtered.filter(client =>
-      client.display_name?.toLowerCase().includes(lowerQuery) ||
+      client.displayName?.toLowerCase().includes(lowerQuery) || // camelCase
       client.company?.toLowerCase().includes(lowerQuery) ||
       client.email?.toLowerCase().includes(lowerQuery)
     );
@@ -793,13 +786,13 @@ const filteredClients = computed(() => {
 
   // Apply type filter
   if (typeFilter.value !== 'all') {
-    filtered = filtered.filter(client => client.client_type === typeFilter.value);
+    filtered = filtered.filter(client => client.clientType === typeFilter.value); // camelCase
   }
 
   // Apply status filter
   if (statusFilter.value !== 'all') {
-    const isActive = statusFilter.value === 'active';
-    filtered = filtered.filter(client => client.is_active === isActive);
+    const isActiveFilter = statusFilter.value === 'active';
+    filtered = filtered.filter(client => client.isActive === isActiveFilter); // camelCase
   }
 
   // Apply sorting
@@ -820,7 +813,7 @@ const filteredClients = computed(() => {
       return 0;
     });
   }
-  
+
   totalItems.value = filtered.length; // Update total items based on filtering
   return filtered;
 });
@@ -843,32 +836,34 @@ const paginatedClients = computed(() => {
 // Methods
 async function fetchClients() {
   loading.value = true;
-  error.value = null;
   try {
-    const response = await clientService.getAllClients(); // Corrected function name
-    const fetchedClients = response.data || [];
-    clients.value = fetchedClients;
-    totalItems.value = fetchedClients.length; // Set totalItems immediately after fetch
-    clients.value = response.data || [];
-    totalItems.value = clients.value.length; // Initial total count
+    const response = await clientService.getAllClients(); // Use correct method name
+    console.log('Client response:', response);
+    if (response.success) {
+      const fetchedClients = response.data || [];
+      console.log('Fetched clients:', fetchedClients);
+      clients.value = fetchedClients;
+      totalItems.value = fetchedClients.length; // Set totalItems immediately after fetch
+    } else {
+      handleError(new Error(response.message || 'Failed to load clients'), 'Failed to load clients.');
+      clients.value = [];
+      totalItems.value = 0;
+    }
   } catch (err) {
-    console.error('Error fetching clients:', err);
-    error.value = 'Failed to load clients. Please try again.';
-    showToastNotification('Failed to load clients.', 'error');
-    clients.value = []; // Ensure clients is empty on error
-    totalItems.value = 0; // Ensure totalItems is 0 on error
-    clients.value = []; // Ensure clients is empty on error
-    totalItems.value = 0; // Ensure totalItems is 0 on error
+    handleError(err, 'Failed to load clients.');
+    clients.value = [];
+    totalItems.value = 0;
   } finally {
     loading.value = false;
   }
 }
 
+// Create a debounced version of fetchClients for search
 const debouncedFetch = debounce(fetchClients, 300);
 
 function handleSearch() {
   currentPage.value = 1; // Reset page on search
-  // If API supports server-side search, call debouncedFetch() here
+  debouncedFetch(); // Use debounced fetch with search query
 }
 
 function handleFilter() {
@@ -899,19 +894,23 @@ function resetFilters() {
   searchQuery.value = '';
   typeFilter.value = 'all';
   statusFilter.value = 'all';
-  sortConfig.value = { key: 'display_name', order: 'asc' };
+  sortConfig.value = { key: 'displayName', order: 'asc' }; // Use camelCase
   currentPage.value = 1;
   // If using server-side filtering/search, call fetchClients() here
 }
 
 function formatClientType(type) {
   if (!type) return 'N/A';
+  // Assuming type is already camelCase ('propertyManager', 'resident')
+  // Or still snake_case ('property_manager', 'resident') - adjust if needed based on service
   return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
 function getClientTypeBadgeVariant(type) {
+  // Assuming type is already camelCase ('propertyManager', 'resident')
   switch (type) {
-    case 'property_manager': return 'info';
+    case 'propertyManager': // Use camelCase
+      return 'info';
     case 'resident': return 'primary';
     default: return 'secondary';
   }
@@ -932,15 +931,15 @@ function formatDate(dateString) {
 function getInitialClientForm() {
   return {
     id: null,
-    display_name: '',
+    displayName: '', // camelCase
     company: '',
     email: '',
     phone: '',
-    client_type: 'resident', // Default type
-    is_active: true,
-    payment_terms: '',
-    default_tax_rate: null,
-    default_currency: 'USD', // Default currency
+    clientType: 'resident', // camelCase (default type)
+    isActive: true, // camelCase
+    paymentTerms: '', // camelCase
+    defaultTaxRate: null, // camelCase
+    defaultCurrency: 'USD', // camelCase
     notes: '',
     addresses: [], // Array of address objects
   };
@@ -950,12 +949,12 @@ function getInitialAddressForm() {
   return {
     id: null, // For existing addresses during edit
     name: '',
-    street_address: '',
+    streetAddress: '', // camelCase
     city: '',
     state: '',
-    postal_code: '',
+    postalCode: '', // camelCase
     country: 'USA', // Default country
-    is_primary: false,
+    isPrimary: false, // camelCase
     notes: '',
   };
 }
@@ -966,7 +965,7 @@ function openCreateClientModal() {
   // Ensure at least one empty primary address when creating
   if (clientForm.value.addresses.length === 0) {
     const newAddress = getInitialAddressForm();
-    newAddress.is_primary = true;
+    newAddress.isPrimary = true; // camelCase
     newAddress.name = 'Primary Address'; // Default name
     clientForm.value.addresses.push(newAddress);
   }
@@ -977,25 +976,27 @@ function openCreateClientModal() {
 }
 
 function openEditClientModal(client) {
+  console.log('Opening edit modal for client:', JSON.stringify(client));
   isEditing.value = true;
   clientToEdit.value = client;
   // Deep copy to avoid modifying original object directly
+  // Assume client object received from service is already camelCase
   clientForm.value = JSON.parse(JSON.stringify({
     ...getInitialClientForm(), // Start with defaults
-    ...client, // Override with client data
+    ...client, // Override with client data (should be camelCase)
     addresses: client.addresses ? JSON.parse(JSON.stringify(client.addresses)) : [], // Deep copy addresses
-    default_tax_rate: client.default_tax_rate !== null ? Number(client.default_tax_rate) : null, // Ensure number
+    defaultTaxRate: client.defaultTaxRate !== null ? Number(client.defaultTaxRate) : null, // Ensure number
   }));
   // Ensure addresses array exists
   if (!clientForm.value.addresses) {
     clientForm.value.addresses = [];
   }
   // Ensure at least one primary address if none exist (safety net)
-  if (clientForm.value.addresses.length > 0 && !clientForm.value.addresses.some(a => a.is_primary)) {
-    clientForm.value.addresses[0].is_primary = true;
+  if (clientForm.value.addresses.length > 0 && !clientForm.value.addresses.some(a => a.isPrimary)) { // camelCase
+    clientForm.value.addresses[0].isPrimary = true; // camelCase
   } else if (clientForm.value.addresses.length === 0) {
      const newAddress = getInitialAddressForm();
-     newAddress.is_primary = true;
+     newAddress.isPrimary = true; // camelCase
      newAddress.name = 'Primary Address';
      clientForm.value.addresses.push(newAddress);
   }
@@ -1010,18 +1011,18 @@ function validateClientForm() {
   formErrors.value = {};
   let isValid = true;
 
-  if (!clientForm.value.display_name?.trim()) {
-    formErrors.value.display_name = 'Client name is required.';
+  if (!clientForm.value.displayName?.trim()) { // camelCase
+    formErrors.value.displayName = 'Client name is required.'; // camelCase
     isValid = false;
   }
-  if (!clientForm.value.client_type) {
-    formErrors.value.client_type = 'Client type is required.';
+  if (!clientForm.value.clientType) { // camelCase
+    formErrors.value.clientType = 'Client type is required.'; // camelCase
     isValid = false;
   }
   if (!clientForm.value.addresses || clientForm.value.addresses.length === 0) {
     formError.value = 'At least one address is required.'; // General form error
     isValid = false;
-  } else if (!clientForm.value.addresses.some(a => a.is_primary)) {
+  } else if (!clientForm.value.addresses.some(a => a.isPrimary)) { // camelCase
     formError.value = 'At least one address must be marked as primary.'; // General form error
     isValid = false;
   }
@@ -1030,12 +1031,12 @@ function validateClientForm() {
       formErrors.value.email = 'Please enter a valid email address.';
       isValid = false;
   }
-  if (clientForm.value.default_tax_rate !== null && (isNaN(clientForm.value.default_tax_rate) || clientForm.value.default_tax_rate < 0 || clientForm.value.default_tax_rate > 100)) {
-      formErrors.value.default_tax_rate = 'Tax rate must be between 0 and 100.';
+  if (clientForm.value.defaultTaxRate !== null && (isNaN(clientForm.value.defaultTaxRate) || clientForm.value.defaultTaxRate < 0 || clientForm.value.defaultTaxRate > 100)) { // camelCase
+      formErrors.value.defaultTaxRate = 'Tax rate must be between 0 and 100.'; // camelCase
       isValid = false;
   }
-   if (clientForm.value.default_currency && clientForm.value.default_currency.length !== 3) {
-      formErrors.value.default_currency = 'Currency code must be 3 letters (e.g., USD).';
+   if (clientForm.value.defaultCurrency && clientForm.value.defaultCurrency.length !== 3) { // camelCase
+      formErrors.value.defaultCurrency = 'Currency code must be 3 letters (e.g., USD).'; // camelCase
       isValid = false;
   }
 
@@ -1052,80 +1053,41 @@ async function submitClientForm() {
 
   formSubmitting.value = true;
   try {
+    // Prepare payload (already camelCase)
+    const payload = { ...clientForm.value };
+    // Ensure tax rate is a number or null
+    payload.defaultTaxRate = payload.defaultTaxRate !== '' ? Number(payload.defaultTaxRate) : null;
+    // Format addresses for creation/update (already camelCase)
+    payload.addresses = payload.addresses.map(addr => {
+      const { id, ...rest } = addr; // Keep id for updates
+      return isEditing.value && typeof id === 'number' ? addr : rest; // Remove temp id only for new addresses
+    });
+
+    let response;
     if (isEditing.value) {
-      const clientId = clientForm.value.id;
-      
-      // 1. Extract client data without addresses for separate handling
-      const { addresses, ...clientData } = { ...clientForm.value };
-      
-      // Ensure tax rate is a number or null
-      clientData.default_tax_rate = clientData.default_tax_rate !== '' ? Number(clientData.default_tax_rate) : null;
-      
-      // 2. Update the main client data
-      await clientService.updateClient(clientId, clientData);
-      
-      // 3. Handle address updates separately
-      if (addresses && Array.isArray(addresses)) {
-        // Get current addresses from server
-        const currentClientResponse = await clientService.getClientById(clientId);
-        const currentAddresses = currentClientResponse.data.addresses || [];
-        
-        // Identify addresses to add, update, or delete
-        const addressesToUpdate = addresses.filter(a => typeof a.id === 'number');
-        const addressesToAdd = addresses.filter(a => typeof a.id !== 'number');
-        const addressesToDelete = currentAddresses.filter(
-          currentAddr => !addresses.some(newAddr => newAddr.id === currentAddr.id)
-        );
-        
-        // Delete addresses that aren't in the new list
-        for (const addr of addressesToDelete) {
-          await clientService.deleteClientAddress(clientId, addr.id);
-        }
-        
-        // Update existing addresses
-        for (const addr of addressesToUpdate) {
-          const { id, ...addressData } = addr;
-          await clientService.updateClientAddress(clientId, id, addressData);
-        }
-        
-        // Add new addresses
-        for (const addr of addressesToAdd) {
-          const { id, ...addressData } = addr; // Remove temporary id
-          await clientService.addClientAddress(clientId, addressData);
-        }
-      }
-      
-      // 4. Refresh the client list
-      await fetchClients();
-      
-      // 5. Refresh the selected client if it's the one being edited
-      if (selectedClient.value && selectedClient.value.id === clientId) {
-        const updatedClientResponse = await clientService.getClientById(clientId);
-        selectedClient.value = updatedClientResponse.data;
-      }
-      
-      showToastNotification('Client updated successfully.', 'success');
+      response = await clientService.updateClient(payload.id, payload); // Use correct method name
     } else {
-      // For new clients, we can use the existing method since it creates everything at once
-      const payload = { ...clientForm.value };
-      // Ensure tax rate is a number or null
-      payload.default_tax_rate = payload.default_tax_rate !== '' ? Number(payload.default_tax_rate) : null;
-      // Format addresses for creation (remove temporary IDs)
-      payload.addresses = payload.addresses.map(addr => {
-        const { id, ...rest } = addr;
-        return rest; // New addresses don't need IDs
-      });
-      
-      await clientService.createClient(payload);
-      await fetchClients(); // Refresh the list
-      showToastNotification('Client created successfully.', 'success');
+      response = await clientService.createClient(payload); // Use correct method name
     }
-    
-    showClientModal.value = false;
+
+    if (response.success) {
+      await fetchClients(); // Refresh the list
+      // Refresh the selected client if it's the one being edited/created
+      if (selectedClient.value && selectedClient.value.id === response.data.id) {
+         selectedClient.value = response.data;
+      }
+      // Use toast via handleError for consistency (though this is success)
+      handleError({ message: `Client ${isEditing.value ? 'updated' : 'created'} successfully.` }, `Client ${isEditing.value ? 'updated' : 'created'} successfully.`); // Simulate success via error handler for toast
+      showClientModal.value = false;
+    } else {
+       formError.value = response.message || `Failed to ${isEditing.value ? 'update' : 'create'} client.`;
+       handleError(new Error(formError.value), formError.value);
+    }
+
   } catch (err) {
-    console.error('Error submitting client form:', err);
-    formError.value = err.response?.data?.message || `Failed to ${isEditing.value ? 'update' : 'create'} client. Please try again.`;
-    showToastNotification(formError.value, 'error');
+    // Use handleError for exceptions
+    const errorInfo = handleError(err, `Failed to ${isEditing.value ? 'update' : 'create'} client.`);
+    formError.value = errorInfo.message; // Display error message on form
   } finally {
     formSubmitting.value = false;
   }
@@ -1136,10 +1098,10 @@ function addNewAddress() {
   addressForm.value = getInitialAddressForm();
   // If this is the *only* address being added, make it primary by default
   if (clientForm.value.addresses.length === 0) {
-      addressForm.value.is_primary = true;
+      addressForm.value.isPrimary = true; // camelCase
       addressForm.value.name = 'Primary Address';
   } else {
-      addressForm.value.is_primary = false; // Default to non-primary if others exist
+      addressForm.value.isPrimary = false; // camelCase
       addressForm.value.name = `Address ${clientForm.value.addresses.length + 1}`; // Default name
   }
   addressErrors.value = {};
@@ -1149,7 +1111,7 @@ function addNewAddress() {
 }
 
 function editAddress(index) {
-  // Deep copy the address to edit
+  // Deep copy the address to edit (assume camelCase)
   addressForm.value = JSON.parse(JSON.stringify(clientForm.value.addresses[index]));
   addressErrors.value = {};
   isEditingAddress.value = true;
@@ -1159,16 +1121,16 @@ function editAddress(index) {
 
 function removeAddress(index) {
   // Prevent deleting the last primary address
-  if (clientForm.value.addresses.length === 1 && clientForm.value.addresses[index].is_primary) {
-      showToastNotification('Cannot delete the only primary address.', 'warning');
+  if (clientForm.value.addresses.length === 1 && clientForm.value.addresses[index].isPrimary) { // camelCase
+      handleError({ message: 'Cannot delete the only primary address.' }, 'Cannot delete the only primary address.'); // Use handleError for toast
       return;
   }
   const removedAddress = clientForm.value.addresses.splice(index, 1)[0];
 
   // If the removed address was primary, and there are still addresses left,
   // make the first remaining address primary.
-  if (removedAddress.is_primary && clientForm.value.addresses.length > 0) {
-      clientForm.value.addresses[0].is_primary = true;
+  if (removedAddress.isPrimary && clientForm.value.addresses.length > 0) { // camelCase
+      clientForm.value.addresses[0].isPrimary = true; // camelCase
   }
 
   // If removing the address being edited in the form
@@ -1187,8 +1149,8 @@ function validateAddressForm() {
         addressErrors.value.name = 'Address name is required.';
         isValid = false;
     }
-    if (!addressForm.value.street_address?.trim()) {
-        addressErrors.value.street_address = 'Street address is required.';
+    if (!addressForm.value.streetAddress?.trim()) { // camelCase
+        addressErrors.value.streetAddress = 'Street address is required.'; // camelCase
         isValid = false;
     }
     if (!addressForm.value.city?.trim()) {
@@ -1199,8 +1161,8 @@ function validateAddressForm() {
         addressErrors.value.state = 'State is required.';
         isValid = false;
     }
-    if (!addressForm.value.postal_code?.trim()) {
-        addressErrors.value.postal_code = 'Postal code is required.';
+    if (!addressForm.value.postalCode?.trim()) { // camelCase
+        addressErrors.value.postalCode = 'Postal code is required.'; // camelCase
         isValid = false;
     }
     // Add more specific validations if needed (e.g., postal code format)
@@ -1213,34 +1175,34 @@ function saveAddress() {
   }
 
   // Handle primary address logic: if this one is set to primary, unset others
-  if (addressForm.value.is_primary) {
+  if (addressForm.value.isPrimary) { // camelCase
     clientForm.value.addresses.forEach((addr, i) => {
       if (i !== editingAddressIndex.value) { // Don't unset itself if editing
-        addr.is_primary = false;
+        addr.isPrimary = false; // camelCase
       }
     });
   } else {
     // If unsetting the *only* primary address, prevent it or auto-set another
-    const primaryAddresses = clientForm.value.addresses.filter((addr, i) => 
-        addr.is_primary && i !== editingAddressIndex.value // Exclude the one being edited if it was primary
+    const primaryAddresses = clientForm.value.addresses.filter((addr, i) =>
+        addr.isPrimary && i !== editingAddressIndex.value // camelCase
     );
     // If this was the only primary address and is being unset
-    if (primaryAddresses.length === 0 && (!isEditingAddress.value || clientForm.value.addresses[editingAddressIndex.value]?.is_primary)) {
+    if (primaryAddresses.length === 0 && (!isEditingAddress.value || clientForm.value.addresses[editingAddressIndex.value]?.isPrimary)) { // camelCase
         // If there are other addresses, make the first one primary
         if (clientForm.value.addresses.length > (isEditingAddress.value ? 1 : 0)) {
-             showToastNotification('Cannot unset the only primary address. Setting the first address as primary.', 'warning');
+             handleError({ message: 'Cannot unset the only primary address. Setting the first address as primary.' }, 'Cannot unset the only primary address.'); // Use handleError for toast
              // Find the first address that isn't the one being edited (if applicable) and make it primary
              const firstOtherIndex = clientForm.value.addresses.findIndex((_, i) => i !== editingAddressIndex.value);
              if (firstOtherIndex !== -1) {
-                 clientForm.value.addresses[firstOtherIndex].is_primary = true;
+                 clientForm.value.addresses[firstOtherIndex].isPrimary = true; // camelCase
              } else {
                  // This case should ideally not happen if logic is correct, but as fallback, keep current primary
-                 addressForm.value.is_primary = true; 
+                 addressForm.value.isPrimary = true; // camelCase
              }
         } else {
             // If this is truly the only address, it must remain primary
-            showToastNotification('The only address must be primary.', 'warning');
-            addressForm.value.is_primary = true;
+            handleError({ message: 'The only address must be primary.' }, 'The only address must be primary.'); // Use handleError for toast
+            addressForm.value.isPrimary = true; // camelCase
         }
     }
   }
@@ -1257,9 +1219,9 @@ function saveAddress() {
   }
 
   // Ensure there's always at least one primary address after saving
-  if (!clientForm.value.addresses.some(a => a.is_primary) && clientForm.value.addresses.length > 0) {
-      clientForm.value.addresses[0].is_primary = true;
-      showToastNotification('Automatically set the first address as primary.', 'info');
+  if (!clientForm.value.addresses.some(a => a.isPrimary) && clientForm.value.addresses.length > 0) { // camelCase
+      clientForm.value.addresses[0].isPrimary = true; // camelCase
+      handleError({ message: 'Automatically set the first address as primary.' }, 'Automatically set the first address as primary.'); // Use handleError for toast
   }
 
 
@@ -1284,18 +1246,21 @@ async function confirmDeleteClient() {
   if (!clientToDelete.value) return;
   deleteSubmitting.value = true;
   try {
-    await clientService.deleteClient(clientToDelete.value.id);
-    showToastNotification('Client deleted successfully.', 'success');
-    showDeleteModal.value = false;
-    fetchClients(); // Refresh list
-    // If the deleted client was selected in the details drawer, close it
-    if (selectedClient.value?.id === clientToDelete.value.id) {
-        showDetailsDrawer.value = false;
-        selectedClient.value = null;
+    const response = await clientService.deleteClient(clientToDelete.value.id); // Use correct method name
+    if (response.success) {
+      handleError({ message: 'Client deleted successfully.' }, 'Client deleted successfully.'); // Use handleError for toast
+      showDeleteModal.value = false;
+      await fetchClients(); // Refresh list
+      // If the deleted client was selected in the details drawer, close it
+      if (selectedClient.value?.id === clientToDelete.value.id) {
+          showDetailsDrawer.value = false;
+          selectedClient.value = null;
+      }
+    } else {
+       handleError(new Error(response.message || 'Failed to delete client.'), 'Failed to delete client.');
     }
   } catch (err) {
-    console.error('Error deleting client:', err);
-    showToastNotification(err.response?.data?.message || 'Failed to delete client.', 'error');
+    handleError(err, 'Error deleting client.');
   } finally {
     deleteSubmitting.value = false;
     clientToDelete.value = null;
@@ -1304,36 +1269,34 @@ async function confirmDeleteClient() {
 
 // --- Toggle Status ---
 async function toggleClientStatus(client) {
-    const originalStatus = client.is_active;
+    const originalStatus = client.isActive; // camelCase
     // Optimistically update UI
-    client.is_active = !client.is_active; 
+    client.isActive = !client.isActive; // camelCase
 
     try {
-        await clientService.updateClient(client.id, { is_active: client.is_active });
-        showToastNotification(`Client status updated to ${client.is_active ? 'Active' : 'Inactive'}.`, 'success');
-        // Optional: refetch specific client data if needed
-        // const updatedClient = await clientService.getClientById(client.id);
-        // const index = clients.value.findIndex(c => c.id === client.id);
-        // if (index !== -1) clients.value.splice(index, 1, updatedClient.data);
+        // Use correct method name
+        const response = await clientService.updateClient(client.id, { isActive: client.isActive }); // camelCase
+        if (response.success) {
+          handleError({ message: `Client status updated to ${client.isActive ? 'Active' : 'Inactive'}.` }, `Client status updated to ${client.isActive ? 'Active' : 'Inactive'}.`); // Use handleError for toast
+          // Optional: refetch specific client data if needed
+          // const updatedClientResponse = await clientService.getById(client.id);
+          // const index = clients.value.findIndex(c => c.id === client.id);
+          // if (index !== -1) clients.value.splice(index, 1, updatedClientResponse.data);
+        } else {
+           // Revert optimistic update
+           client.isActive = originalStatus; // camelCase
+           handleError(new Error(response.message || 'Failed to update client status.'), 'Failed to update client status.');
+        }
 
     } catch (err) {
-        console.error('Error updating client status:', err);
         // Revert optimistic update
-        client.is_active = originalStatus; 
-        showToastNotification(err.response?.data?.message || 'Failed to update client status.', 'error');
+        client.isActive = originalStatus; // camelCase
+        handleError(err, 'Error updating client status.');
     }
 }
 
 
-// --- Toast Notification ---
-let toastCounter = 0; // Counter for unique toast IDs
-function showToastNotification(message, variant = 'success') {
-  toastCounter++;
-  toastId.value = `client-toast-${toastCounter}`; // Update the toast ID for each notification
-  toastMessage.value = message;
-  toastVariant.value = variant;
-  showToast.value = true;
-}
+// --- Toast Notification Function Removed ---
 
 // Lifecycle Hooks
 onMounted(() => {
@@ -1351,11 +1314,3 @@ watch(filteredClients, (newClients) => {
 });
 
 </script>
-
-<style scoped>
-/* Add any component-specific styles here */
-.client-settings {
-  /* Example style */
-  padding: 1rem; 
-}
-</style>

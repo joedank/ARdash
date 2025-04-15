@@ -1,4 +1,5 @@
 import apiService from './api.service';
+import { normalizeClient, toSnakeCase, isValidUuid } from '../utils/casing';
 
 /**
  * Service for handling client operations
@@ -10,17 +11,61 @@ class ClientsService {
    * @returns {Promise} Response data with created client
    */
   async createClient(clientData) {
-    return apiService.post('/clients', clientData);
+    try {
+      // Convert camelCase to snake_case for backend
+      const snakeCaseData = toSnakeCase(clientData);
+      const response = await apiService.post('/clients', snakeCaseData);
+
+      if (response.success && response.data) {
+        return {
+          ...response,
+          data: normalizeClient(response.data)
+        };
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Error creating client:', error);
+      return {
+        success: false,
+        message: 'Failed to create client',
+        error: error.message
+      };
+    }
   }
 
   /**
    * Get all clients
-   * @param {string} type - Optional client type filter (property_manager or resident)
+   * @param {Object} options - Optional filters
+   * @param {string} options.type - Client type filter (property_manager or resident)
    * @returns {Promise} Response data with clients array
    */
-  async getAllClients(type = null) {
-    const queryParam = type ? `?type=${type}` : '';
-    return apiService.get(`/clients${queryParam}`);
+  async getAllClients(options = {}) {
+    try {
+      let queryParams = '';
+
+      if (options.type) {
+        queryParams = `?type=${options.type}`;
+      }
+
+      const response = await apiService.get(`/clients${queryParams}`);
+
+      if (response.success && response.data) {
+        return {
+          ...response,
+          data: response.data.map(client => normalizeClient(client))
+        };
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      return {
+        success: false,
+        message: 'Failed to fetch clients',
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -29,7 +74,25 @@ class ClientsService {
    * @returns {Promise} Response data with clients array
    */
   async getClientsByType(type) {
-    return apiService.get(`/clients/type/${type}`);
+    try {
+      const response = await apiService.get(`/clients/type/${type}`);
+
+      if (response.success && response.data) {
+        return {
+          ...response,
+          data: response.data.map(client => normalizeClient(client))
+        };
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Error fetching clients by type:', error);
+      return {
+        success: false,
+        message: 'Failed to fetch clients by type',
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -39,8 +102,26 @@ class ClientsService {
    * @returns {Promise} Response data with matching clients
    */
   async searchClients(query, type = null) {
-    const typeParam = type ? `&type=${type}` : '';
-    return apiService.get(`/clients/search?q=${encodeURIComponent(query)}${typeParam}`);
+    try {
+      const typeParam = type ? `&type=${type}` : '';
+      const response = await apiService.get(`/clients/search?q=${encodeURIComponent(query)}${typeParam}`);
+
+      if (response.success && response.data) {
+        return {
+          ...response,
+          data: response.data.map(client => normalizeClient(client))
+        };
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Error searching clients:', error);
+      return {
+        success: false,
+        message: 'Failed to search clients',
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -49,9 +130,32 @@ class ClientsService {
    * @returns {Promise} Response data with client details
    */
   async getClientById(id) {
-    return apiService.get(`/clients/${id}`);
+    if (!isValidUuid(id)) {
+      console.error('Invalid client ID format:', id);
+      return { success: false, message: 'Invalid client ID format' };
+    }
+
+    try {
+      const response = await apiService.get(`/clients/${id}`);
+
+      if (response.success && response.data) {
+        return {
+          ...response,
+          data: normalizeClient(response.data)
+        };
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Error fetching client:', error);
+      return {
+        success: false,
+        message: 'Failed to fetch client',
+        error: error.message
+      };
+    }
   }
-  
+
   /**
    * Get client by ID (alias for getClientById for backward compatibility)
    * @param {string} id - Client ID
@@ -68,7 +172,32 @@ class ClientsService {
    * @returns {Promise} Response data with updated client
    */
   async updateClient(id, data) {
-    return apiService.put(`/clients/${id}`, data);
+    if (!isValidUuid(id)) {
+      console.error('Invalid client ID format:', id);
+      return { success: false, message: 'Invalid client ID format' };
+    }
+
+    try {
+      // Convert camelCase to snake_case for backend
+      const snakeCaseData = toSnakeCase(data);
+      const response = await apiService.put(`/clients/${id}`, snakeCaseData);
+
+      if (response.success && response.data) {
+        return {
+          ...response,
+          data: normalizeClient(response.data)
+        };
+      }
+
+      return response;
+    } catch (error) {
+      console.error('Error updating client:', error);
+      return {
+        success: false,
+        message: 'Failed to update client',
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -78,7 +207,23 @@ class ClientsService {
    * @returns {Promise} Response data with created address
    */
   async addClientAddress(clientId, addressData) {
-    return apiService.post(`/clients/${clientId}/addresses`, addressData);
+    if (!isValidUuid(clientId)) {
+      console.error('Invalid client ID format:', clientId);
+      return { success: false, message: 'Invalid client ID format' };
+    }
+
+    try {
+      // Convert camelCase to snake_case for backend
+      const snakeCaseData = toSnakeCase(addressData);
+      return await apiService.post(`/clients/${clientId}/addresses`, snakeCaseData);
+    } catch (error) {
+      console.error('Error adding address:', error);
+      return {
+        success: false,
+        message: 'Failed to add address',
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -89,7 +234,23 @@ class ClientsService {
    * @returns {Promise} Response data with updated address
    */
   async updateClientAddress(clientId, addressId, addressData) {
-    return apiService.put(`/clients/${clientId}/addresses/${addressId}`, addressData);
+    if (!isValidUuid(clientId) || !isValidUuid(addressId)) {
+      console.error('Invalid ID format:', { clientId, addressId });
+      return { success: false, message: 'Invalid ID format' };
+    }
+
+    try {
+      // Convert camelCase to snake_case for backend
+      const snakeCaseData = toSnakeCase(addressData);
+      return await apiService.put(`/clients/${clientId}/addresses/${addressId}`, snakeCaseData);
+    } catch (error) {
+      console.error('Error updating address:', error);
+      return {
+        success: false,
+        message: 'Failed to update address',
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -99,7 +260,21 @@ class ClientsService {
    * @returns {Promise} Response data
    */
   async deleteClientAddress(clientId, addressId) {
-    return apiService.delete(`/clients/${clientId}/addresses/${addressId}`);
+    if (!isValidUuid(clientId) || !isValidUuid(addressId)) {
+      console.error('Invalid ID format:', { clientId, addressId });
+      return { success: false, message: 'Invalid ID format' };
+    }
+
+    try {
+      return await apiService.delete(`/clients/${clientId}/addresses/${addressId}`);
+    } catch (error) {
+      console.error('Error deleting address:', error);
+      return {
+        success: false,
+        message: 'Failed to delete address',
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -109,7 +284,44 @@ class ClientsService {
    * @returns {Promise} Response data with address details
    */
   async getClientAddress(clientId, addressId) {
-    return apiService.get(`/clients/${clientId}/addresses/${addressId}`);
+    if (!isValidUuid(clientId) || !isValidUuid(addressId)) {
+      console.error('Invalid ID format:', { clientId, addressId });
+      return { success: false, message: 'Invalid ID format' };
+    }
+
+    try {
+      return await apiService.get(`/clients/${clientId}/addresses/${addressId}`);
+    } catch (error) {
+      console.error('Error fetching address:', error);
+      return {
+        success: false,
+        message: 'Failed to fetch address',
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Delete a client
+   * @param {string} id - Client ID
+   * @returns {Promise} Response data
+   */
+  async deleteClient(id) {
+    if (!isValidUuid(id)) {
+      console.error('Invalid client ID format:', id);
+      return { success: false, message: 'Invalid client ID format' };
+    }
+
+    try {
+      return await apiService.delete(`/clients/${id}`);
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      return {
+        success: false,
+        message: 'Failed to delete client',
+        error: error.message
+      };
+    }
   }
 }
 

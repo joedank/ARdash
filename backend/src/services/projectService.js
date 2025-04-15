@@ -49,10 +49,10 @@ class ProjectService {
           as: 'items'
         }]
       }],
-      order: [
-        ['scheduled_date', 'DESC'],
-        ['created_at', 'DESC']
-      ]
+      // order: [
+      //   ['scheduled_date', 'DESC'],
+      //   ['created_at', 'DESC']
+      // ]
     });
   }
 
@@ -150,10 +150,10 @@ class ProjectService {
         as: 'address',
         required: false
       }],
-      order: [
-        ['type', 'DESC'], // assessments first
-        ['created_at', 'ASC']
-      ]
+      // order: [
+      //   ['type', 'DESC'], // assessments first
+      //   ['created_at', 'ASC']
+      // ]
     });
   }
 

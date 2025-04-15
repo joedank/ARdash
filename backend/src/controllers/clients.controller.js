@@ -1,5 +1,6 @@
 const clientService = require('../services/clientService');
 const logger = require('../utils/logger');
+const { success, error } = require('../utils/response.util');
 
 /**
  * Get all clients with optional type filter
@@ -10,17 +11,10 @@ const getAllClients = async (req, res) => {
   try {
     const { type } = req.query;
     const clients = await clientService.getAllClients(type);
-    return res.status(200).json({
-      success: true,
-      data: clients
-    });
-  } catch (error) {
-    logger.error('Error getting all clients:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to get clients',
-      error: error.message
-    });
+    return res.status(200).json(success(clients, 'Clients retrieved successfully'));
+  } catch (err) {
+    logger.error('Error getting all clients:', err);
+    return res.status(500).json(error('Failed to get clients', { message: err.message }));
   }
 };
 
@@ -35,25 +29,15 @@ const getClientsByType = async (req, res) => {
     
     // Validate type parameter
     if (!['property_manager', 'resident'].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid client type. Must be "property_manager" or "resident"'
-      });
+      return res.status(400).json(error('Invalid client type. Must be "property_manager" or "resident"'));
     }
     
     const clients = await clientService.getClientsByType(type);
     
-    return res.status(200).json({
-      success: true,
-      data: clients
-    });
-  } catch (error) {
-    logger.error(`Error getting clients by type ${req.params.type}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to get clients by type',
-      error: error.message
-    });
+    return res.status(200).json(success(clients, 'Clients retrieved successfully'));
+  } catch (err) {
+    logger.error(`Error getting clients by type ${req.params.type}:`, err);
+    return res.status(500).json(error('Failed to get clients by type', { message: err.message }));
   }
 };
 
@@ -68,34 +52,20 @@ const createClient = async (req, res) => {
     
     // Validation - check for required fields
     if (!clientData.display_name) {
-      return res.status(400).json({
-        success: false,
-        message: 'Client name is required'
-      });
+      return res.status(400).json(error('Client name is required'));
     }
     
     // Validate client_type if provided
     if (clientData.client_type && !['property_manager', 'resident'].includes(clientData.client_type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid client type. Must be "property_manager" or "resident"'
-      });
+      return res.status(400).json(error('Invalid client type. Must be "property_manager" or "resident"'));
     }
     
     const client = await clientService.createClient(clientData);
     
-    return res.status(201).json({
-      success: true,
-      message: 'Client created successfully',
-      data: client
-    });
-  } catch (error) {
-    logger.error('Error creating client:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to create client',
-      error: error.message
-    });
+    return res.status(201).json(success(client, 'Client created successfully'));
+  } catch (err) {
+    logger.error('Error creating client:', err);
+    return res.status(500).json(error('Failed to create client', { message: err.message }));
   }
 };
 
@@ -109,32 +79,19 @@ const searchClients = async (req, res) => {
     const { q, type } = req.query;
     
     if (!q) {
-      return res.status(400).json({
-        success: false,
-        message: 'Search query is required'
-      });
+      return res.status(400).json(error('Search query is required'));
     }
     
     // Validate type parameter if provided
     if (type && !['property_manager', 'resident'].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid client type. Must be "property_manager" or "resident"'
-      });
+      return res.status(400).json(error('Invalid client type. Must be "property_manager" or "resident"'));
     }
     
     const clients = await clientService.searchClients(q, type);
-    return res.status(200).json({
-      success: true,
-      data: clients
-    });
-  } catch (error) {
-    logger.error('Error searching clients:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to search clients',
-      error: error.message
-    });
+    return res.status(200).json(success(clients, 'Clients search completed successfully'));
+  } catch (err) {
+    logger.error('Error searching clients:', err);
+    return res.status(500).json(error('Failed to search clients', { message: err.message }));
   }
 };
 
@@ -150,23 +107,13 @@ const getClientById = async (req, res) => {
     const client = await clientService.getClientById(id);
     
     if (!client) {
-      return res.status(404).json({
-        success: false,
-        message: 'Client not found'
-      });
+      return res.status(404).json(error('Client not found'));
     }
     
-    return res.status(200).json({
-      success: true,
-      data: client
-    });
-  } catch (error) {
-    logger.error(`Error getting client by ID: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to get client',
-      error: error.message
-    });
+    return res.status(200).json(success(client, 'Client retrieved successfully'));
+  } catch (err) {
+    logger.error(`Error getting client by ID: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to get client', { message: err.message }));
   }
 };
 
@@ -185,26 +132,15 @@ const updateClient = async (req, res) => {
     
     // Validate client_type if provided
     if (clientData.client_type && !['property_manager', 'resident'].includes(clientData.client_type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid client type. Must be "property_manager" or "resident"'
-      });
+      return res.status(400).json(error('Invalid client type. Must be "property_manager" or "resident"'));
     }
     
     const client = await clientService.updateClient(id, clientData);
     
-    return res.status(200).json({
-      success: true,
-      message: 'Client updated successfully',
-      data: client
-    });
-  } catch (error) {
-    logger.error(`Error updating client ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to update client',
-      error: error.message
-    });
+    return res.status(200).json(success(client, 'Client updated successfully'));
+  } catch (err) {
+    logger.error(`Error updating client ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to update client', { message: err.message }));
   }
 };
 
@@ -219,17 +155,10 @@ const deleteClient = async (req, res) => {
     
     await clientService.deleteClient(id);
     
-    return res.status(200).json({
-      success: true,
-      message: 'Client deleted successfully'
-    });
-  } catch (error) {
-    logger.error(`Error deleting client ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to delete client',
-      error: error.message
-    });
+    return res.status(200).json(success(null, 'Client deleted successfully'));
+  } catch (err) {
+    logger.error(`Error deleting client ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to delete client', { message: err.message }));
   }
 };
 
@@ -247,27 +176,16 @@ const addClientAddress = async (req, res) => {
     const requiredFields = ['name', 'street_address', 'city', 'state', 'postal_code'];
     for (const field of requiredFields) {
       if (!addressData[field]) {
-        return res.status(400).json({
-          success: false,
-          message: `${field} is required`
-        });
+        return res.status(400).json(error(`${field} is required`));
       }
     }
     
     const address = await clientService.addClientAddress(id, addressData);
     
-    return res.status(201).json({
-      success: true,
-      message: 'Address added successfully',
-      data: address
-    });
-  } catch (error) {
-    logger.error(`Error adding address to client ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to add address',
-      error: error.message
-    });
+    return res.status(201).json(success(address, 'Address added successfully'));
+  } catch (err) {
+    logger.error(`Error adding address to client ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to add address', { message: err.message }));
   }
 };
 
@@ -287,18 +205,10 @@ const updateClientAddress = async (req, res) => {
     
     const address = await clientService.updateClientAddress(addressId, addressData);
     
-    return res.status(200).json({
-      success: true,
-      message: 'Address updated successfully',
-      data: address
-    });
-  } catch (error) {
-    logger.error(`Error updating address ${req.params.addressId}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to update address',
-      error: error.message
-    });
+    return res.status(200).json(success(address, 'Address updated successfully'));
+  } catch (err) {
+    logger.error(`Error updating address ${req.params.addressId}:`, err);
+    return res.status(500).json(error('Failed to update address', { message: err.message }));
   }
 };
 
@@ -313,17 +223,10 @@ const deleteClientAddress = async (req, res) => {
     
     await clientService.deleteClientAddress(addressId);
     
-    return res.status(200).json({
-      success: true,
-      message: 'Address deleted successfully'
-    });
-  } catch (error) {
-    logger.error(`Error deleting address ${req.params.addressId}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to delete address',
-      error: error.message
-    });
+    return res.status(200).json(success(null, 'Address deleted successfully'));
+  } catch (err) {
+    logger.error(`Error deleting address ${req.params.addressId}:`, err);
+    return res.status(500).json(error('Failed to delete address', { message: err.message }));
   }
 };
 
@@ -339,23 +242,13 @@ const getClientAddress = async (req, res) => {
     const address = await clientService.getClientAddress(id, addressId);
     
     if (!address) {
-      return res.status(404).json({
-        success: false,
-        message: 'Address not found'
-      });
+      return res.status(404).json(error('Address not found'));
     }
     
-    return res.status(200).json({
-      success: true,
-      data: address
-    });
-  } catch (error) {
-    logger.error(`Error getting address ${req.params.addressId}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to get address',
-      error: error.message
-    });
+    return res.status(200).json(success(address, 'Address retrieved successfully'));
+  } catch (err) {
+    logger.error(`Error getting address ${req.params.addressId}:`, err);
+    return res.status(500).json(error('Failed to get address', { message: err.message }));
   }
 };
 

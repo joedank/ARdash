@@ -1,5 +1,6 @@
 const { Product } = require('../models');
 const logger = require('../utils/logger');
+const { success, error } = require('../utils/response.util');
 
 /**
  * List all products with optional filters
@@ -33,17 +34,10 @@ const listProducts = async (req, res) => {
       order: [['name', 'ASC']]
     });
     
-    return res.status(200).json({
-      success: true,
-      data: products
-    });
-  } catch (error) {
-    logger.error('Error listing products:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to list products',
-      error: error.message
-    });
+    return res.status(200).json(success(products, 'Products retrieved successfully'));
+  } catch (err) {
+    logger.error('Error listing products:', err);
+    return res.status(500).json(error('Failed to list products', { message: err.message }));
   }
 };
 
@@ -58,26 +52,15 @@ const createProduct = async (req, res) => {
     
     // Validate required fields
     if (!productData.name) {
-      return res.status(400).json({
-        success: false,
-        message: 'Product name is required'
-      });
+      return res.status(400).json(error('Product name is required'));
     }
     
     const product = await Product.create(productData);
     
-    return res.status(201).json({
-      success: true,
-      message: 'Product created successfully',
-      data: product
-    });
-  } catch (error) {
-    logger.error('Error creating product:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to create product',
-      error: error.message
-    });
+    return res.status(201).json(success(product, 'Product created successfully'));
+  } catch (err) {
+    logger.error('Error creating product:', err);
+    return res.status(500).json(error('Failed to create product', { message: err.message }));
   }
 };
 
@@ -93,23 +76,13 @@ const getProduct = async (req, res) => {
     const product = await Product.findByPk(id);
     
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
+      return res.status(404).json(error('Product not found'));
     }
     
-    return res.status(200).json({
-      success: true,
-      data: product
-    });
-  } catch (error) {
-    logger.error(`Error getting product by ID: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to get product',
-      error: error.message
-    });
+    return res.status(200).json(success(product, 'Product retrieved successfully'));
+  } catch (err) {
+    logger.error(`Error getting product by ID: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to get product', { message: err.message }));
   }
 };
 
@@ -126,26 +99,15 @@ const updateProduct = async (req, res) => {
     const product = await Product.findByPk(id);
     
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
+      return res.status(404).json(error('Product not found'));
     }
     
     await product.update(productData);
     
-    return res.status(200).json({
-      success: true,
-      message: 'Product updated successfully',
-      data: product
-    });
-  } catch (error) {
-    logger.error(`Error updating product: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to update product',
-      error: error.message
-    });
+    return res.status(200).json(success(product, 'Product updated successfully'));
+  } catch (err) {
+    logger.error(`Error updating product: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to update product', { message: err.message }));
   }
 };
 
@@ -161,25 +123,15 @@ const deleteProduct = async (req, res) => {
     const product = await Product.findByPk(id);
     
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
+      return res.status(404).json(error('Product not found'));
     }
     
     await product.destroy();
     
-    return res.status(200).json({
-      success: true,
-      message: 'Product deleted successfully'
-    });
-  } catch (error) {
-    logger.error(`Error deleting product: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to delete product',
-      error: error.message
-    });
+    return res.status(200).json(success(null, 'Product deleted successfully'));
+  } catch (err) {
+    logger.error(`Error deleting product: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to delete product', { message: err.message }));
   }
 };
 

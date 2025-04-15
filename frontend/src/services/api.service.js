@@ -3,12 +3,21 @@ import axios from 'axios';
 // Determine the base URL based on the environment
 const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
+// Debug logging
+console.log('API Service Initialization - hostname:', window.location.hostname);
+console.log('Using development mode:', isDevelopment);
+
 // Create an axios instance
 const apiService = axios.create({
   // When accessed via job.806040.xyz, use relative URL; otherwise use localhost
   baseURL: isDevelopment ? 'http://localhost:3000/api' : '/api',
   timeout: 360000, // 6 minutes timeout for LLM calls
-  withCredentials: true // Important for cookies/authentication across domains
+  withCredentials: true, // Important for cookies/authentication across domains
+  headers: {
+    'Access-Control-Allow-Origin': '*',
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest'
+  }
 });
 
 // Request interceptor

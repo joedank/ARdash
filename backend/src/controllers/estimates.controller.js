@@ -1,11 +1,13 @@
 const estimateService = require('../services/estimateService');
 const llmEstimateService = require('../services/llmEstimateService');
+const externalLlmProcessor = require('../services/externalLlmProcessor');
 const logger = require('../utils/logger');
 const { ValidationError, NotFoundError } = require('../utils/errors');
 const fs = require('fs').promises;
 const path = require('path');
 const projectService = require('../services/projectService'); // Import project service
 const { formatAssessmentToMarkdown } = require('../services/assessmentFormatterService'); // Import the new formatter
+const { success, error } = require('../utils/response.util'); // Import standardized response utilities
 
 /**
  * List all estimates with optional filters
@@ -29,24 +31,21 @@ const listEstimates = async (req, res) => {
       dateFrom,
       dateTo
     };
+    
+    logger.info(`Listing estimates with filters: ${JSON.stringify(filters)}, page: ${page}, limit: ${limit}`);
 
     const result = await estimateService.listEstimates(
       filters,
       parseInt(page, 10),
       parseInt(limit, 10)
     );
+    
+    logger.info(`Estimate count: ${result.total}, total pages: ${result.totalPages}`);
 
-    return res.status(200).json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    logger.error('Error listing estimates:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to list estimates',
-      error: error.message
-    });
+    return res.status(200).json(success(result, 'Estimates retrieved successfully'));
+  } catch (err) {
+    logger.error('Error listing estimates:', err);
+    return res.status(500).json(error('Failed to list estimates', { message: err.message }));
   }
 };
 
@@ -59,51 +58,33 @@ const createEstimate = async (req, res) => {
   try {
     const estimateData = req.body;
 
-    // Validate required fields (use client_fk_id)
-    if (!estimateData.client_fk_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Client ID (client_fk_id) is required'
-      });
+    // Validate required fields
+    if (!estimateData.client_id) {
+      return res.status(400).json(error('Client ID (client_id) is required'));
     }
 
     if (!estimateData.dateCreated) {
       estimateData.dateCreated = new Date();
     }
 
-    // Create the estimate
+    // Create the estimate - bidirectional relationship is now handled in the service
     const estimate = await estimateService.createEstimate(estimateData);
 
-    // If this estimate is associated with a project, update the project
+    // Log success for monitoring
     if (estimateData.project_id && estimate) {
-      try {
-        // Get project service to update the project
-        const projectService = require('../services/projectService');
-
-        // Update the project with this estimate ID
-        await projectService.updateProject(estimateData.project_id, {
-          estimate_id: estimate.id
-        });
-
-        logger.info(`Updated project ${estimateData.project_id} with estimate ${estimate.id}`);
-      } catch (projectError) {
-        // Log error but continue, as the estimate was created successfully
-        logger.error(`Error updating project with estimate: ${projectError.message}`);
-      }
+      logger.info(`Created estimate ${estimate.id} for project ${estimateData.project_id}`);
     }
 
-    return res.status(201).json({
-      success: true,
-      message: 'Estimate created successfully',
-      data: estimate
-    });
-  } catch (error) {
-    logger.error('Error creating estimate:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to create estimate',
-      error: error.message
-    });
+    return res.status(201).json(success(estimate, 'Estimate created successfully'));
+  } catch (err) {
+    logger.error('Error creating estimate:', err);
+
+    // Add more detailed error handling for relationship errors
+    if (err.message && err.message.includes('Project')) {
+      return res.status(400).json(error('Project relationship error', { message: err.message }));
+    }
+
+    return res.status(500).json(error('Failed to create estimate', { message: err.message }));
   }
 };
 
@@ -118,24 +99,18 @@ const createEstimateWithSourceMap = async (req, res) => {
 
     // Validate required fields
     if (!estimateData.clientId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Client ID is required'
-      });
+      return res.status(400).json(error('Client ID is required'));
     }
 
     if (!estimateData.items || !Array.isArray(estimateData.items) || estimateData.items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Items array is required and must not be empty'
-      });
+      return res.status(400).json(error('Items array is required and must not be empty'));
     }
 
     logger.info(`Creating estimate with source map for client ${estimateData.clientId} with ${estimateData.items.length} items`);
 
     // Format data for the estimateService
     const formattedData = {
-      client_fk_id: estimateData.clientId,
+      client_id: estimateData.clientId,
       address_id: estimateData.addressId, // Optional
       dateCreated: new Date(),
       project_id: estimateData.sourceProjectId, // Optional project reference
@@ -154,38 +129,27 @@ const createEstimateWithSourceMap = async (req, res) => {
       sourceMap: estimateData.sourceMap || {}
     };
 
-    // Create the estimate with source mapping
+    // Create the estimate with source mapping - bidirectional relationship is now handled in the service
     const estimate = await estimateService.createEstimateWithSourceMap(formattedData);
 
-    // If this estimate is associated with a project, update the project
+    // Log success for monitoring
     if (estimateData.sourceProjectId && estimate) {
-      try {
-        // Update the project with this estimate ID
-        await projectService.updateProject(estimateData.sourceProjectId, {
-          estimate_id: estimate.id
-        });
-
-        logger.info(`Updated project ${estimateData.sourceProjectId} with estimate ${estimate.id}`);
-      } catch (projectError) {
-        // Log error but continue, as the estimate was created successfully
-        logger.error(`Error updating project with estimate: ${projectError.message}`);
-      }
+      logger.info(`Created estimate ${estimate.id} with source map for project ${estimateData.sourceProjectId}`);
     }
 
-    return res.status(201).json({
-      success: true,
-      message: 'Estimate with source map created successfully',
-      data: estimate
-    });
-  } catch (error) {
-    logger.error('Error creating estimate with source map:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to create estimate with source map',
-      error: error.message
-    });
+    return res.status(201).json(success(estimate, 'Estimate with source map created successfully'));
+  } catch (err) {
+    logger.error('Error creating estimate with source map:', err);
+
+    // Add more detailed error handling for relationship errors
+    if (err.message && err.message.includes('Project')) {
+      return res.status(400).json(error('Project relationship error', { message: err.message }));
+    }
+
+    return res.status(500).json(error('Failed to create estimate with source map', { message: err.message }));
   }
 };
+
 /**
  * Get estimate details
  * @param {Object} req - Express request object
@@ -198,42 +162,26 @@ const getEstimate = async (req, res) => {
     // Validate UUID format before querying the database
     if (!id || id === 'undefined' || id === 'null') {
       logger.warn(`Invalid estimate ID provided: ${id}`);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid estimate ID provided'
-      });
+      return res.status(400).json(error('Invalid estimate ID provided'));
     }
 
     // UUID validation using regex
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       logger.warn(`Invalid UUID format: ${id}`);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid UUID format'
-      });
+      return res.status(400).json(error('Invalid UUID format'));
     }
 
     const estimate = await estimateService.getEstimateWithDetails(id);
 
     if (!estimate) {
-      return res.status(404).json({
-        success: false,
-        message: 'Estimate not found'
-      });
+      return res.status(404).json(error('Estimate not found'));
     }
 
-    return res.status(200).json({
-      success: true,
-      data: estimate
-    });
-  } catch (error) {
-    logger.error(`Error getting estimate by ID: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to get estimate',
-      error: error.message
-    });
+    return res.status(200).json(success(estimate, 'Estimate retrieved successfully'));
+  } catch (err) {
+    logger.error(`Error getting estimate by ID: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to get estimate', { message: err.message }));
   }
 };
 
@@ -249,36 +197,19 @@ const updateEstimate = async (req, res) => {
 
     const updatedEstimate = await estimateService.updateEstimate(id, estimateData);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Estimate updated successfully',
-      data: updatedEstimate
-    });
-  } catch (error) {
-    logger.error(`Error updating estimate: ${req.params.id}:`, error);
+    return res.status(200).json(success(updatedEstimate, 'Estimate updated successfully'));
+  } catch (err) {
+    logger.error(`Error updating estimate: ${req.params.id}:`, err);
 
     // Handle different types of errors
-    if (error instanceof ValidationError) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: 'Validation error',
-        error: error.message,
-        field: error.field
-      });
-    } else if (error instanceof NotFoundError) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: 'Not found error',
-        error: error.message
-      });
+    if (err instanceof ValidationError) {
+      return res.status(err.statusCode).json(error('Validation error', { message: err.message, field: err.field }));
+    } else if (err instanceof NotFoundError) {
+      return res.status(err.statusCode).json(error('Not found error', { message: err.message }));
     }
 
     // Handle any other errors as internal server errors
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to update estimate',
-      error: error.message
-    });
+    return res.status(500).json(error('Failed to update estimate', { message: err.message }));
   }
 };
 
@@ -291,26 +222,16 @@ const deleteEstimate = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const success = await estimateService.deleteEstimate(id);
+    const deleted = await estimateService.deleteEstimate(id);
 
-    if (!success) {
-      return res.status(404).json({
-        success: false,
-        message: 'Estimate not found or could not be deleted'
-      });
+    if (!deleted) {
+      return res.status(404).json(error('Estimate not found or could not be deleted'));
     }
 
-    return res.status(200).json({
-      success: true,
-      message: 'Estimate deleted successfully'
-    });
-  } catch (error) {
-    logger.error(`Error deleting estimate: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to delete estimate',
-      error: error.message
-    });
+    return res.status(200).json(success(null, 'Estimate deleted successfully'));
+  } catch (err) {
+    logger.error(`Error deleting estimate: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to delete estimate', { message: err.message }));
   }
 };
 
@@ -325,18 +246,10 @@ const markEstimateAsSent = async (req, res) => {
 
     const estimate = await estimateService.markEstimateAsSent(id);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Estimate marked as sent',
-      data: estimate
-    });
-  } catch (error) {
-    logger.error(`Error marking estimate as sent: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to mark estimate as sent',
-      error: error.message
-    });
+    return res.status(200).json(success(estimate, 'Estimate marked as sent'));
+  } catch (err) {
+    logger.error(`Error marking estimate as sent: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to mark estimate as sent', { message: err.message }));
   }
 };
 
@@ -351,18 +264,10 @@ const markEstimateAsAccepted = async (req, res) => {
 
     const estimate = await estimateService.markEstimateAsAccepted(id);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Estimate marked as accepted',
-      data: estimate
-    });
-  } catch (error) {
-    logger.error(`Error marking estimate as accepted: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to mark estimate as accepted',
-      error: error.message
-    });
+    return res.status(200).json(success(estimate, 'Estimate marked as accepted'));
+  } catch (err) {
+    logger.error(`Error marking estimate as accepted: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to mark estimate as accepted', { message: err.message }));
   }
 };
 
@@ -377,18 +282,10 @@ const markEstimateAsRejected = async (req, res) => {
 
     const estimate = await estimateService.markEstimateAsRejected(id);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Estimate marked as rejected',
-      data: estimate
-    });
-  } catch (error) {
-    logger.error(`Error marking estimate as rejected: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to mark estimate as rejected',
-      error: error.message
-    });
+    return res.status(200).json(success(estimate, 'Estimate marked as rejected'));
+  } catch (err) {
+    logger.error(`Error marking estimate as rejected: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to mark estimate as rejected', { message: err.message }));
   }
 };
 
@@ -403,18 +300,10 @@ const convertToInvoice = async (req, res) => {
 
     const invoice = await estimateService.convertToInvoice(id);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Estimate converted to invoice successfully',
-      data: invoice
-    });
-  } catch (error) {
-    logger.error(`Error converting estimate to invoice: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to convert estimate to invoice',
-      error: error.message
-    });
+    return res.status(200).json(success(invoice, 'Estimate converted to invoice successfully'));
+  } catch (err) {
+    logger.error(`Error converting estimate to invoice: ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to convert estimate to invoice', { message: err.message }));
   }
 };
 
@@ -426,54 +315,44 @@ const convertToInvoice = async (req, res) => {
 const downloadPdf = async (req, res) => {
   try {
     const { id } = req.params;
+    logger.info(`PDF download requested for estimate ID: ${id}`);
 
-    // Use the new service function
+    // Generate a fresh PDF
+    logger.info(`Generating fresh PDF for estimate ID: ${id}`);
     const pdfPath = await estimateService.generateEstimatePDF(id);
+    logger.info(`PDF generated at path: ${pdfPath}`);
 
     // Verify file exists before sending
     try {
       await fs.access(pdfPath);
+      logger.info(`Verified PDF exists at path: ${pdfPath}`);
     } catch (err) {
       logger.error(`Generated PDF not found at path: ${pdfPath}`, err);
-      return res.status(404).json({
-        success: false,
-        message: 'PDF file not found after generation.',
-      });
+      return res.status(404).json(error('PDF file not found after generation.'));
     }
 
-    // Send file as response
+    // Get file information
     const filename = path.basename(pdfPath);
+    logger.info(`Sending PDF with filename: ${filename}`);
 
-    // Set headers for download
+    // Set appropriate headers
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
-    // Stream file for potentially large PDFs
-    const fileStream = require('fs').createReadStream(pdfPath);
-    fileStream.pipe(res);
-
-    // Handle stream errors
-    fileStream.on('error', (err) => {
-        logger.error(`Error streaming PDF file ${pdfPath}:`, err);
-        // Avoid sending another response if headers already sent
-        if (!res.headersSent) {
-            res.status(500).json({
-                success: false,
-                message: 'Failed to stream PDF file.',
-                error: err.message
-            });
-        }
-    });
-
-  } catch (error) {
-    logger.error(`Error generating or sending PDF for estimate ${req.params.id}:`, error);
-     if (!res.headersSent) {
-        res.status(500).json({
-          success: false,
-          message: 'Failed to generate or send PDF',
-          error: error.message
-        });
-     }
+    // Use the file system to read the file directly instead of streaming
+    try {
+      const fileData = await fs.readFile(pdfPath);
+      logger.info(`Successfully read PDF file, size: ${fileData.length} bytes`);
+      return res.send(fileData);
+    } catch (readError) {
+      logger.error(`Error reading PDF file at ${pdfPath}:`, readError);
+      return res.status(500).json(error('Error reading PDF file', { message: readError.message }));
+    }
+  } catch (err) {
+    logger.error(`Error generating or sending PDF for estimate ${req.params.id}:`, err);
+    if (!res.headersSent) {
+      return res.status(500).json(error('Failed to generate or send PDF', { message: err.message }));
+    }
   }
 };
 
@@ -485,126 +364,98 @@ const downloadPdf = async (req, res) => {
 const getNextEstimateNumber = async (req, res) => {
   try {
     const nextNumber = await estimateService.generateEstimateNumber();
-    return res.status(200).json({
-      success: true,
-      data: { estimateNumber: nextNumber }
-    });
-  } catch (error) {
-    logger.error('Error generating next estimate number:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to generate next estimate number',
-      error: error.message
-    });
+    return res.status(200).json(success({ estimateNumber: nextNumber }, 'Next estimate number generated successfully'));
+  } catch (err) {
+    logger.error('Error generating next estimate number:', err);
+    return res.status(500).json(error('Failed to generate next estimate number', { message: err.message }));
   }
 };
 
 /**
- * Get source mapping for bidirectional linking between assessment and estimate
+ * Get source map for an estimate item
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 const getEstimateSourceMap = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { estimateId, itemId } = req.params;
 
-    // Validate UUID format before querying the database
-    if (!id || id === 'undefined' || id === 'null') {
-      logger.warn(`Invalid estimate ID provided: ${id}`);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid estimate ID provided'
-      });
-    }
-
-    // UUID validation using regex
+    // Validate UUIDs
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
-      logger.warn(`Invalid UUID format: ${id}`);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid UUID format'
-      });
+    if (!uuidRegex.test(estimateId)) {
+      return res.status(400).json(error('Invalid estimate ID format'));
+    }
+    if (!uuidRegex.test(itemId)) {
+      return res.status(400).json(error('Invalid item ID format'));
     }
 
-    const sourceMap = await estimateService.getEstimateSourceMap(id);
+    const sourceMap = await estimateService.getSourceMapForItem(itemId);
 
-    return res.status(200).json({
-      success: true,
-      data: sourceMap
-    });
-  } catch (error) {
-    logger.error(`Error getting estimate source map: ${req.params.id}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to get estimate source map',
-      error: error.message
-    });
+    if (!sourceMap) {
+      return res.status(404).json(error('Source map not found for this item'));
+    }
+
+    return res.status(200).json(success(sourceMap, 'Source map retrieved successfully'));
+  } catch (err) {
+    logger.error(`Error getting source map for item ${req.params.itemId}:`, err);
+    return res.status(500).json(error('Failed to get source map', { message: err.message }));
   }
 };
+
+// LLM Related Controllers
+
 /**
- * Analyze estimate scope using LLM for initial details.
- * @param {Object} req - Express request object (body should contain 'description' and optional 'targetPrice')
+ * Analyze project scope using LLM
+ * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 const analyzeEstimateScope = async (req, res) => {
   try {
-    const { description, targetPrice, assessmentData } = req.body;
+    const { description, assessmentData, mode, aggressiveness } = req.body;
 
-    if (!description || typeof description !== 'string' || description.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        message: 'Project description is required and must be a non-empty string.'
-      });
+    if (!description) {
+      return res.status(400).json(error('Description is required'));
     }
 
-    // Convert targetPrice to number if present, otherwise pass undefined
-    const numericTargetPrice = targetPrice !== undefined && targetPrice !== null && !isNaN(parseFloat(targetPrice))
-      ? parseFloat(targetPrice)
-      : undefined;
+    logger.info(`Analyzing estimate scope with mode: ${mode}, aggressiveness: ${aggressiveness}`);
 
-    logger.info(`Received LLM analysis request for description: "${description}", target price: ${numericTargetPrice}, with assessment data: ${!!assessmentData}`);
-
-    // Pass the assessmentData to the LLM service
-    const analysisResult = await llmEstimateService.startInitialAnalysis(description.trim(), numericTargetPrice, assessmentData);
-
-    if (analysisResult && !analysisResult.error) {
-      return res.status(200).json({
-        success: true,
-        message: 'Analysis successful.',
-        data: analysisResult
-      });
-    } else if (analysisResult && analysisResult.error) {
-       // Handle errors reported by the service (e.g., parsing failure)
-       logger.warn(`LLM analysis service reported an error: ${analysisResult.error}`);
-       // Decide on appropriate status code, 400 might be suitable if input caused LLM issues
-       return res.status(400).json({
-         success: false,
-         message: `Analysis failed: ${analysisResult.error}`,
-         rawContent: analysisResult.rawContent // Optionally include raw content for debugging
-       });
-    } else {
-       // Should not happen if service returns null/undefined without error, but handle defensively
-       logger.error('LLM analysis service returned an unexpected null/undefined result.');
-       return res.status(500).json({
-         success: false,
-         message: 'Analysis failed due to an unexpected service error.'
-       });
-    }
-
-  } catch (error) {
-    logger.error('Error in analyzeEstimateScope controller:', error);
-    // Handle errors thrown by the service (e.g., API call failure)
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to analyze estimate scope due to an internal error.',
-      error: error.message // Provide error message for debugging
+    // Call the LLM service to analyze the scope
+    const analysisResult = await llmEstimateService.analyzeScope({
+      description,
+      assessmentData,
+      mode,
+      aggressiveness
     });
+
+    if (!analysisResult.success) {
+       // Pass the detailed error message from the service
+       return res.status(400).json(error(analysisResult.message || 'LLM analysis failed', analysisResult.data));
+    }
+
+    // Check if clarifications are needed
+    if (analysisResult.clarificationsNeeded) {
+       return res.status(200).json(success({
+         clarificationsNeeded: true,
+         questions: analysisResult.questions,
+         contextId: analysisResult.contextId // Include context ID for follow-up
+       }, 'Clarifications needed for estimate'));
+    } else {
+       // If no clarifications needed, return the generated line items
+       return res.status(200).json(success({
+         clarificationsNeeded: false,
+         lineItems: analysisResult.lineItems
+       }, 'Estimate scope analyzed successfully'));
+    }
+
+  } catch (err) {
+    logger.error('Error analyzing estimate scope:', err);
+    return res.status(500).json(error('Failed to analyze estimate scope', { message: err.message }));
   }
 };
 
+
 /**
- * Get assessment data for a project to use in estimate generation
+ * Get assessment data formatted for LLM
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
@@ -612,225 +463,137 @@ const getAssessmentData = async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    if (!projectId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Project ID is required.'
-      });
+    // Validate UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(projectId)) {
+      return res.status(400).json(error('Invalid project ID format'));
     }
 
-    // Get project with details
+    // Fetch project with inspections and photos
     const project = await projectService.getProjectWithDetails(projectId);
 
     if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found.'
-      });
+      return res.status(404).json(error('Project not found'));
     }
 
-    // Extract relevant assessment data
-    const assessmentData = {
-      date: project.scheduled_date,
-      inspector: project.inspector || project.assigned_to || 'Unknown',
-      projectId: project.id,
-      scope: project.scope,
-      measurements: [],
-      materials: [],
-      conditions: [],
-      notes: project.notes || ''
-    };
+    // Extract measurements, conditions, and materials from inspections
+    const inspections = project.project_inspections || [];
+    const measurements = [];
+    const conditions = [];
+    const materials = [];
 
-    // Process inspection data for measurements, conditions, and materials
-    if (project.inspections && project.inspections.length > 0) {
-      project.inspections.forEach(inspection => {
-        const content = inspection.content || {};
-
-        // Process measurements
-        if (inspection.category === 'measurements') {
-          if (content.items && Array.isArray(content.items)) {
-            // Handle new array-based measurement format
-            content.items.forEach(item => {
-              if (item && item.dimensions) {
-                const value = calculateMeasurementValue(item.dimensions);
-                const unit = determineMeasurementUnit(item.dimensions);
-
-                assessmentData.measurements.push({
-                  label: item.description || 'Unlabeled',
-                  value,
-                  unit,
-                  material: item.material || '',
-                  location: item.location || ''
-                });
-              }
-            });
-          } else if (content.dimensions) {
-            // Handle legacy single measurement format
-            assessmentData.measurements.push({
-              label: content.description || 'Unlabeled',
-              value: calculateMeasurementValue(content.dimensions),
-              unit: determineMeasurementUnit(content.dimensions),
-              material: content.material || '',
-              location: content.location || ''
-            });
-          }
+    inspections.forEach((inspection) => {
+      if (!inspection || !inspection.category || !inspection.content) return;
+      if (inspection.category === 'measurements') {
+        // If content is an array, concat; else, push as single item
+        if (Array.isArray(inspection.content)) {
+          measurements.push(...inspection.content);
+        } else {
+          measurements.push(inspection.content);
         }
-
-        // Process conditions
-        else if (inspection.category === 'condition') {
-          assessmentData.conditions.push({
-            location: content.location || 'General',
-            issue: content.issue || 'Unspecified Issue',
-            severity: content.severity || 'Unknown',
-          });
+      } else if (inspection.category === 'conditions') {
+        if (Array.isArray(inspection.content)) {
+          conditions.push(...inspection.content);
+        } else {
+          conditions.push(inspection.content);
         }
-
-        // Process materials
-        else if (inspection.category === 'materials') {
-          if (content.items && Array.isArray(content.items)) {
-            content.items.forEach(item => {
-              if (item && item.name) {
-                assessmentData.materials.push({
-                  name: item.name,
-                  specification: item.specification || item.description || '',
-                  quantity: item.quantity || '',
-                  unit: item.unit || 'each'
-                });
-              }
-            });
-          } else if (content.name) {
-            // Handle legacy single material format
-            assessmentData.materials.push({
-              name: content.name,
-              specification: content.specification || content.description || '',
-              quantity: content.quantity || '',
-              unit: content.unit || 'each'
-            });
-          }
+      } else if (inspection.category === 'materials') {
+        if (Array.isArray(inspection.content)) {
+          materials.push(...inspection.content);
+        } else {
+          materials.push(inspection.content);
         }
-      });
-    }
-
-    // Format the assessment data into markdown using our enhanced formatter
-    const markdown = formatAssessmentToMarkdown(assessmentData);
-
-    // Return the original assessment data and the formatted markdown
-    return res.status(200).json({
-      success: true,
-      message: 'Assessment data retrieved successfully.',
-      data: {
-        ...assessmentData,
-        formattedMarkdown: markdown
       }
     });
-  } catch (error) {
-    logger.error(`Error getting assessment data for project ${req.params.projectId}:`, error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to get assessment data.',
-      error: error.message
-    });
+
+    // Format the assessment data using the new service
+    const assessmentData = {
+      scope: project.scope,
+      inspections: inspections,
+      photos: project.project_photos || [],
+      measurements,
+      conditions,
+      materials
+    };
+
+    // Example of how you might structure the data for the formatter
+    const formattedMarkdown = formatAssessmentToMarkdown(assessmentData);
+
+    // Return the formatted data
+    return res.status(200).json(success({
+      formattedData: formattedMarkdown,
+      rawAssessmentData: assessmentData // Optionally return raw data too
+    }, 'Assessment data retrieved and formatted successfully'));
+
+  } catch (err) {
+    logger.error(`Error getting assessment data for project ${req.params.projectId}:`, err);
+    return res.status(500).json(error('Failed to get assessment data', { message: err.message }));
   }
 };
 
-/**
- * Calculate a single measurement value from dimensions object
- */
+
+// Helper function (consider moving to a utility file if used elsewhere)
 function calculateMeasurementValue(dimensions) {
-  if (!dimensions) return '0';
-
-  if (dimensions.length && dimensions.width) {
-    // Area calculation
-    return (parseFloat(dimensions.length) * parseFloat(dimensions.width)).toFixed(2);
-  } else if (dimensions.length) {
-    // Linear measurement
-    return dimensions.length.toString();
-  } else if (dimensions.count) {
-    // Count measurement
-    return dimensions.count.toString();
-  }
-
-  return '0';
+  if (!dimensions) return 0;
+  if (dimensions.length && dimensions.width) return parseFloat(dimensions.length) * parseFloat(dimensions.width);
+  if (dimensions.linearFeet) return parseFloat(dimensions.linearFeet);
+  if (dimensions.quantity) return parseFloat(dimensions.quantity);
+  return 0;
 }
 
-/**
- * Determine the unit type based on dimensions
- */
+// Helper function (consider moving to a utility file if used elsewhere)
 function determineMeasurementUnit(dimensions) {
-  if (!dimensions) return 'each';
-
-  if (dimensions.length && dimensions.width) {
-    return 'sq ft';
-  } else if (dimensions.length) {
-    return 'ln ft';
-  } else if (dimensions.count) {
-    return 'each';
-  }
-
-  return 'each';
+  if (!dimensions) return 'unit';
+  if (dimensions.length && dimensions.width) return 'sq ft';
+  if (dimensions.linearFeet) return 'ln ft';
+  if (dimensions.quantity) return 'each';
+  return 'unit';
 }
 
+
 /**
- * Submit clarifications (measurements and answers) for LLM estimate generation.
- * @param {Object} req - Express request object (body should contain 'measurements', 'answers', 'originalDescription', 'analysisResult')
+ * Submit clarifications for an estimate analysis
+ * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 const submitEstimateClarifications = async (req, res) => {
   try {
-    const { measurements, answers, originalDescription, analysisResult } = req.body;
+    const { contextId, answers } = req.body;
 
-    // Basic validation
-    if (!measurements || typeof measurements !== 'object') {
-      return res.status(400).json({ success: false, message: 'Measurements object is required.' });
-    }
-    if (!answers || typeof answers !== 'object') {
-      return res.status(400).json({ success: false, message: 'Answers object is required.' });
-    }
-     if (!originalDescription || typeof originalDescription !== 'string') {
-      return res.status(400).json({ success: false, message: 'Original description is required.' });
-    }
-     if (!analysisResult || typeof analysisResult !== 'object') {
-      return res.status(400).json({ success: false, message: 'Original analysis result is required.' });
+    if (!contextId || !answers) {
+      return res.status(400).json(error('Context ID and answers are required'));
     }
 
-    logger.info('Received estimate clarifications submission.');
+    logger.info(`Submitting clarifications for context ID: ${contextId}`);
 
-    // Call the service to handle clarifications and generate line items
+    // Call the LLM service to handle clarifications
     const clarificationResult = await llmEstimateService.handleClarifications({
-      measurements,
-      answers,
-      originalDescription,
-      analysisResult
+      contextId,
+      answers
     });
 
-    if (clarificationResult && !clarificationResult.error) {
-      return res.status(200).json({
-        success: true,
-        message: 'Clarifications processed successfully.',
-        data: clarificationResult.data // Send back the generated line items
-      });
-    } else {
-      // Handle potential errors from the clarification processing step
-      logger.error('Error processing estimate clarifications:', clarificationResult?.error || 'Unknown error');
-       return res.status(500).json({
-         success: false,
-         message: 'Failed to process clarifications due to an internal error.',
-         error: clarificationResult?.error
-       });
-    }
+     if (!clarificationResult.success) {
+        // Pass the detailed error message from the service
+        return res.status(500).json(error(clarificationResult.message || 'Failed to process clarifications', clarificationResult.data));
+     }
 
-  } catch (error) {
-    logger.error('Error in submitEstimateClarifications controller:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to submit estimate clarifications due to an internal error.',
-      error: error.message
-    });
+    // Return the final line items after clarifications
+    return res.status(200).json(success({
+      lineItems: clarificationResult.lineItems
+    }, 'Clarifications processed successfully'));
+
+  } catch (err) {
+    logger.error('Error submitting estimate clarifications:', err);
+     // Check if it's a known error type from the service
+     if (err.message.includes('Context not found') || err.message.includes('Invalid context')) {
+        return res.status(404).json(error('Clarification context not found or invalid', { message: err.message }));
+     }
+    return res.status(500).json(error('Failed to submit estimate clarifications', { message: err.message }));
   }
 };
 
 /**
- * Match LLM-generated line items to actual products in catalog
+ * Match generated line items to products in the catalog
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
@@ -838,124 +601,123 @@ const matchProductsToLineItems = async (req, res) => {
   try {
     const { lineItems } = req.body;
 
-    // Basic validation
-    if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Line items are required and must be a non-empty array.'
-      });
+    if (!lineItems || !Array.isArray(lineItems)) {
+      return res.status(400).json(error('Line items array is required'));
     }
 
-    logger.info(`Received product matching request for ${lineItems.length} line items.`);
+    logger.info(`Matching products for ${lineItems.length} line items`);
 
-    // Call service method to perform matching
-    const matchResult = await llmEstimateService.matchProductsToLineItems(lineItems);
+    // Call the service to match products
+    const matchedItems = await llmEstimateService.matchProducts(lineItems);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Product matching completed successfully.',
-      data: matchResult
-    });
-  } catch (error) {
-    logger.error('Error in matchProductsToLineItems controller:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to match products to line items.',
-      error: error.message
-    });
+    return res.status(200).json(success(matchedItems, 'Products matched successfully'));
+
+  } catch (err) {
+    logger.error('Error matching products to line items:', err);
+    return res.status(500).json(error('Failed to match products', { message: err.message }));
   }
 };
 
 /**
- * Create new products from unmatched line items
+ * Create new products based on unmatched line items
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 const createProductsFromLineItems = async (req, res) => {
   try {
-    const { newProducts } = req.body;
+    const { lineItems } = req.body;
 
-    // Basic validation
-    if (!newProducts || !Array.isArray(newProducts) || newProducts.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'New products data is required and must be a non-empty array.'
-      });
+    if (!lineItems || !Array.isArray(lineItems)) {
+      return res.status(400).json(error('Line items array is required'));
     }
 
-    logger.info(`Received request to create ${newProducts.length} new products.`);
+    logger.info(`Creating products for ${lineItems.length} line items`);
 
-    // Call service method to create new products
-    const createdProducts = await llmEstimateService.createNewProducts(newProducts);
+    // Call the service to create products
+    const createdProducts = await llmEstimateService.createProductsFromUnmatched(lineItems);
 
-    return res.status(201).json({
-      success: true,
-      message: `Successfully created ${createdProducts.length} new products.`,
-      data: createdProducts
-    });
-  } catch (error) {
-    logger.error('Error in createProductsFromLineItems controller:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to create new products from line items.',
-      error: error.message
-    });
+    return res.status(201).json(success(createdProducts, 'Products created successfully'));
+
+  } catch (err) {
+    logger.error('Error creating products from line items:', err);
+    return res.status(500).json(error('Failed to create products', { message: err.message }));
   }
 };
 
+
 /**
- * Generate estimate directly from assessment data with enhanced parameters
+ * Generate estimate directly from assessment data
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 const generateEstimateFromAssessment = async (req, res) => {
   try {
-    const { assessment, options = {} } = req.body;
+    const { projectId, mode, aggressiveness } = req.body;
 
-    // Validate input
-    if (!assessment) {
-      return res.status(400).json({
-        success: false,
-        message: 'Assessment data is required.'
-      });
+    if (!projectId) {
+      return res.status(400).json(error('Project ID is required'));
     }
 
-    // Log the request
-    logger.info(`Generating estimate from assessment with options:`, {
-      assessmentId: assessment.id || 'unknown',
-      options
-    });
+    logger.info(`Generating estimate directly from assessment project ID: ${projectId}`);
+    logger.info(`Options:`, { mode, aggressiveness });
 
-    // Call the service to generate estimate items
-    const result = await llmEstimateService.generateEstimateFromAssessment(assessment, options);
+
+    // Call the service function
+    const result = await llmEstimateService.generateEstimateFromAssessment({
+      projectId,
+      mode,
+      aggressiveness
+    });
 
     if (result.success) {
-      res.json({
-        success: true,
-        data: result.data,
-        debug: result.debug
-      });
+      res.json(success(result.data, 'Estimate generated successfully from assessment'));
     } else {
-      res.status(400).json({
-        success: false,
-        message: 'Estimate generation failed',
-        error: result.error
-      });
+      // Use the error message from the service
+      res.status(400).json(error(result.message || 'Failed to generate estimate from assessment', result.data));
     }
-  } catch (error) {
-    logger.error('Error generating estimate from assessment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to generate estimate from assessment',
-      error: error.message
-    });
+  } catch (err) {
+    logger.error('Error generating estimate from assessment:', err);
+    res.status(500).json(error('Failed to generate estimate from assessment', { message: err.message }));
   }
 };
+
+/**
+ * Process externally generated LLM response
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const processExternalLlmResponse = async (req, res) => {
+  try {
+    const { responseText, assessmentData } = req.body;
+
+    if (!responseText) {
+      return res.status(400).json(error('LLM response text is required'));
+    }
+
+    logger.info('Processing external LLM response');
+
+    // Call the dedicated processor service
+    const result = await externalLlmProcessor.processExternalLlmResponse(responseText, assessmentData);
+
+    if (!result.success) {
+      // Use the error message from the processor
+      return res.status(400).json(error(result.message || 'Failed to process external LLM response', result.data));
+    }
+
+    // Return the processed line items
+    return res.json(success(result.data, 'External LLM response processed successfully'));
+
+  } catch (err) {
+    logger.error('Error processing external LLM response:', err);
+    return res.status(500).json(error('Failed to process external LLM response', { message: err.message }));
+  }
+};
+
 
 module.exports = {
   listEstimates,
   createEstimate,
-  createEstimateWithSourceMap, // Add the new controller method
+  createEstimateWithSourceMap,
   getEstimate,
   updateEstimate,
   deleteEstimate,
@@ -965,11 +727,13 @@ module.exports = {
   convertToInvoice,
   downloadPdf,
   getNextEstimateNumber,
+  getEstimateSourceMap,
+  // LLM related
   analyzeEstimateScope,
   getAssessmentData,
   submitEstimateClarifications,
   matchProductsToLineItems,
   createProductsFromLineItems,
   generateEstimateFromAssessment,
-  getEstimateSourceMap // Add the source map getter
+  processExternalLlmResponse
 };

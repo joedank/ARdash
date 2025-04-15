@@ -28,8 +28,8 @@
                 :error="errors.client"
                 @update:modelValue="updateClient"
               />
-              <!-- Hidden inputs to store IDs -->
-               <input type="hidden" v-model="estimate.client_fk_id">
+              <!-- Hidden inputs to store IDs (use camelCase clientId) -->
+               <input type="hidden" v-model="estimate.clientId">
                <input type="hidden" v-model="estimate.addressId">
             </div>
 
@@ -111,7 +111,7 @@
           <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Estimate Items</h2>
 
           <LineItemsEditor
-            v-model="estimate.items"
+            v-model="estimate.items" 
             @update:totals="updateTotals"
             :error="errors.items"
             :initial-discount="parseFloat(estimate.discountAmount) || 0"
@@ -197,6 +197,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'; // Import computed
 import { useRouter, useRoute } from 'vue-router';
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 import ClientSelector from '@/components/invoicing/ClientSelector.vue';
 import LineItemsEditor from '@/components/invoicing/LineItemsEditor.vue';
 import estimatesService from '@/services/estimates.service';
@@ -270,29 +271,38 @@ const loadEstimate = async () => {
     estimateId.value = route.params.id;
     const response = await estimatesService.getEstimate(estimateId.value);
     
-    if (response && response.success && response.data) { // Use &&
-      const estimateData = response.data;
+    if (response && response.success && response.data) {
+      const rawEstimateData = response.data;
+      const clientData = rawEstimateData.client; // Keep client separate
       
-      // Set up client object for ClientSelector component
-      if (estimateData.client) {
-        estimateData.client.selectedAddressId = estimateData.addressId; // Corrected name
+      // Convert main estimate data to camelCase
+      const camelCaseEstimate = toCamelCase(rawEstimateData);
+      
+      // Re-assign potentially normalized client data
+      camelCaseEstimate.client = clientData;
+      
+      // Normalize nested items array
+      if (Array.isArray(camelCaseEstimate.items)) {
+          camelCaseEstimate.items = camelCaseEstimate.items.map(item => toCamelCase(item));
+      }
+      
+      // Set up client object for ClientSelector component (using camelCase addressId)
+      if (camelCaseEstimate.client) {
+        camelCaseEstimate.client.selectedAddressId = camelCaseEstimate.addressId;
       }
       
       // Create deep copy to use as original state reference
-      originalEstimate.value = JSON.parse(JSON.stringify(estimateData));
+      originalEstimate.value = JSON.parse(JSON.stringify(camelCaseEstimate));
       
       // Apply all the data to our estimate ref
       // Ensure dates are formatted correctly for input type="date"
-      estimateData.dateCreated = estimateData.dateCreated ? new Date(estimateData.dateCreated).toISOString().split('T')[0] : '';
-      estimateData.validUntil = estimateData.validUntil ? new Date(estimateData.validUntil).toISOString().split('T')[0] : '';
+      camelCaseEstimate.dateCreated = camelCaseEstimate.dateCreated ? new Date(camelCaseEstimate.dateCreated).toISOString().split('T')[0] : '';
+      camelCaseEstimate.validUntil = camelCaseEstimate.validUntil ? new Date(camelCaseEstimate.validUntil).toISOString().split('T')[0] : '';
       
-      // Ensure clientId is populated if client_fk_id exists
-      if (estimateData.client_fk_id && !estimateData.clientId) {
-        estimateData.clientId = estimateData.client_fk_id;
-      }
+      // clientId should now be populated by toCamelCase if client_id/client_fk_id existed
       
-      estimate.value = estimateData;
-    } else { // Corrected else placement
+      estimate.value = camelCaseEstimate;
+    } else {
       formError.value = response?.message || 'Failed to load estimate. Please try again.';
       router.push('/invoicing/estimates');
     }
@@ -418,8 +428,11 @@ const updateEstimate = async () => {
       generatePdf: estimate.value.status === 'sent' // Regenerate PDF only if marking as sent
     };
     
+    // Convert payload to snake_case before sending
+    const snakeCaseEstimateData = toSnakeCase(estimateData);
+    
     // Update estimate
-    const response = await estimatesService.updateEstimate(estimateId.value, estimateData);
+    const response = await estimatesService.updateEstimate(estimateId.value, snakeCaseEstimateData);
     
     if (response && response.success) { // Use &&
       // Navigate back to estimate details

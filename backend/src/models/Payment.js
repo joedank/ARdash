@@ -40,9 +40,13 @@ module.exports = (sequelize, DataTypes) => {
       field: 'payment_date'
     },
     paymentMethod: {
-      type: DataTypes.ENUM('cash', 'check', 'credit_card', 'bank_transfer', 'other'),
+      // Changed from ENUM to STRING to avoid type conversion issues
+      type: DataTypes.STRING,
       defaultValue: 'other',
-      field: 'payment_method'
+      field: 'payment_method',
+      validate: {
+        isIn: [['cash', 'check', 'credit_card', 'bank_transfer', 'other']]
+      }
     },
     notes: {
       type: DataTypes.TEXT,

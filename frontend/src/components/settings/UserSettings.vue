@@ -132,7 +132,7 @@
         <div class="flex items-center">
           <BaseAvatar
             :name="selectedUser.name"
-            :image="selectedUser.avatar_url"
+            :image="selectedUser.avatarUrl"
             size="lg"
             class="flex-shrink-0 mr-4"
           />
@@ -144,8 +144,8 @@
               <BaseBadge :variant="getRoleBadgeVariant(selectedUser.role)" size="sm">
                 {{ formatRole(selectedUser.role) }}
               </BaseBadge>
-              <BaseBadge :variant="selectedUser.is_active ? 'success' : 'danger'" size="sm">
-                {{ selectedUser.is_active ? 'Active' : 'Inactive' }}
+              <BaseBadge :variant="selectedUser.isActive ? 'success' : 'danger'" size="sm">
+                {{ selectedUser.isActive ? 'Active' : 'Inactive' }}
               </BaseBadge>
             </div>
           </div>
@@ -178,11 +178,11 @@
           <div class="text-sm space-y-2">
             <div class="flex">
               <span class="text-gray-500 dark:text-gray-400 w-24">Created:</span>
-              <span class="text-gray-900 dark:text-white">{{ formatDate(selectedUser.created_at) }}</span>
+              <span class="text-gray-900 dark:text-white">{{ formatDate(selectedUser.createdAt) }}</span>
             </div>
             <div class="flex">
               <span class="text-gray-500 dark:text-gray-400 w-24">Last Login:</span>
-              <span class="text-gray-900 dark:text-white">{{ formatDate(selectedUser.last_login) || 'Never' }}</span>
+              <span class="text-gray-900 dark:text-white">{{ formatDate(selectedUser.lastLogin) || 'Never' }}</span>
             </div>
           </div>
         </div>
@@ -333,11 +333,11 @@
               >
                 <BaseToggleSwitch
                   id="user-status"
-                  v-model="userForm.is_active"
-                  :state="formErrors.is_active ? 'error' : ''"
+                  v-model="userForm.isActive"
+                  :state="formErrors.isActive ? 'error' : ''"
                 >
-                  <span class="ml-2 text-sm" :class="userForm.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                    {{ userForm.is_active ? 'Active' : 'Inactive' }}
+                  <span class="ml-2 text-sm" :class="userForm.isActive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                    {{ userForm.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </BaseToggleSwitch>
               </BaseFormGroup>
@@ -385,12 +385,12 @@
               >
                 <BaseInput
                   id="user-password-confirm"
-                  v-model="userForm.password_confirmation"
+                  v-model="userForm.passwordConfirmation"
                   type="password"
                   placeholder="Confirm password"
                   :required="!isEditing"
-                  :state="formErrors.password_confirmation ? 'error' : ''"
-                  :helperText="formErrors.password_confirmation"
+                  :state="formErrors.passwordConfirmation ? 'error' : ''"
+                  :helperText="formErrors.passwordConfirmation"
                   autocomplete="new-password"
                 />
               </BaseFormGroup>
@@ -474,6 +474,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { debounce } from 'lodash-es';
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 import { useAuthStore } from '@/store/auth';
 import adminService from '@/services/admin.service';
 import { generateId } from '@/utils/id';
@@ -573,10 +574,10 @@ const filteredUsers = computed(() => {
     filtered = filtered.filter(user => user.role === roleFilter.value);
   }
 
-  // Apply status filter
+  // Apply status filter (use camelCase isActive)
   if (statusFilter.value !== 'all') {
-    const isActive = statusFilter.value === 'active';
-    filtered = filtered.filter(user => user.is_active === isActive);
+    const isActiveFilter = statusFilter.value === 'active';
+    filtered = filtered.filter(user => user.isActive === isActiveFilter);
   }
 
   // Apply sorting
@@ -629,9 +630,9 @@ function getInitialUserForm() {
     role: 'user',
     department: '',
     phone: '',
-    is_active: true,
+    isActive: true, // Use camelCase
     password: '',
-    password_confirmation: ''
+    passwordConfirmation: '' // Use camelCase
   };
 }
 
@@ -646,7 +647,9 @@ async function fetchUsers() {
     const response = await adminService.getUsers();
     if (response) {
       // The response is already unwrapped by the API service
-      users.value = Array.isArray(response.users) ? response.users : response;
+      const rawUsers = Array.isArray(response.users) ? response.users : response;
+      // Convert incoming snake_case data to camelCase
+      users.value = rawUsers.map(user => toCamelCase(user));
       // Explicitly set totalItems as a number
       totalItems.value = users.value.length || 0;
     } else {
@@ -756,12 +759,12 @@ function openEditUserModal(user) {
   }
 
   isEditing.value = true;
-  userToEdit.value = user;
+  userToEdit.value = user; // user should already be camelCase from fetchUsers
   userForm.value = {
     ...getInitialUserForm(),
-    ...user,
+    ...user, // Spread the camelCase user data
     password: '',
-    password_confirmation: ''
+    passwordConfirmation: '' // Ensure this matches the form field
   };
   
   formErrors.value = {};
@@ -784,16 +787,19 @@ async function submitUserForm() {
     // Only include password fields if they're being set/changed
     if (!payload.password) {
       delete payload.password;
-      delete payload.password_confirmation;
+      delete payload.passwordConfirmation; // Use camelCase here
     }
+    
+    // Convert payload to snake_case before sending to API
+    const snakeCasePayload = toSnakeCase(payload);
 
     if (isEditing.value) {
-      const result = await adminService.updateUser(userToEdit.value.id, payload);
+      const result = await adminService.updateUser(userToEdit.value.id, snakeCasePayload); // Send snake_case
       if (result) {
         showToastNotification('User updated successfully.', 'success');
       }
     } else {
-      const result = await adminService.createUser(payload);
+      const result = await adminService.createUser(snakeCasePayload); // Send snake_case
       if (result) {
         showToastNotification('User created successfully.', 'success');
       }
@@ -847,8 +853,8 @@ function validateUserForm() {
         formErrors.value.password = 'Password must be at least 8 characters.';
         isValid = false;
       }
-      if (userForm.value.password !== userForm.value.password_confirmation) {
-        formErrors.value.password_confirmation = 'Passwords do not match.';
+      if (userForm.value.password !== userForm.value.passwordConfirmation) { // Use camelCase
+        formErrors.value.passwordConfirmation = 'Passwords do not match.'; // Use camelCase
         isValid = false;
       }
     }
@@ -925,14 +931,15 @@ async function toggleUserStatus(user) {
   }
 
   const originalStatus = user.is_active;
-  user.is_active = !user.is_active;
+  user.isActive = !user.isActive; // Toggle camelCase property
 
   try {
-    await adminService.updateUser(user.id, { is_active: user.is_active });
-    showToastNotification(`User status updated to ${user.is_active ? 'Active' : 'Inactive'}.`, 'success');
+    // Send snake_case key to the API
+    await adminService.updateUser(user.id, { is_active: user.isActive });
+    showToastNotification(`User status updated to ${user.isActive ? 'Active' : 'Inactive'}.`, 'success');
   } catch (err) {
     console.error('Error updating user status:', err);
-    user.is_active = originalStatus;
+    user.isActive = originalStatus; // Revert camelCase property on error
     showToastNotification(err.response?.data?.message || 'Failed to update user status.', 'error');
   }
 }

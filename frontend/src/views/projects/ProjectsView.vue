@@ -108,12 +108,15 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import ProjectCard from '@/components/projects/ProjectCard.vue';
-import { projectsService } from '@/services/projects.service';
+// Use standardized service
+import projectsService from '@/services/standardized-projects.service.js';
+import useErrorHandler from '@/composables/useErrorHandler.js'; // Import error handler
 import BaseButton from '@/components/base/BaseButton.vue';
 import BaseIcon from '@/components/base/BaseIcon.vue';
 import BaseLoader from '@/components/feedback/BaseLoader.vue';
 
 const router = useRouter();
+const { handleError } = useErrorHandler(); // Instantiate error handler
 const todayLoading = ref(false);
 const allProjectsLoading = ref(false);
 const todayProjects = ref([]);
@@ -148,10 +151,17 @@ const formatDate = (date) => {
 const loadTodayProjects = async () => {
   todayLoading.value = true;
   try {
+    // Changed from getAll to getTodayProjects
     const response = await projectsService.getTodayProjects();
-    todayProjects.value = response.data;
-  } catch (error) {
-    console.error('Error loading today\'s projects:', error);
+    if (response.success) {
+      todayProjects.value = response.data;
+    } else {
+      handleError(new Error(response.message || 'Failed to load today\'s projects'), 'Failed to load today\'s projects.');
+      todayProjects.value = [];
+    }
+  } catch (err) {
+    handleError(err, 'Error loading today\'s projects.');
+    todayProjects.value = [];
   } finally {
     todayLoading.value = false;
   }
@@ -161,10 +171,17 @@ const loadTodayProjects = async () => {
 const loadAllProjects = async () => {
   allProjectsLoading.value = true;
   try {
+    // Changed from getAll to getAllProjects
     const response = await projectsService.getAllProjects();
-    allProjects.value = response.data;
-  } catch (error) {
-    console.error('Error loading all projects:', error);
+    if (response.success) {
+      allProjects.value = response.data;
+    } else {
+      handleError(new Error(response.message || 'Failed to load all projects'), 'Failed to load all projects.');
+      allProjects.value = [];
+    }
+  } catch (err) {
+    handleError(err, 'Error loading all projects.');
+    allProjects.value = [];
   } finally {
     allProjectsLoading.value = false;
   }

@@ -1,0 +1,147 @@
+
+  /**
+   * List estimates with optional filters
+   * @param {Object} filters - Query filters
+   * @param {number} page - Page number (0-based)
+   * @param {number} limit - Items per page
+   * @returns {Promise<Object>} - Paginated estimates
+   */
+  async listEstimates(filters = {}, page = 0, limit = 10) {
+    const where = {};
+
+    // Apply filters
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.clientId) { // Map to standardized client_id field
+      where.client_id = filters.clientId;
+    }
+
+    if (filters.dateFrom) {
+      where.dateCreated = {
+        ...where.dateCreated,
+        [Op.gte]: filters.dateFrom
+      };
+    }
+
+    if (filters.dateTo) {
+      where.dateCreated = {
+        ...where.dateCreated,
+        [Op.lte]: filters.dateTo
+      };
+    }
+
+    // Pagination
+    const offset = page * limit;
+
+    // Execute query
+    const { count, rows } = await Estimate.findAndCountAll({
+      where,
+      include: [
+        { model: EstimateItem, as: 'items' },
+        { model: Client, as: 'client', attributes: ['id', 'display_name'] } // Include client name for list view
+      ],
+      order: [['dateCreated', 'DESC']],
+      limit,
+      offset
+    });
+
+    return {
+      estimates: rows,
+      total: count,
+      page,
+      limit,
+      totalPages: Math.ceil(count / limit)
+    };
+  }
+
+  /**
+   * Calculate estimate totals
+   * @param {string} estimateId - Estimate ID
+   * @returns {Promise<Object>} - Updated totals
+   */
+  async calculateEstimateTotals(estimateId) {
+    try {
+      // Get all items for this estimate
+      const items = await EstimateItem.findAll({
+        where: { estimateId }
+      });
+
+      let subtotal = 0;
+      let taxTotal = 0;
+
+      // Calculate item totals and update them
+      for (const item of items) {
+        const itemPrice = parseFloat(item.price) || 0;
+        const itemQuantity = parseFloat(item.quantity) || 0;
+        const itemTaxRate = parseFloat(item.taxRate) || 0;
+
+        const itemSubtotal = itemPrice * itemQuantity;
+        const itemTax = itemSubtotal * (itemTaxRate / 100);
+        const itemTotal = itemSubtotal + itemTax;
+
+        // Update itemTotal in the database if it changed
+        if (item.itemTotal !== itemTotal) {
+            await item.update({ itemTotal });
+        }
+
+
+        subtotal += itemSubtotal;
+        taxTotal += itemTax;
+      }
+
+      // Get the estimate
+      const estimate = await Estimate.findByPk(estimateId);
+      if (!estimate) {
+          logger.warn(`Estimate ${estimateId} not found during total calculation.`);
+          return; // Or throw error
+      }
+
+      // Calculate total with discount
+      const discountAmount = parseFloat(estimate.discountAmount) || 0;
+      const total = subtotal + taxTotal - discountAmount;
+
+      // Update estimate totals
+      await estimate.update({
+        subtotal,
+        taxTotal,
+        total,
+        status: this.determineEstimateStatus(estimate) // Recalculate status based on dates
+      });
+
+      return {
+        subtotal,
+        taxTotal,
+        discountAmount,
+        total
+      };
+    } catch (error) {
+      logger.error(`Error calculating totals for estimate ${estimateId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Determine estimate status based on dates and current status
+   * @param {Object} estimate - Estimate object
+   * @returns {string} - New status
+   */
+  determineEstimateStatus(estimate) {
+    // If already accepted/rejected, don't change
+    if (['accepted', 'rejected'].includes(estimate.status)) {
+      return estimate.status;
+    }
+
+    // Check if expired
+    const validUntil = new Date(estimate.validUntil);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Compare dates only
+
+    if (validUntil < today && estimate.status !== 'draft') {
+      return 'expired';
+    }
+
+    // Keep current status otherwise
+    return estimate.status;
+  }

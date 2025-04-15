@@ -1,375 +1,205 @@
 # Progress Log
 
-[2025-04-12 16:30] - **Enhanced Measurement System for Different Calculation Methods**
+[2025-04-15 00:45] - **Fixed Docker Containerization and PDF Generation Issues**
+
+**Issues Identified and Fixed:**
+1. Fixed Docker containerization issues:
+   - Updated backend Dockerfile to include Chromium and dependencies for Puppeteer
+   - Added environment variables to use system Chromium instead of downloading it
+   - Created necessary upload directories for PDF storage
+   - Fixed port configuration to ensure consistent port usage (3000 for backend, 5173 for frontend)
+2. Fixed PDF generation in Docker environment:
+   - Enhanced Puppeteer configuration with Docker-specific arguments
+   - Improved error handling in PDF generation process
+   - Changed from streaming to direct file reading for better reliability
+3. Fixed data type compatibility issues:
+   - Changed Payment model's paymentMethod from ENUM to STRING type with validation
+   - Updated Client model's payment_terms field to use TEXT instead of STRING
+4. Fixed frontend module system compatibility:
+   - Updated fix-imports.js to use ES modules instead of CommonJS
+   - Fixed estimate.service.js to properly re-export estimateService
+
+**Solution Implemented:**
+1. Docker environment improvements:
+   - Added comprehensive dependencies in Dockerfile: `chromium`, `nss`, `freetype`, `harfbuzz`, etc.
+   - Set `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` and `PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser`
+   - Created all necessary upload directories with proper permissions
+   - Forced backend to use port 3000 regardless of config settings
+2. PDF generation enhancements:
+   - Updated Puppeteer launch configuration with Docker-specific arguments
+   - Added detailed logging throughout the PDF generation process
+   - Improved error handling with proper HTTP status codes
+   - Used fs.readFile instead of streaming for more reliable file delivery
+
+**Key Learnings:**
+- Puppeteer requires specific system dependencies in Alpine-based Docker containers
+- Docker environment variables can be used to configure Puppeteer behavior
+- Direct file reading is more reliable than streaming for PDF delivery in Docker
+- Data type compatibility between Sequelize and PostgreSQL requires careful handling
+- ES modules and CommonJS require different import/export patterns
+
+---
+
+[2025-04-14 08:30] - **Fixed Estimate Creation and PDF Generation Issues**
+
+**Issues Identified and Fixed:**
+1. Fixed estimate creation failing with 500 Internal Server Error:
+   - Updated `CreateEstimate.vue` to use standardized service approach instead of manual conversion
+   - Fixed missing `sequelize` reference in `estimateService.js` that was causing server errors
+   - Added detailed logging to help diagnose issues in the backend
+2. Fixed PDF generation failing with 500 Internal Server Error:
+   - Enhanced error handling in `generateEstimatePDF` method with better logging
+   - Added fallback for undefined estimate number when generating PDF filename
+   - Improved uploads directory handling with proper error checking
+   - Added detailed client address handling with better error messages
+
+**Solution Implemented:**
+1. Implemented standardized service approach for estimate creation:
+   - Imported and used `standardizedEstimatesService` instead of direct API calls
+   - Removed manual snake_case conversion that was causing issues
+   - Added debug logging to trace data flow through the application
+2. Enhanced PDF generation with robust error handling:
+   - Added fallback mechanisms for missing or undefined values
+   - Improved directory creation with better error handling
+   - Enhanced logging throughout the PDF generation process
+
+**Key Learnings:**
+- Standardized services provide consistent data conversion and error handling
+- Always check for undefined values and provide fallbacks in critical functions
+- Detailed logging is essential for diagnosing complex issues
+- Follow established patterns (like the invoice creation) when implementing similar features
+
+---
+
+[2025-04-14 07:15] - **Fixed Invoice Creation Client Validation Error**
+
+**Issues Identified and Fixed:**
+1. Identified that invoice creation was failing with "Client is required" error despite having a client selected
+2. Root cause: The `normalizeClient` function in `casing.js` was setting the client's `id` property but not the `clientId` property
+3. The invoice creation form in `CreateInvoice.vue` was looking for `client.clientId` to set the invoice's `clientId` field
+4. When validating the form, it was checking for `invoice.clientId`, which was empty, causing the validation error
+
+**Solution Implemented:**
+1. Updated the `normalizeClient` function to include both `id` and `clientId` properties with the same value
+2. This approach ensures compatibility with components that expect either property name
+3. The fix aligns with the ongoing standardization efforts in the codebase
+
+**Key Learnings:**
+- Different components in the application may use different property names for the same data
+- The standardization process needs to maintain backward compatibility during the transition
+- Normalization functions should support both old and new property naming patterns
+
+---
+
+[2025-04-14 06:30] - **Debugged and Fixed Additional Work Feature**
+
+**Issues Identified and Fixed:**
+1. Fixed incorrect middleware paths in the routes file:
+   - Updated references from `../middlewares/auth.middleware` to `../middleware/auth.middleware`
+   - Changed `../middlewares/uuid-validator.middleware` to `../middleware/uuidValidator`
+2. Fixed model definition to use Sequelize's `Model` class pattern consistent with other models
+3. Updated controller to import models directly rather than through the `db` object
+4. Added proper logging to the controller for better debugging
+5. Ensured correct model associations for the one-to-one relationship between estimate items and additional work
+
+**Key Learnings:**
+- Follow the established patterns in the project for middleware paths and model definitions
+- Use direct model imports in controllers (`const { Model1, Model2 } = require('../models')`) for better clarity
+- Add consistent logging throughout controller methods to aid in debugging
+- Look at similar implementations (like the photos feature) to understand the correct patterns
+
+---
+
+[2025-04-14 06:15] - **Added Additional Work Tracking to Line Items**
 
 **Completed Tasks:**
-1. **Measurement Type Implementation:**
-   * Added support for three measurement types: area (sq ft), linear (ln ft), and quantity-based
-   * Implemented dynamic form fields that adapt based on the selected measurement type
-   * Created a measurement type selector dropdown in the assessment form
-   * Added proper calculation methods for each measurement type
-   * Ensured data consistency throughout the assessment-to-estimate workflow
-
-2. **Database Structure Updates:**
-   * Enhanced the project_inspections table to properly handle different measurement types
-   * Added measurementType field to store the type of measurement (area, linear, quantity)
-   * Implemented proper data validation for each measurement type
-   * Ensured backward compatibility with existing measurement data
-
-3. **Frontend UI Enhancements:**
-   * Updated AssessmentContent.vue to support different measurement types
-   * Added dynamic UI that changes based on the selected measurement type
-   * Implemented proper unit display based on measurement type
-   * Enhanced the read-only view to display measurements according to their type
-
-4. **LLM Integration Improvements:**
-   * Updated the LLM prompt to handle different measurement types appropriately
-   * Enhanced the assessment formatter to organize measurements by type
-   * Added explicit instructions for handling area, linear, and quantity measurements
-   * Updated the JSON response format to include the measurementType property
+1. Created a new database table `estimate_item_additional_work` to track additional work for each line item
+2. Implemented backend models, controllers, and routes for the additional work functionality
+3. Added a frontend service to interact with the API endpoints
+4. Enhanced the EstimateItemPhotos component with an additional work checkbox and description field
+5. Added a visual indicator (badge) to show when additional work has been performed on a line item
 
 **Key Improvements:**
-* **Measurement Flexibility**: Support for area (sq ft), linear (ln ft), and quantity-based calculations
-* **Accurate Estimates**: Better representation of different construction elements in estimates
-* **Improved User Experience**: Dynamic UI that adapts to the selected measurement type
-* **Data Consistency**: Proper handling of measurement types throughout the workflow
-* **Enhanced LLM Integration**: More accurate estimate generation based on measurement types
+- Users can now document when additional work was performed beyond what was specified in the estimate
+- The additional work checkbox reveals a text area for detailed descriptions when checked
+- A yellow "Extra work" badge appears on line items that have additional work recorded
+- The implementation follows the project's field naming conventions and error handling patterns
 
-**Technical Details:**
-* Added measurementType field to the project_inspections table
-* Implemented conditional rendering in AssessmentContent.vue based on measurement type
-* Updated the LLM prompt template to include measurement type information
-* Enhanced the assessment formatter to properly handle different measurement types
-* Added validation rules specific to each measurement type
+---
 
-**Next Steps:**
-1. Monitor usage of the enhanced measurement system
-2. Gather user feedback on the different measurement types
-3. Consider adding additional measurement types if needed
-4. Enhance the LLM's ability to generate more accurate estimates based on measurement types
-5. Add unit tests to ensure measurement data consistency
-
-[2025-04-10 14:45] - **Estimate Finalization Workflow - UUID Undefined Bug Fix**
+[2025-04-14 04:30] - **Project UI Restructuring: Default to Project Scope**
 
 **Completed Tasks:**
-1. **Frontend Error Handling Enhancement:**
-   * Fixed issue where estimate detail page was failing with "invalid input syntax for type uuid: 'undefined'" error
-   * Added robust validation in EstimateDetail.vue to check for valid route parameters before making API calls
-   * Implemented fallback mechanism with timeout for delayed route parameter resolution
-   * Enhanced error messaging to provide clear feedback to users
-   * Added extensive logging to help diagnose route parameter issues
-
-2. **Backend Validation Implementation:**
-   * Added UUID format validation in the estimates controller using regex pattern
-   * Implemented proper HTTP status codes (400 instead of 500) for invalid inputs
-   * Enhanced error messages to clearly indicate the nature of the problem
-   * Added detailed logging to track these issues in the future
-
-3. **Data Flow Improvements:**
-   * Fixed response structure handling in EstimatesList.vue to properly process nested data
-   * Added conditional rendering for router links to prevent navigation with undefined IDs
-   * Ensured proper error handling in the API service layer
+1. Made active projects default to the Line Item Photos (renamed to "Project Scope") view
+2. Removed the separate Work Progress section from ProjectDetail.vue
+3. Integrated receipt photo functionality into the Project Scope view with a modal upload dialog
+4. Positioned the receipt upload button in the designated yellow box location
+5. Removed the separate `/projects/:id/line-item-photos` route and related component
+6. Created a placeholder for the legacy ProjectLineItemPhotos.vue file to maintain system integrity
 
 **Key Improvements:**
-* **Reliability**: Fixed the critical UUID undefined error that was preventing estimates from loading
-* **User Experience**: Clear error messages instead of cryptic database errors
-* **Robustness**: Better handling of edge cases and invalid inputs
-* **Debugging**: Enhanced logging for easier troubleshooting
-* **Error Handling**: Proper HTTP status codes and error messages
+- Streamlined project interface with a focus on the Project Scope as the primary view for active projects
+- Integrated receipt functionality directly into the scope view for better workflow
+- Simplified navigation by removing the need to switch between work progress and line items
+- Maintained backward compatibility with existing project data and database structure
 
-**Technical Details:**
-* Added validation in EstimateDetail.vue to check if route.params.id exists before making API calls
-* Implemented a timeout-based retry mechanism for delayed route parameter resolution
-* Added UUID regex validation in the backend controller: `/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i`
-* Fixed response structure handling in EstimatesList.vue to properly handle nested data structures
-* Added conditional rendering for router links based on the presence of valid IDs
+---
 
-**Next Steps:**
-1. Continue testing the estimate detail page to ensure stability
-2. Add unit tests to prevent regression of the UUID issue
-3. Implement remaining features for estimate finalization
-4. Enhance the estimate editing interface
-5. Implement estimate approval and conversion to invoice workflow
 
-[2025-04-09 16:30] - **Assessment-to-Estimate Workflow - Milestone 2 Completion**
+[2025-04-14 02:46] - **Fixed Estimate Item Photos Component Functionality**
 
 **Completed Tasks:**
-1. **Enhanced LLM Prompt Implementation:**
-   * Created structured prompt template aligned with assessment markdown format
-   * Implemented aggressiveness (0-100%) parameter and mode selection
-   * Added context-specific guidance for different estimation modes
-   * Ensured structured output format with source traceability
-
-2. **Response Parsing Enhancement:**
-   * Implemented multiple parsing strategies for robust error handling
-   * Added validation for the new output schema format
-   * Built backward compatibility with legacy response formats
-   * Added proper source type and ID tracking
-
-3. **Frontend UI Improvements:**
-   * Added aggressiveness slider and mode selection controls
-   * Implemented direct assessment-to-estimate generation flow
-   * Enhanced user feedback during LLM processing
-   * Added visual indicators for assessment data incorporation
-
-4. **Logging and Error Handling:**
-   * Enhanced logging for LLM interactions with contextual metadata
-   * Added specialized LLM logging methods to a dedicated file
-   * Implemented improved error handling with diagnostic codes
-   * Added detailed error messaging for better troubleshooting
+1. Resolved Tailwind CSS build error (`Cannot apply unknown utility class: text-base`) in `EstimateItemPhotos.vue` by removing `@apply` from scoped styles and using direct responsive classes (`text-base sm:text-lg`).
+2. Fixed frontend JavaScript error (`TypeError: estimatesService.getEstimate is not a function`) by correcting the service call to use `estimatesService.getById`.
+3. Fixed backend 500 error (`Cannot read properties of undefined (reading 'findAll')`) during photo fetch by ensuring `EstimateItemPhoto` model was correctly initialized in `backend/src/models/index.js`.
+4. Corrected frontend error handling (`TypeError: apiAdapter.standardizeError is not a function`) and API URL (`/api/api/...`) in `standardized-estimate-item-photos.service.js`.
+5. Resolved backend 404 error (`Route not found`) for photo fetching by adding the missing `GET /api/estimates/:estimateId/photos` route definition in `backend/src/routes/estimates.routes.js`.
+6. Fixed backend 500 error (`Failed to get estimate`) when fetching estimate details by correcting the Sequelize `include` alias for `EstimateItem` from `estimateItems` to `items` in `backend/src/services/estimateService.js`.
+7. Updated `EstimateItemPhotos.vue` to correctly access the estimate items array from the API response using the `items` key.
 
 **Key Improvements:**
-* **Enhanced Control**: Aggressiveness and mode parameters allow fine-tuning estimates
-* **Direct Generation**: New option to generate directly from assessment data
-* **Better Traceability**: Clear source tracking between assessment data and estimate items
-* **Robust Parsing**: Multiple strategies for handling various LLM response formats
-* **Improved Error Handling**: Better diagnostics and user feedback
-* **Enhanced Logging**: Detailed logs for easier debugging and analysis
+- The `EstimateItemPhotos.vue` component now correctly loads estimate data, displays line items, and allows photo management for each item.
+- Resolved multiple cascading errors across frontend and backend related to this feature.
 
-**Technical Details:**
-* Implemented a `_buildPrompt` function that incorporates markdown data and control parameters
-* Created validation for the new output schema with sourceType and sourceId
-* Added support for legacy format conversion for backward compatibility
-* Implemented temperature control based on aggressiveness settings
-* Enhanced logging with LLM-specific methods and context
+---
 
-**Next Steps:**
-1. Implement Milestone 3: Interactive UI with split-panel layout
-2. Create components for assessment display and estimate editing
-3. Implement bidirectional linking between source data and estimate items
-4. Add visual indicators for data relationships
-5. Build controls for adjusting and regenerating estimates
 
-[2025-04-08 23:55] - **Navigation Fix - Projects Link Repair**
+[2025-04-14 00:45] - **Fixed Estimate Display in Project Creation Forms**
 
 **Completed Tasks:**
-1.  **Issue Identification:**
-    *   Identified that the Projects link in navigation was broken due to missing component
-    *   Discovered that `ProjectsDashboard.vue` had been deleted without updating router configuration
-    *   Found that the router configuration only had a component for the `/projects/:id` route (project detail), not the main `/projects` route
-
-2.  **Component Recreation:**
-    *   Created a new `ProjectsView.vue` component in the `/views/projects/` directory
-    *   Implemented the same functionality as the original dashboard with today's jobs and all projects sections
-    *   Maintained compatibility with existing `ProjectCard` component
-    *   Preserved mobile-friendly layout with proper safe area handling
-
-3.  **Router Configuration Update:**
-    *   Added route for the empty path under `/projects` in the router configuration
-    *   Associated the new `ProjectsView.vue` component with the route
-    *   Ensured proper import of the component in the router file
-
-4.  **Service Consistency Enhancement:**
-    *   Added named export to `projectsService.js` for better import consistency
-    *   Maintained the default export for backward compatibility
+1. Enhanced `EstimateSelector.vue` component to properly handle camelCase field names:
+   - Updated field references (e.g., `estimate.number` → `estimate.estimateNumber`)
+   - Switched to use the standardized `standardized-estimates.service.js`
+   - Added better logging and debugging for estimates loading
+2. Rewrote `CreateProject.vue` to use the improved `EstimateSelector` component:
+   - Replaced basic dropdown with proper component showing complete estimate details
+   - Added clear display of estimate number, date, amount, and status with color-coded badges
+   - Simplified the code structure for better maintainability
+3. Fixed bidirectional project-estimate references in database:
+   - Ensured proper updating of `estimate_id` in projects table
+   - Created and committed database schema backup and project/estimate data backup
 
 **Key Improvements:**
-*   **Navigation Reliability**: Fixed broken navigation link to Projects section
-*   **UI Consistency**: Recreated the same dashboard layout for familiar user experience
-*   **Functionality Restoration**: Restored the ability to view today's jobs and filter projects
-*   **Mobile Usability**: Maintained mobile-friendly design with proper bottom safe area
+- Users now see complete estimate information in selection UI
+- Consistent visual styling with the rest of the application
+- Improved project-estimate relationship management
 
-**Technical Details:**
-*   Implemented the navigation fix without requiring additional component dependencies
-*   Used consistent service import pattern with named exports
-*   Ensured backward compatibility with existing functionality
-*   Maintained same filtering capabilities for projects by status
+---
 
-**Next Steps:**
-1.  Test the Projects link in navigation to verify fix
-2.  Confirm that Today's Jobs and All Projects sections display correctly
-3.  Verify that project filtering and refresh functionality works properly
-4.  Ensure that New Project button navigates to the correct route
-
-[2025-04-08 23:45] - **Web Deployment Configuration**
+[2025-04-13 23:35] - **Project Creation Workflow Refactor and Standardization**
 
 **Completed Tasks:**
-1.  **Frontend Configuration for Web Access:**
-    *   Updated Vite configuration in `vite.config.js` to properly proxy API requests
-    *   Added `allowedHosts` configuration to explicitly permit the domain
-    *   Modified API service in `api.service.js` to use relative or absolute URL based on domain
-    *   Added `host: '0.0.0.0'` setting to allow network access to the dev server
-    *   Enabled `withCredentials: true` for proper cookie handling across domains
+1. Added `/projects/create` route as a child of `/projects` in `frontend/src/router/index.js`.
+2. Created `frontend/src/views/projects/CreateProject.vue` for standardized project creation, following all memory bank best practices:
+   - Uses camelCase for frontend, snake_case for backend, and field adapters for conversion.
+   - Implements standardized error handling and UI feedback.
+   - Fetches clients and associated estimates using standardized services.
+3. Updated all "Create New Project" actions (including from settings and dashboard) to route to `/projects/create` and use the new component.
+4. Removed modal-based project creation flow from `ProjectSettings.vue`.
+5. "Convert to Job" workflow remains a separate, specialized flow and was not changed.
 
-2.  **Backend CORS Configuration:**
-    *   Added job.806040.xyz domain to allowed origins list in `app.js`
-    *   Improved security by replacing wildcard CORS with specific origin allowlisting
-    *   Enhanced uploads directory access with explicit origin checking
-    *   Configured proper headers for cross-origin resource sharing
+**Current Blockers / Next Steps:**
+- The original issue persists: the estimate selector in the project creation form does not populate for some clients, despite valid estimates in the database. Further debugging is required.
+- All architectural and workflow changes are now reflected in the memory bank for future work.
 
-3.  **Nginx Proxy Manager Integration:**
-    *   Configured domain (job.806040.xyz) with SSL certificates
-    *   Enabled WebSocket support for hot module replacement
-    *   Set up proxy to forward requests to the Vite development server
-    *   Enabled HTTP/2 support for improved performance
-
-**Key Improvements:**
-*   **External Access**: Application now accessible via job.806040.xyz while remaining in development mode
-*   **Security**: SSL encryption for secure data transmission
-*   **Development Experience**: Maintained hot module replacement via WebSocket support
-*   **Authentication**: Cross-domain cookie handling for proper authentication
-*   **File Access**: Configured proper CORS settings for uploads directory
-
-**Technical Details:**
-*   Used environment detection to automatically select appropriate API base URL
-*   Implemented origin-specific CORS headers for improved security
-*   Added explicit proxy configuration for both API and uploads paths
-*   Maintained development tools and features while enabling external access
-
-**Next Steps:**
-1.  Test login and authentication through the proxy
-2.  Verify file uploads functionality when accessed via the domain
-3.  Monitor performance and WebSocket connectivity
-4.  Test LLM estimate generation through the proxied connection
-
-[2025-04-08 22:30] - **User Creation Form Fix**
-
-**Completed Tasks:**
-1.  **Backend-Frontend Field Mismatch Resolution:**
-    *   Identified critical mismatch between frontend form fields and backend database requirements
-    *   Discovered that the User model required a `username` field that wasn't provided in the form
-    *   Added an explicit username field to the form to comply with database constraints
-    *   Updated form validation logic to ensure username field is completed
-
-2.  **Form Error Display Enhancement:**
-    *   Improved form field error displays with proper state styling
-    *   Changed `:error` property to functional `:state="error ? 'error' : ''"` property
-    *   Added helper text to show specific error messages under each field
-    *   Implemented more descriptive error alerts that list all fields with issues
-    *   Applied visual styling (red borders) to indicate problematic fields
-
-**Key Improvements:**
-*   **Reliability**: Fixed the "notNull Violation: User.username cannot be null" error
-*   **User Experience**: Clear visual indications of which fields have errors
-*   **Error Messaging**: Detailed error messages explaining exactly what needs to be fixed
-*   **Consistency**: Aligned frontend form fields with backend database requirements
-
-**Technical Details:**
-*   Added `username` field to `UserSettings.vue` form with proper validation
-*   Updated `getInitialUserForm()` to include username property
-*   Changed input components to use state-based error indication
-*   Enhanced validation function to provide more helpful error messages
-*   Applied proper CSS styling for error states in form fields
-
-**Next Steps:**
-1.  Monitor usage of the user creation form to ensure it works correctly
-2.  Consider adding helper text to explain username requirements/usage
-3.  Evaluate whether other forms might have similar field mismatch issues
-
-[2025-04-08 21:15] - **Database Restoration and LLM Integration Fix**
-
-**Completed Tasks:**
-1.  **LLM Service Integration Fix:**
-    *   Identified issue with `llmEstimateService.js` not properly exporting the service instance
-    *   Added proper instantiation and export of the LLM estimate service with the DeepSeek service
-    *   Fixed the error "llmEstimateService.startInitialAnalysis is not a function"
-    *   Verified LLM functioning by testing API endpoints
-
-2.  **Product Table Type Column Fix:**
-    *   Created migration `20250408021900-add-type-to-products.js` to ensure the 'type' column exists
-    *   Added proper ENUM type ('product', 'service') with default value
-    *   Added safe checks to handle existing column scenarios
-    *   Implemented rollback capability for the migration
-
-3.  **Database Verification:**
-    *   Confirmed database connection is working correctly
-    *   Verified frontend is able to communicate with backend
-    *   Confirmed LLM prompts are loading correctly from database
-
-**Key Improvements:**
-*   **Restored LLM Functionality**: Fixed estimate generation with LLM integration
-*   **Database Structure Integrity**: Ensured product table has required 'type' column
-*   **System Reliability**: Re-established connection between components after database restoration
-
-**Next Steps:**
-1.  Monitor LLM interactions for any other issues
-2.  Check for other potential database structure issues
-3.  Consider adding additional validation for database structure integrity
-
-[2025-04-08 17:45] - **Assessment Validation Fix and UI Enhancements**
-
-**Completed Tasks:**
-1.  **Backend Validation Fix:**
-    *   Updated `ProjectInspection.js` model to handle the new measurements format
-    *   Added support for array-based item structure while maintaining backward compatibility
-    *   Fixed the "Measurements must include dimensions" validation error
-    *   Restarted the backend server to apply validation changes
-
-2.  **Layout and Navigation Improvements:**
-    *   Changed header and action buttons from sticky to static positioning
-    *   Removed unnecessary bottom padding and improved content flow
-    *   Modified "Mark Complete" button to only show for active jobs
-    *   Enforced proper workflow progression (Assessment → Job → Complete)
-
-3.  **Mobile-Friendly Materials UI:**
-    *   Implemented vertical stacked layout for material items
-    *   Made material name field full width for better visibility on small screens
-    *   Adjusted quantity and unit fields to use equal-width flex layout
-    *   Added visual separation between materials with borders and improved spacing
-    *   Enhanced touch targets and readability for mobile users
-
-**Key Improvements:**
-*   **Fixed Data Validation**: Users can now save measurements without validation errors
-*   **Better Mobile Experience**: Redesigned materials section is much more usable on small screens
-*   **Improved Workflow**: UI now guides users through the correct project progression
-*   **Cleaner Interface**: Static positioning provides a more natural reading experience
-
-**Next Steps:**
-1.  Monitor usage of the enhanced assessment form
-2.  Gather feedback on the mobile experience improvements
-3.  Consider applying similar responsive enhancements to other parts of the application
-
-[2025-04-08 14:30] - **Assessment UI Improvements**
-
-**Completed Tasks:**
-1.  **Measurements UI Enhancement:**
-    *   Standardized measurements to always use feet
-    *   Added automatic square footage calculation
-    *   Removed unnecessary units dropdown
-    *   Improved layout spacing and alignment
-
-2.  **Materials UI Improvements:**
-    *   Added unit type selector for materials (sq ft, ln ft, each, etc.)
-    *   Resized quantity field for better proportions
-    *   Added proper field labels to all form inputs
-    *   Fixed alignment issues between input fields
-
-3.  **Action Button Repositioning:**
-    *   Changed fixed footer to sticky positioning
-    *   Relocated "Convert to Job" button to action bar
-    *   Made "Save Assessment" button smaller and less obtrusive
-    *   Standardized button styling and sizing
-
-**Key Improvements:**
-*   **Better User Experience**: More intuitive measurements with automatic area calculations
-*   **Clearer Data Entry**: Fields are properly labeled and visually aligned
-*   **Improved Navigation**: Action buttons remain accessible while scrolling
-*   **Visual Consistency**: Standardized styling across the interface
-
-**Next Steps:**
-1.  Gather feedback on the interface changes
-2.  Monitor usage of the automatic square footage calculation
-3.  Consider additional assessment workflow improvements
-
-[2025-04-07 23:45] - **LLM Prompts Management - Database & API Integration**
-
-**Completed Tasks:**
-1.  **Database Migration:**
-    *   Successfully ran `20250407165000-create-llm-prompts.js` migration
-    *   Created `llm_prompts` table with initial seed data
-    *   Handled conflict with problematic migration by temporarily renaming it
-
-2.  **API Integration:**
-    *   Fixed API endpoint routing in backend (`/api/llm-prompts/`)
-    *   Corrected frontend service calls to use the proper endpoint
-    *   Verified API connectivity and data flow
-
-**Key Improvements:**
-*   **Data Persistence**: LLM prompts now stored in database
-*   **Configuration Management**: Prompts can be modified through settings UI
-*   **API Standardization**: Consistent endpoint naming and routing
-
-**Next Steps:**
-1.  Verify prompt management UI functionality
-2.  Test prompt modifications in estimate generation
-3.  Add validation for prompt structure and content
+---

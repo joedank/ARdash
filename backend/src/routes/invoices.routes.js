@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const invoicesController = require('../controllers/invoices.controller');
 const { authenticate } = require('../middleware/auth.middleware');
+const { validateUuid } = require('../middleware/uuidValidator');
 
 // Apply authentication middleware to all routes
 router.use(authenticate);
@@ -16,24 +17,24 @@ router.post('/', invoicesController.createInvoice);
 router.get('/next-number', invoicesController.getNextInvoiceNumber);
 
 // GET /api/invoices/:id - Get invoice details
-router.get('/:id', invoicesController.getInvoice);
+router.get('/:id', validateUuid('id'), invoicesController.getInvoice);
 
 // PUT /api/invoices/:id - Update invoice
-router.put('/:id', invoicesController.updateInvoice);
+router.put('/:id', validateUuid('id'), invoicesController.updateInvoice);
 
 // DELETE /api/invoices/:id - Delete invoice
-router.delete('/:id', invoicesController.deleteInvoice);
+router.delete('/:id', validateUuid('id'), invoicesController.deleteInvoice);
 
 // POST /api/invoices/:id/mark-sent - Mark invoice as sent
-router.post('/:id/mark-sent', invoicesController.markInvoiceAsSent);
+router.post('/:id/mark-sent', validateUuid('id'), invoicesController.markInvoiceAsSent);
 
 // POST /api/invoices/:id/mark-viewed - Mark invoice as viewed
-router.post('/:id/mark-viewed', invoicesController.markInvoiceAsViewed);
+router.post('/:id/mark-viewed', validateUuid('id'), invoicesController.markInvoiceAsViewed);
 
 // POST /api/invoices/:id/payments - Add payment to invoice
-router.post('/:id/payments', invoicesController.addPayment);
+router.post('/:id/payments', validateUuid('id'), invoicesController.addPayment);
 
 // GET /api/invoices/:id/pdf - Generate invoice PDF
-router.get('/:id/pdf', invoicesController.getInvoicePdf); // Updated to use the new retrieval method
+router.get('/:id/pdf', validateUuid('id'), invoicesController.getInvoicePdf); // Updated to use the new retrieval method
 
 module.exports = router;

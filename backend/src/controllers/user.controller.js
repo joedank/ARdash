@@ -1,6 +1,7 @@
 const { User } = require('../models'); // Import initialized model from index.js
 const logger = require('../utils/logger');
-const bcrypt = require('bcrypt');
+// Use our bcrypt compatibility layer that uses bcryptjs instead of bcrypt
+const bcrypt = require('../utils/bcrypt-compat');
 
 /**
  * User controller
@@ -14,7 +15,7 @@ class UserController {
       const users = await User.findAll({
         attributes: { exclude: ['password'] } // Exclude password from response
       });
-      
+
       res.status(200).json({
         status: 'success',
         results: users.length,
@@ -27,7 +28,7 @@ class UserController {
       next(error);
     }
   }
-  
+
   /**
    * Get user by ID
    */
@@ -36,14 +37,14 @@ class UserController {
       const user = await User.findByPk(req.params.id, {
         attributes: { exclude: ['password'] } // Exclude password from response
       });
-      
+
       if (!user) {
         return res.status(404).json({
           status: 'error',
           message: 'User not found'
         });
       }
-      
+
       res.status(200).json({
         status: 'success',
         data: {
@@ -55,18 +56,18 @@ class UserController {
       next(error);
     }
   }
-  
+
   /**
    * Create new user
    */
   async createUser(req, res, next) {
     try {
       const newUser = await User.create(req.body);
-      
+
       // Remove password from response
       const userResponse = newUser.toJSON();
       delete userResponse.password;
-      
+
       res.status(201).json({
         status: 'success',
         data: {
@@ -88,17 +89,17 @@ class UserController {
       const userId = req.user.id;
       // Destructure all expected fields, including avatar
       const { firstName, lastName, email, avatar, emailNotifications, marketingEmails } = req.body;
-      
+
       // Find the user
       const user = await User.findByPk(userId);
-      
+
       if (!user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
-      
+
       // Check if email is being changed and if it's already in use
       if (email && email !== user.email) {
         const existingUser = await User.findOne({ where: { email } });
@@ -109,7 +110,7 @@ class UserController {
           });
         }
       }
-      
+
       // Update user
       user.firstName = firstName !== undefined ? firstName : user.firstName;
       user.lastName = lastName !== undefined ? lastName : user.lastName;
@@ -117,13 +118,13 @@ class UserController {
       user.avatar = avatar !== undefined ? avatar : user.avatar; // Update avatar if provided
       // Store additional preferences if needed
       // Could be added to the user model or stored in a separate preferences table
-      
+
       await user.save();
-      
+
       // Return updated user data
       const userData = user.toJSON();
       delete userData.password;
-      
+
       res.status(200).json({
         success: true,
         message: 'Profile updated successfully',
@@ -140,7 +141,7 @@ class UserController {
       });
     }
   }
-  
+
   /**
    * Change user password
    * @route PUT /api/users/password
@@ -149,7 +150,7 @@ class UserController {
     try {
       const userId = req.user.id;
       const { currentPassword, newPassword } = req.body;
-      
+
       // Validate input
       if (!currentPassword || !newPassword) {
         return res.status(400).json({
@@ -157,17 +158,17 @@ class UserController {
           message: 'Current password and new password are required'
         });
       }
-      
+
       // Find the user
       const user = await User.findByPk(userId);
-      
+
       if (!user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
-      
+
       // Verify current password
       const isPasswordValid = await user.checkPassword(currentPassword);
       if (!isPasswordValid) {
@@ -176,11 +177,11 @@ class UserController {
           message: 'Current password is incorrect'
         });
       }
-      
+
       // Update password (will be hashed by the beforeUpdate hook)
       user.password = newPassword;
       await user.save();
-      
+
       res.status(200).json({
         success: true,
         message: 'Password updated successfully'
@@ -194,7 +195,7 @@ class UserController {
       });
     }
   }
-  
+
   /**
    * Update user theme preference
    * @route PUT /api/users/preferences/theme
@@ -203,7 +204,7 @@ class UserController {
     try {
       const userId = req.user.id;
       const { theme_preference } = req.body;
-      
+
       // Validate input
       if (!theme_preference) {
         return res.status(400).json({
@@ -211,7 +212,7 @@ class UserController {
           message: 'Theme preference is required'
         });
       }
-      
+
       // Validate theme value
       const validThemes = ['light', 'dark', 'system'];
       if (!validThemes.includes(theme_preference)) {
@@ -220,21 +221,21 @@ class UserController {
           message: `Invalid theme preference. Must be one of: ${validThemes.join(', ')}`
         });
       }
-      
+
       // Find the user
       const user = await User.findByPk(userId);
-      
+
       if (!user) {
         return res.status(404).json({
           success: false,
           message: 'User not found'
         });
       }
-      
+
       // Update theme preference
       user.theme_preference = theme_preference;
       await user.save();
-      
+
       res.status(200).json({
         success: true,
         message: 'Theme preference updated successfully',

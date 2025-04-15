@@ -109,7 +109,7 @@
             >
               <option value="" disabled>Select a project</option>
               <option v-for="project in availableProjects" :key="project.id" :value="project.id">
-                {{ project.client?.display_name || 'Unknown Client' }} - {{ formatDate(project.scheduled_date) }}
+                {{ project.client?.displayName || 'Unknown Client' }} - {{ formatDate(project.scheduledDate) }}
               </option>
             </select>
             
@@ -200,16 +200,25 @@
       <h4 class="text-md font-semibold mb-2 text-gray-800 dark:text-gray-200">
         {{ loading && !analysisResult ? 'Analyzing...' : 'Analysis Results & Next Steps' }}
       </h4>
-      <div v-if="loading && !analysisResult" class="text-center text-gray-500 dark:text-gray-400 py-4">
-        <!-- Add a spinner or better loading indicator here -->
-        <svg class="animate-spin h-6 w-6 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <p class="mt-2">Processing description...</p>
-        <p v-if="loadingTime > 15" class="mt-2 text-xs text-gray-500 dark:text-gray-500">
-          This may take a minute or two. We're using an AI model to analyze your project requirements.
-        </p>
+      <div v-if="loading && !analysisResult" class="relative">
+        <div class="absolute inset-0 bg-gray-100 dark:bg-gray-800 opacity-75 flex items-center justify-center">
+          <div class="text-center">
+            <svg class="animate-spin h-10 w-10 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-3 text-indigo-700 dark:text-indigo-400 font-medium">
+              {{ loadingMessage }}
+            </p>
+            <p v-if="loadingTime > 15" class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              Processing complex data. This may take a moment...
+            </p>
+            <div v-if="loadingTime > 30" class="mt-3 h-2 w-48 mx-auto bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div class="h-full bg-indigo-600 dark:bg-indigo-500 rounded-full" 
+                   :style="{width: `${Math.min(100, loadingTime * 1.5)}%`}"></div>
+            </div>
+          </div>
+        </div>
       </div>
       <div v-else-if="error" class="text-red-600 dark:text-red-400">
         <p><strong>Error:</strong> {{ error }}</p>
@@ -329,6 +338,7 @@ import estimateService from '@/services/estimates.service.js';
 import projectsService from '@/services/projects.service.js';
 import { useToast } from 'vue-toastification';
 import ProductMatchReview from './ProductMatchReview.vue';
+import { toFrontend } from '@/utils/field-adapter.js';
 
 const router = useRouter();
 
@@ -358,6 +368,22 @@ const loadingTimer = ref(null); // Timer reference
 const analysisResult = ref(null); // Stores the object from the backend { required_measurements: [], clarifying_questions: [], required_services: [] }
 const error = ref(null);
 const rawErrorContent = ref(null);
+const loadingMessage = ref('Processing description...');
+
+// Computed property to update loading message based on time elapsed
+const updateLoadingMessage = () => {
+  if (directAssessmentMode.value) {
+    loadingMessage.value = 'Generating estimate from assessment...';
+  } else if (loadingTime.value > 45) {
+    loadingMessage.value = 'Still working... complex analysis in progress';
+  } else if (loadingTime.value > 30) {
+    loadingMessage.value = 'Analyzing requirements... this is taking longer than usual';
+  } else if (loadingTime.value > 15) {
+    loadingMessage.value = 'Processing your description...';
+  } else {
+    loadingMessage.value = 'Processing description...';
+  }
+};
 
 // Clarification Input State
 const measurementInputs = ref({}); // e.g., { roof_square_footage: 1500, roof_pitch: 6 }
@@ -385,10 +411,15 @@ const loadProjects = async () => {
     const response = await projectsService.getAllProjects({ type: 'assessment' });
     
     if (response.success && response.data) {
+      // Normalize data from snake_case to camelCase
+      const normalizedProjects = Array.isArray(response.data) 
+        ? response.data.map(project => toFrontend(project))
+        : [];
+      
       // Filter to only active or pending assessment projects
-      availableProjects.value = response.data
+      availableProjects.value = normalizedProjects
         .filter(p => p.type === 'assessment' && ['pending', 'in_progress'].includes(p.status))
-        .sort((a, b) => new Date(b.scheduled_date) - new Date(a.scheduled_date)); // Sort newest first
+        .sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate)); // Now camelCase will work correctly
       
       if (availableProjects.value.length === 0) {
         toast.info('No assessment projects found.');
@@ -444,8 +475,8 @@ const getProjectName = (projectId) => {
   const project = availableProjects.value.find(p => p.id === projectId);
   if (!project) return projectId;
   
-  const clientName = project.client?.display_name || 'Unknown Client';
-  const date = formatDate(project.scheduled_date);
+  const clientName = project.client?.displayName || 'Unknown Client'; // Use camelCase
+  const date = formatDate(project.scheduledDate); // Use camelCase
   
   return `${clientName} - ${date}`;
 };
@@ -510,6 +541,7 @@ const startAnalysis = async () => {
   clearInterval(loadingTimer.value);
   loadingTimer.value = setInterval(() => {
     loadingTime.value++;
+    updateLoadingMessage();
   }, 1000);
 
   try {
@@ -667,54 +699,54 @@ const handleMatchingFinished = async (data) => {
 * Generate estimate directly from assessment data using enhanced formatting
 */
 const generateDirectFromAssessment = async () => {
-if (!assessmentData.value) {
-toast.error('Assessment data is required');
-return;
-}
-
-loading.value = true;
-directAssessmentMode.value = true;
-error.value = null;
-rawErrorContent.value = null;
-currentStep.value = 'clarification'; // Move to next step for result display
-
-// Start loading timer for UX feedback
-loadingTime.value = 0;
-clearInterval(loadingTimer.value);
-loadingTimer.value = setInterval(() => {
-loadingTime.value++;
-}, 1000);
-
-try {
-// Show detailed loading feedback
-toast.info('Generating estimate using enhanced assessment data...');
-
-const result = await estimateService.generateFromAssessment(assessmentData.value, {
-aggressiveness: aggressiveness.value,
-mode: estimationMode.value,
-debug: false
-});
-
-if (result.success && result.data) {
-toast.success('Estimate generated successfully from assessment data');
-
-// Convert to line item format expected by the product matching component
-const lineItems = result.data.map(item => ({
-  description: item.description,
-  product_name: item.description,
-  quantity: item.quantity,
-    unit: item.unit,
-  unit_price: item.unitPrice || item.unit_price,
-  total: item.total,
-    sourceType: item.sourceType || item.source_type,
-      sourceId: item.sourceId || item.source_id
-  }));
-  
-  // Add more detailed feedback on what was found
-    if (lineItems.length > 0) {
-    toast.info(`Generated ${lineItems.length} line items from assessment data`);
+  if (!assessmentData.value) {
+    toast.error('Assessment data is required');
+    return;
   }
-    
+
+  loading.value = true;
+  directAssessmentMode.value = true;
+  clearError(); // Use the error handler to clear errors
+  currentStep.value = 'clarification'; // Move to next step for result display
+
+  // Start loading timer for UX feedback
+  loadingTime.value = 0;
+  clearInterval(loadingTimer.value);
+  loadingTimer.value = setInterval(() => {
+    loadingTime.value++;
+    updateLoadingMessage();
+  }, 1000);
+
+  try {
+    // Show detailed loading feedback
+    toast.info('Generating estimate using enhanced assessment data...');
+
+    const result = await estimateService.generateFromAssessment(assessmentData.value, {
+      aggressiveness: aggressiveness.value,
+      mode: estimationMode.value,
+      debug: false
+    });
+
+    if (result.success && result.data) {
+      toast.success('Estimate generated successfully from assessment data');
+
+      // Convert to line item format expected by the product matching component (use camelCase)
+      const lineItems = result.data.map(item => ({
+        description: item.description,
+        product_name: item.description, // Keep product_name as it might be expected downstream
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_price: item.unitPrice, // Use camelCase unitPrice
+        total: item.total,
+        sourceType: item.sourceType, // Use camelCase sourceType
+        sourceId: item.sourceId // Use camelCase sourceId
+      }));
+      
+      // Add more detailed feedback on what was found
+      if (lineItems.length > 0) {
+        toast.info(`Generated ${lineItems.length} line items from assessment data`);
+      }
+        
       // Process line items for service matching
       generatedLineItems.value = lineItems;
       currentStep.value = 'service-matching';
@@ -728,14 +760,11 @@ const lineItems = result.data.map(item => ({
       }
     }
   } catch (err) {
-    console.error('Error generating estimate from assessment:', err);
-    error.value = err.response?.data?.message || err.message || 'An unexpected error occurred';
-    toast.error(error.value);
+    handleError(err, 'Error generating estimate from assessment');
     
-    // Show more detailed error messaging
+    // Show more detailed error messaging if available
     if (err.response?.data?.error) {
       console.error('Server error details:', err.response.data.error);
-      rawErrorContent.value = err.response.data.error;
     }
   } finally {
     loading.value = false;

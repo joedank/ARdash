@@ -91,24 +91,24 @@
               :class="column.allowWrap ? 'break-words' : 'whitespace-nowrap'"
             >
               <!-- Client Type Column -->
-              <template v-if="column.key === 'client_type'">
+              <template v-if="column.key === 'clientType'">
                 <BaseBadge
-                  :variant="getClientTypeBadgeVariant(client.client_type)"
+                  :variant="getClientTypeBadgeVariant(client.clientType)"
                   size="sm"
                 >
-                  {{ formatClientType(client.client_type) }}
+                  {{ formatClientType(client.clientType) }}
                 </BaseBadge>
               </template>
               
               <!-- Status Column -->
-              <template v-else-if="column.key === 'is_active'">
+              <template v-else-if="column.key === 'isActive'">
                 <BaseToggleSwitch
-                  :model-value="client.is_active"
+                  :model-value="client.isActive"
                   @update:model-value="$emit('toggle-status', client)"
                   @click.stop
                 >
-                  <span class="ml-2 text-sm" :class="client.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                    {{ client.is_active ? 'Active' : 'Inactive' }}
+                  <span class="ml-2 text-sm" :class="client.isActive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                    {{ client.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </BaseToggleSwitch>
               </template>
@@ -211,7 +211,7 @@ const props = defineProps({
   },
   sortKey: {
     type: String,
-    default: 'display_name'
+    default: 'displayName' // Use camelCase default
   },
   sortOrder: {
     type: String,
@@ -242,14 +242,14 @@ const columnDisplayOptions = [
   { value: 'expanded', label: 'Expanded' }
 ];
 
-// Available columns
+// Available columns (using camelCase keys)
 const allColumns = [
-  { key: 'display_name', label: 'Name', sortable: true, width: '25%', allowWrap: true, priority: 1 },
+  { key: 'displayName', label: 'Name', sortable: true, width: '25%', allowWrap: true, priority: 1 },
   { key: 'company', label: 'Company', sortable: true, width: '20%', allowWrap: true, priority: 2 },
   { key: 'email', label: 'Email', sortable: true, width: '20%', allowWrap: true, priority: 3 },
   { key: 'phone', label: 'Phone', sortable: true, width: '15%', allowWrap: false, priority: 4 },
-  { key: 'client_type', label: 'Type', sortable: false, width: '10%', allowWrap: false, priority: 2 },
-  { key: 'is_active', label: 'Status', sortable: false, width: '10%', allowWrap: false, priority: 1 },
+  { key: 'clientType', label: 'Type', sortable: false, width: '10%', allowWrap: false, priority: 2 },
+  { key: 'isActive', label: 'Status', sortable: false, width: '10%', allowWrap: false, priority: 1 },
   { key: 'actions', label: 'Actions', sortable: false, width: '10%', allowWrap: false, priority: 1 }
 ];
 

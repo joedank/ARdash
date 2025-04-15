@@ -1,0 +1,125 @@
+
+  /**
+   * Mark an estimate as sent
+   * @param {string} estimateId - Estimate ID
+   * @returns {Promise<Object>} - Updated estimate
+   */
+  async markEstimateAsSent(estimateId) {
+    const estimate = await Estimate.findByPk(estimateId);
+
+    if (!estimate) {
+      throw new Error('Estimate not found');
+    }
+
+    if (estimate.status === 'draft') {
+      await estimate.update({ status: 'sent' });
+
+      // Generate PDF if not already generated
+      if (!estimate.pdfPath) {
+        await this.generateEstimatePDF(estimateId); // Call the new function
+      }
+    }
+
+    return this.getEstimateWithDetails(estimateId);
+  }
+
+  /**
+   * Mark an estimate as accepted
+   * @param {string} estimateId - Estimate ID
+   * @returns {Promise<Object>} - Updated estimate
+   */
+  async markEstimateAsAccepted(estimateId) {
+    const estimate = await Estimate.findByPk(estimateId);
+
+    if (!estimate) {
+      throw new Error('Estimate not found');
+    }
+
+    if (['sent', 'viewed'].includes(estimate.status)) {
+      await estimate.update({ status: 'accepted' });
+    }
+
+    return this.getEstimateWithDetails(estimateId);
+  }
+
+  /**
+   * Mark an estimate as rejected
+   * @param {string} estimateId - Estimate ID
+   * @returns {Promise<Object>} - Updated estimate
+   */
+  async markEstimateAsRejected(estimateId) {
+    const estimate = await Estimate.findByPk(estimateId);
+
+    if (!estimate) {
+      throw new Error('Estimate not found');
+    }
+
+    if (['sent', 'viewed'].includes(estimate.status)) {
+      await estimate.update({ status: 'rejected' });
+    }
+
+    return this.getEstimateWithDetails(estimateId);
+  }
+
+  /**
+   * Convert an estimate to an invoice
+   * @param {string} estimateId - Estimate ID
+   * @returns {Promise<Object>} - Created invoice
+   */
+  async convertToInvoice(estimateId) {
+    try {
+      const estimate = await this.getEstimateWithDetails(estimateId);
+
+      if (!estimate) {
+        throw new Error('Estimate not found');
+      }
+
+      // Only convert estimates that are accepted or sent/viewed
+      if (!['accepted', 'sent', 'viewed'].includes(estimate.status)) {
+        throw new Error('Only accepted, sent, or viewed estimates can be converted to invoices');
+      }
+
+      // Check if already converted
+      if (estimate.convertedToInvoiceId) {
+        const existingInvoice = await Invoice.findByPk(estimate.convertedToInvoiceId);
+        if (existingInvoice) {
+          logger.info(`Estimate ${estimateId} already converted to invoice ${existingInvoice.id}`);
+          return existingInvoice;
+        }
+      }
+
+      // Create invoice data from estimate
+      const invoiceData = {
+        client_id: estimate.client_id, // Use standardized field name
+        address_id: estimate.address_id, // Pass the selected address ID
+        dateCreated: new Date().toISOString().split('T')[0], // Use today's date
+        // dateDue will be set by createInvoice based on settings/client terms
+        items: estimate.items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          taxRate: item.taxRate
+        })),
+        notes: estimate.notes,
+        terms: estimate.terms, // Consider using default invoice terms instead?
+        discountAmount: estimate.discountAmount,
+        status: 'draft', // Start invoice as draft
+        generatePdf: true // Generate PDF upon creation
+      };
+
+      // Create the invoice using invoiceService
+      const invoice = await invoiceService.createInvoice(invoiceData);
+
+      // Update the estimate with the invoice ID
+      await estimate.update({
+        status: 'accepted', // Mark estimate as accepted upon conversion
+        convertedToInvoiceId: invoice.id
+      });
+
+      logger.info(`Estimate ${estimateId} converted to invoice ${invoice.id}`);
+      return invoice;
+    } catch (error) {
+      logger.error(`Error converting estimate ${estimateId} to invoice:`, error);
+      throw error;
+    }
+  }

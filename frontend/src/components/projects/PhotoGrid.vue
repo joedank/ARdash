@@ -2,11 +2,11 @@
   <div class="photo-grid">
     <!-- Photo Grid -->
     <div
-      v-if="photos.length > 0"
+      v-if="normalizedPhotos.length > 0"
       class="grid grid-cols-2 sm:grid-cols-3 gap-4"
     >
       <div
-        v-for="photo in photos"
+        v-for="photo in normalizedPhotos"
         :key="photo.id"
         class="relative aspect-square rounded-lg overflow-hidden cursor-pointer"
         @click="openPreview(photo)"
@@ -75,7 +75,7 @@
 
         <!-- Timestamp -->
         <div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-2 py-1">
-          {{ formatDate(photo.created_at) }}
+          {{ formatDate(photo.createdAt) }}
         </div>
       </div>
     </div>
@@ -127,7 +127,7 @@
           <!-- Timestamp -->
           <div class="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <BaseIcon name="calendar" class="w-4 h-4 mr-2" />
-            {{ formatDate(selectedPhoto?.created_at, true) }}
+            {{ formatDate(selectedPhoto?.createdAt, true) }}
           </div>
 
           <!-- Notes -->
@@ -183,6 +183,7 @@
 </template>
 
 <script setup>
+import { toCamelCase } from '@/utils/casing';
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 const loadedImages = ref(new Set());
 const imageErrors = ref(new Set());
@@ -192,9 +193,9 @@ const onImageLoad = (event, photoId) => { // Correct parameter name
     console.warn('onImageLoad called with invalid photoId:', photoId);
     return;
   }
-  const photo = props.photos.find(p => p.id === photoId); // Find the photo using the ID
+  const photo = normalizedPhotos.value.find(p => p.id === photoId); // Find the photo using the ID
   if (!photo) {
-    console.warn(`onImageLoad: Photo with ID ${photoId} not found in props.photos.`);
+    console.warn(`onImageLoad: Photo with ID ${photoId} not found in normalizedPhotos.`);
     return;
   }
   event.target.classList.add('loaded');
@@ -203,8 +204,8 @@ const onImageLoad = (event, photoId) => { // Correct parameter name
   
   console.log('Image loaded successfully:', {
     photoId: photo.id, // Use found photo object
-    type: photo.photo_type,
-    path: photo.file_path
+    type: photo.photoType,
+    path: photo.filePath
   });
 };
 
@@ -213,9 +214,9 @@ const onImageError = (photoId) => { // Correct parameter name
     console.error('onImageError called with invalid photoId:', photoId);
     return;
   }
-  const photo = props.photos.find(p => p.id === photoId); // Find the photo using the ID
+  const photo = normalizedPhotos.value.find(p => p.id === photoId); // Find the photo using the ID
   if (!photo) {
-    console.error(`onImageError: Photo with ID ${photoId} not found in props.photos.`);
+    console.error(`onImageError: Photo with ID ${photoId} not found in normalizedPhotos.`);
     // Still add the ID to errors if we received an error event for it,
     // even if the photo disappeared from props.
     imageErrors.value.add(photoId);
@@ -223,8 +224,8 @@ const onImageError = (photoId) => { // Correct parameter name
   }
   console.error('Failed to load image:', {
     photoId: photo.id, // Use found photo object
-    type: photo.photo_type,
-    path: photo.file_path
+    type: photo.photoType,
+    path: photo.filePath
   });
   imageErrors.value.add(photoId);
 };
@@ -239,12 +240,18 @@ const props = defineProps({
   }
 });
 
+// Create a computed property to normalize photos
+const normalizedPhotos = computed(() => {
+  return props.photos.map(photo => toCamelCase(photo));
+});
+
 // Reset states when photos change
 watch(() => props.photos, (newPhotos) => {
-  console.log('Photos updated:', newPhotos?.map(p => ({
+  // Log using normalizedPhotos which is already camelCase
+  console.log('Photos updated (logging normalized):', normalizedPhotos.value?.map(p => ({
     id: p.id,
-    type: p.photo_type,
-    path: p.file_path
+    type: p.photoType,
+    path: p.filePath
   })));
   
   // Clear old states
@@ -288,7 +295,7 @@ const deletePhoto = async () => {
   
   try {
     console.log('Attempting to delete photo with ID:', photoToDelete.value.id);
-    const response = await projectsService.deletePhoto(photoToDelete.value.project_id, photoToDelete.value.id);
+    const response = await projectsService.deletePhoto(photoToDelete.value.projectId, photoToDelete.value.id);
     toast.success('Photo deleted successfully');
     
     // Make a copy of the updated photos array to avoid reference issues
@@ -315,13 +322,13 @@ const deletePhoto = async () => {
 
 // Get photo URL based on file path with enhanced error handling
 const getPhotoUrl = (photo) => {
-  if (!photo?.file_path) {
+  if (!photo?.filePath) {
     console.warn('Missing file path for photo:', photo);
     return ''; // Return empty string for missing paths
   }
 
   // Normalize slashes and remove any leading slash
-  let normalizedPath = photo.file_path.replace(/\\/g, '/');
+  let normalizedPath = photo.filePath.replace(/\\/g, '/');
   if (normalizedPath.startsWith('/')) {
     normalizedPath = normalizedPath.substring(1);
   }
@@ -344,10 +351,10 @@ const getPhotoUrl = (photo) => {
   const finalUrl = '/' + normalizedPath;
 
   console.log('Resolved photo URL:', {
-    originalPath: photo.file_path,
+    originalPath: photo.filePath,
     finalUrl,
     photoId: photo.id,
-    photoType: photo.photo_type
+    photoType: photo.photoType
   });
 
   return finalUrl;
@@ -377,17 +384,17 @@ const formatDate = (dateString, detailed = false) => {
 // Navigation between photos
 const currentPhotoIndex = computed(() => {
   if (!selectedPhoto.value) return -1;
-  return props.photos.findIndex(p => p.id === selectedPhoto.value.id);
+  return normalizedPhotos.value.findIndex(p => p.id === selectedPhoto.value.id);
 });
 
 const previousPhoto = computed(() => {
   if (currentPhotoIndex.value <= 0) return null;
-  return props.photos[currentPhotoIndex.value - 1];
+  return normalizedPhotos.value[currentPhotoIndex.value - 1];
 });
 
 const nextPhoto = computed(() => {
-  if (currentPhotoIndex.value >= props.photos.length - 1) return null;
-  return props.photos[currentPhotoIndex.value + 1];
+  if (currentPhotoIndex.value >= normalizedPhotos.value.length - 1) return null;
+  return normalizedPhotos.value[currentPhotoIndex.value + 1];
 });
 
 // Open photo preview

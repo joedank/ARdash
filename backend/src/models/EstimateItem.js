@@ -25,6 +25,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'estimate_item_id',
         as: 'sourceMaps'
       });
+
+      EstimateItem.hasMany(models.EstimateItemAdditionalWork, {
+        foreignKey: 'estimate_item_id',
+        as: 'additionalWork'
+      });
     }
   }
 

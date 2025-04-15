@@ -22,12 +22,12 @@ async function startServer() {
       logger.warn('Database connection failed, but server will start without database functionality');
     } else {
       logger.info('Database connection successful');
-      
+
       // Initialize database (sync models)
       try {
         await initDb(false); // Set to true to force reset tables (use with caution)
         logger.info('Database models synchronized');
-        
+
         // Run migrations
         try {
           await runMigrations();
@@ -41,13 +41,15 @@ async function startServer() {
         logger.warn('Server will start, but database functionality may be limited');
       }
     }
-    
-    // Start server
-    const server = app.listen(config.port, () => {
-      logger.info(`Server started in ${config.nodeEnv} mode on port ${config.port}`);
-      logger.info(`API is available at http://localhost:${config.port}${config.apiPrefix}`);
+
+    // Start server - explicitly binding to all interfaces (0.0.0.0) and using port 3000
+    // Force port 3000 to ensure consistency with Docker port mapping
+    const PORT = 3000;
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      logger.info(`Server started in ${config.nodeEnv} mode on port ${PORT}`);
+      logger.info(`API is available at http://0.0.0.0:${PORT}${config.apiPrefix}`);
     });
-    
+
     // Handle unhandled rejections
     process.on('unhandledRejection', (err) => {
       logger.error('Unhandled Rejection:', err);
@@ -55,7 +57,7 @@ async function startServer() {
         process.exit(1);
       });
     });
-    
+
     return server;
   } catch (error) {
     logger.error('Server startup failed:', error);

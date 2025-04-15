@@ -1,5 +1,151 @@
 ## Project Intelligence Rules
 
+### Data Normalization Field Reference Pattern
+
+- **Problem:** Frontend components reference incorrect field names when database fields are renamed or standardized.
+- **Pattern:** Always verify the actual field names in database models before referencing them in components.
+- **Example Issue:** EstimatesList.vue trying to access `estimate.createdAt` when the actual field is `dateCreated` (from `date_created` in DB).
+- **Solution:** Update field references to match the correct standardized field names:
+  ```javascript
+  // Incorrect
+  {{ formatDate(estimate.createdAt) }}
+  
+  // Correct - reference the proper field after normalization
+  {{ formatDate(estimate.dateCreated) }}
+  ```
+- **Key Learning:**
+  - Always check the actual model definition to understand field mapping
+  - Understand that Sequelize default timestamps (createdAt, updatedAt) are different from custom date fields
+  - Be aware of field name standardization conventions (snake_case in DB → camelCase in frontend)
+  - Test data display extensively after changing field references
+  - Use proper normalization utilities for consistent data field access
+
+### Module Export Compatibility Pattern
+
+- **Problem:** Utility files using CommonJS exports (module.exports) cause errors when imported in Vue components.
+- **Pattern:** Use ES module exports syntax for frontend utilities used in Vue components.
+- **Example Issue:** field-adapter.js using CommonJS exports causing "does not provide an export named 'default'" error.
+- **Solution:** Convert CommonJS exports to ES module exports for Vue compatibility:
+  ```javascript
+  // Incorrect - CommonJS format
+  module.exports = {
+    toFrontend,
+    toDatabase
+  };
+  
+  // Correct - ES module format
+  export {
+    toFrontend,
+    toDatabase
+  };
+  ```
+- **Key Learning:**
+  - Vue 3 with Vite uses ES modules exclusively
+  - CommonJS exports cause import errors in frontend components
+  - Use named exports for utility functions rather than default exports
+  - Update import syntax to match export style (import { toFrontend } instead of import fieldAdapter)
+  - Pay attention to error messages about missing exports to identify module format issues
+
+### Component-Level Data Normalization Pattern
+
+- **Problem:** Services handle data normalization inconsistently, leading to mixed data formats (snake_case and camelCase) in components.
+- **Pattern:** Implement component-level normalization with selective preservation of nested objects and recursive array normalization.
+- **Example Implementation:** InvoiceDetail.vue component handling mixed data formats from invoicesService and clientsService.
+- **Solution:**
+  ```javascript
+  // Define a normalization function that preserves already normalized nested objects
+  // and recursively normalizes nested arrays
+  const normalizeInvoice = (data) => {
+    if (!data) return data;
+    
+    const normalizedData = { ...data };
+    
+    // Store client object separately since it may already be normalized
+    const clientData = normalizedData.client;
+    delete normalizedData.client;
+    
+    // Normalize everything except the client object
+    const camelCaseInvoice = toCamelCase(normalizedData);
+    
+    // Reattach the client object
+    camelCaseInvoice.client = clientData;
+    
+    // Recursively normalize nested arrays
+    if (Array.isArray(camelCaseInvoice.payments)) {
+      camelCaseInvoice.payments = camelCaseInvoice.payments.map(payment => toCamelCase(payment));
+    }
+    if (Array.isArray(camelCaseInvoice.items)) {
+      camelCaseInvoice.items = camelCaseInvoice.items.map(item => toCamelCase(item));
+    }
+    
+    return camelCaseInvoice;
+  };
+  
+  // Create a computed property for consistent access
+  const normalizedInvoice = computed(() => normalizeInvoice(invoice.value));
+  ```
+- **Key Learning:**
+  - Component-level normalization can bridge the gap during standardization
+  - Always check if nested objects are already normalized before processing them
+  - Recursively normalize nested arrays to ensure complete normalization
+  - Computed properties provide reactive access to normalized data
+  - Update all template references to use the normalized computed property
+  - Update helper functions (getClientName, formatInvoiceAddress) to use camelCase properties
+  - Use the normalizedInvoice computed property in component logic (loadInvoice, etc.)
+  - This approach is a tactical solution while working toward complete service standardization
+
+### Import Path Standardization Pattern
+
+- **Problem:** Components relying on services with inconsistent import paths leading to missing module errors.
+- **Pattern:** Ensure all import paths reference modules that actually exist in the project structure.
+- **Example Issue:** base.service.js imported api.service.js from @/utils/ when it was actually in @/services/.
+- **Solution:** Correct import paths to match actual file locations in the project:
+  ```javascript
+  // Incorrect
+  import api from '@/utils/api.service';
+  
+  // Correct
+  import api from '@/services/api.service';
+  ```
+- **Key Learning:**
+  - Always verify the actual location of imported files rather than assuming their paths
+  - Frontend services are generally located in the @/services/ directory, not @/utils/
+  - Be especially careful with imports of standardized services, as they might not exist yet
+  - When upgrading components to use standardized services, fall back to existing services if standardized versions don't exist
+
+### Modal Component Integration Pattern
+
+- **Problem:** Modal components need proper integration in the Vue component hierarchy with correct event handling.
+- **Pattern:** Implement modals with stacked z-index, background overlay, and proper event communication.
+- **Example Issue:** Estimate Generator button wasn't opening the LLMEstimateInput component.
+- **Solution:** Implement a proper modal container structure with event handling:
+  ```html
+  <!-- Modal Container -->
+  <div v-if="showModal" class="fixed inset-0 z-40 overflow-y-auto">
+    <!-- Background Overlay -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+    
+    <!-- Content Container -->
+    <div class="flex min-h-screen items-center justify-center p-4">
+      <div class="relative w-full max-w-4xl">
+        <!-- Close Button -->
+        <button @click="showModal = false" class="absolute right-2 top-2 rounded-full...">
+          <!-- Close Icon -->
+        </button>
+        
+        <!-- Child Component with Event Handling -->
+        <ChildComponent @close="showModal = false" />
+      </div>
+    </div>
+  </div>
+  ```
+- **Key Learning:** 
+  - Modal components need proper z-index (z-40 or higher) to appear above other elements
+  - Background overlays provide visual separation and context
+  - Event communication (@close) between child and parent components is essential
+  - Toggle variable (showModal) should control visibility in the parent component
+  - Close buttons should be positioned consistently (top-right is conventional)
+
 ### Router Component Association Pattern
 
 - **Problem:** Missing component associations in router configuration can cause navigation failures.
@@ -177,30 +323,153 @@
   - Better for accessibility as all content is visible without obscuring other elements
   - Provides a more predictable and natural reading experience on mobile devices
 
-### Automatic Calculation Pattern
+### Standardized Error Handling Pattern
 
-- **Problem:** Derived values (like square footage) need to be calculated in real-time based on user input.
-- **Pattern:** Create reactive computed functions that update automatically.
-- **Example Use:** Square footage calculation from length and width
-- **Solution:** Implement a calculation function that handles edge cases:
+- **Problem:** Error handling is inconsistent across the application, leading to unpredictable user experiences and debugging challenges.
+- **Pattern:** Use a standardized composable for error management and consistent error display.
+- **Solution:** Implement a dedicated error handling pattern:
   ```javascript
-  // Calculate derived value based on user input
-  const calculateSquareFootage = (measurement) => {
-    if (!measurement.length || !measurement.width) return '0 sq ft';
+  // composables/useErrorHandler.js
+  import { ref } from 'vue';
+  import { useToast } from 'vue-toastification';
+
+  export default function useErrorHandler() {
+    const toast = useToast();
+    const error = ref(null);
+    const rawErrorContent = ref(null);
     
-    const length = parseFloat(measurement.length) || 0;
-    const width = parseFloat(measurement.width) || 0;
-    const area = length * width;
+    const handleError = (err, customMessage = null) => {
+      console.error('Error occurred:', err);
+      
+      // Extract error message from different possible structures
+      let errorMessage = customMessage;
+      if (!errorMessage) {
+        if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.message) {
+          errorMessage = err.message;
+        } else {
+          errorMessage = 'An unexpected error occurred';
+        }
+      }
+      
+      // Store error info
+      error.value = errorMessage;
+      rawErrorContent.value = err.response?.data?.error || err.response?.data?.rawContent || null;
+      
+      // Show toast notification
+      toast.error(errorMessage);
+      
+      return {
+        message: errorMessage,
+        raw: rawErrorContent.value,
+        status: err.response?.status || 500
+      };
+    };
     
-    return `${area.toFixed(2)} sq ft`;
-  };
+    const clearError = () => {
+      error.value = null;
+      rawErrorContent.value = null;
+    };
+    
+    return { error, rawErrorContent, handleError, clearError };
+  }
   ```
 - **Key Learning:** 
-  - Parse input values to ensure proper numeric handling
-  - Provide default values (0) for missing or invalid inputs
-  - Format output consistently with appropriate units
-  - Handle edge cases gracefully (empty fields, invalid inputs)
-  - Keep calculations separate from display formatting
+  - Centralized error handling provides consistent user experience
+  - Extracting error messages from various response formats improves maintainability
+  - Clear error state management simplifies component code
+  - Integration with toast notifications gives immediate feedback
+  - Storing raw error content helps with debugging complex issues
+
+### LLM Request Timeout Pattern
+
+- **Problem:** LLM requests can take a long time, leading to poor UX if the request hangs indefinitely.
+- **Pattern:** Implement timeout handling with AbortController for cancellable requests.
+- **Solution:** Add timeout handling to LLM-related service methods:
+  ```javascript
+  // In estimates.service.js
+  async analyzeScope(payload) {
+    const TIMEOUT_MS = 60000; // 60 seconds
+    
+    try {
+      // Create an abort controller for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      
+      const response = await apiService.post('/estimates/llm/analyze', dataToSend, {
+        signal: controller.signal,
+        timeout: TIMEOUT_MS
+      });
+      
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
+        // Handle timeout specifically
+        console.error('LLM request timed out');
+        return {
+          success: false,
+          message: 'Request timed out. The AI service is taking longer than expected to respond.'
+        };
+      }
+      throw error;
+    }
+  }
+  ```
+- **Key Learning:** 
+  - AbortController provides a standard way to cancel fetch requests
+  - Setting explicit timeouts prevents indefinite waiting
+  - Specific error handling for timeouts improves user experience
+  - Clear timeout messaging helps users understand what happened
+  - Proper cleanup with clearTimeout prevents memory leaks
+
+### Base Service Pattern
+
+- **Problem:** Duplicate code across service implementations leads to inconsistency and maintenance challenges.
+- **Pattern:** Create a base service class for standard CRUD operations with consistent error handling.
+- **Solution:** Implement BaseService with standardized methods:
+  ```javascript
+  // services/base.service.js
+  import api from '@/utils/api.service';
+  import fieldAdapter from '@/utils/field-adapter';
+
+  export default class BaseService {
+    constructor(resourceUrl) {
+      this.resourceUrl = resourceUrl;
+    }
+    
+    async getAll(params = {}) {
+      try {
+        const response = await api.get(this.resourceUrl, { params });
+        if (response.success && response.data) {
+          return {
+            ...response,
+            data: Array.isArray(response.data) 
+              ? response.data.map(item => fieldAdapter.toFrontend(item))
+              : fieldAdapter.toFrontend(response.data)
+          };
+        }
+        return response;
+      } catch (error) {
+        this._handleError(error);
+      }
+    }
+    
+    // ... other CRUD methods
+    
+    _handleError(error) {
+      console.error(`${this.resourceUrl} Service Error:`, error);
+      throw error;
+    }
+  }
+  ```
+- **Key Learning:** 
+  - Inheritance reduces duplicate code across service implementations
+  - Standardized error handling improves debugging experience
+  - Field name standardization ensures consistency between frontend and backend
+  - Built-in UUID validation prevents common errors
+  - Consistent method signatures make services more predictable
 
 ### Component Naming Pattern
 

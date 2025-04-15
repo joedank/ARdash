@@ -33,6 +33,7 @@ class InvoicesService {
    * @returns {Promise} Response data with created invoice
    */
   async createInvoice(invoiceData) {
+    console.log('In invoices.service.js - Creating invoice with data:', invoiceData);
     return apiService.post('/invoices', invoiceData);
   }
 

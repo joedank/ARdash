@@ -15,7 +15,7 @@
       <div class="p-4">
         <div class="flex justify-between items-center">
           <div>
-            <h1 class="text-xl font-semibold">{{ project?.client?.display_name || project?.client?.name || 'Unknown Client' }}</h1>
+            <h1 class="text-xl font-semibold">{{ project?.client?.displayName || project?.client?.name || 'Unknown Client' }}</h1>
             <p class="text-sm text-gray-600 dark:text-gray-400">
               {{ project?.client?.company }}
             </p>
@@ -118,8 +118,6 @@
                 <tr>
                   <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Item</th>
                   <th scope="col" class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Qty</th>
-                  <th scope="col" class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rate</th>
-                  <th scope="col" class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
                 </tr>
               </thead>
               <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -131,25 +129,9 @@
                     </div>
                   </td>
                   <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">{{ item.quantity }}</td>
-                  <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">${{ formatNumber(item.rate || item.price) }}</td>
-                  <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white text-right">${{ formatNumber(item.amount || (item.quantity * (item.rate || item.price))) }}</td>
                 </tr>
               </tbody>
-              <!-- Totals Footer -->
-              <tfoot class="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <td colspan="3" class="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white text-right">Subtotal:</td>
-                  <td class="px-3 py-2 text-sm text-gray-900 dark:text-white text-right">${{ formatNumber(getEstimateSubtotal()) }}</td>
-                </tr>
-                <tr v-if="project.estimate.tax_rate && project.estimate.tax_rate > 0">
-                  <td colspan="3" class="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white text-right">Tax ({{ project.estimate.tax_rate }}%):</td>
-                  <td class="px-3 py-2 text-sm text-gray-900 dark:text-white text-right">${{ formatNumber(getEstimateTaxTotal()) }}</td>
-                </tr>
-                <tr>
-                  <td colspan="3" class="px-3 py-2 text-sm font-medium text-gray-900 dark:text-white text-right">Total:</td>
-                  <td class="px-3 py-2 text-sm font-bold text-gray-900 dark:text-white text-right">${{ formatNumber(getEstimateTotal()) }}</td>
-                </tr>
-              </tfoot>
+
             </table>
           </div>
         </div>
@@ -179,60 +161,77 @@
       <template v-if="selectedStateView === 'active'">
         <!-- Scope Section - Removed -->
 
-        <!-- Work Progress Section -->
+        <!-- Project Scope Section (Line Item Photos) -->
         <section class="space-y-4">
-          <h2 class="text-lg font-semibold">Work Progress</h2>
-
-          <div class="space-y-4">
-            <!-- Before Photos -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <h3 class="font-medium mb-2">Before Photos</h3>
-              <PhotoUploadSection
-                :project-id="project.id"
-                photo-type="before"
-                label="Add before photos"
-                @photo-added="handlePhotoAdded"
-              />
-              <PhotoGrid
-                :photos="getPhotosByType('before')"
-                @update:photos="updatePhotosAfterDeletion"
-                class="mt-4"
-                @photo-deleted="handlePhotoDeleted"
-              />
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">Project Scope</h2>
+            <!-- Receipt Upload Button in place of the yellow box -->
+            <div class="flex items-center">
+              <BaseButton
+                variant="secondary"
+                size="sm"
+                @click="showReceiptUpload = true"
+              >
+                <BaseIcon name="receipt" class="mr-1" />
+                Add Receipt
+              </BaseButton>
             </div>
+          </div>
 
-            <!-- After Photos -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <h3 class="font-medium mb-2">After Photos</h3>
-              <PhotoUploadSection
-                :project-id="project.id"
-                photo-type="after"
-                label="Add after photos"
-                @photo-added="handlePhotoAdded"
-              />
-              <PhotoGrid
-                :photos="getPhotosByType('after')"
-                @update:photos="updatePhotosAfterDeletion"
-                class="mt-4"
-                @photo-deleted="handlePhotoDeleted"
-              />
-            </div>
+          <!-- Line Item Photos Component -->
+          <EstimateItemPhotos
+            v-if="!loading && project.id && project.estimate?.id"
+            :projectId="project.id"
+            :estimateId="project.estimate.id"
+          />
 
-            <!-- Receipts -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <h3 class="font-medium mb-2">Receipts</h3>
-              <PhotoUploadSection
-                :project-id="project.id"
-                photo-type="receipt"
-                label="Upload receipts"
-                @photo-added="handlePhotoAdded"
-              />
-              <PhotoGrid
-                :photos="getPhotosByType('receipt')"
-                @update:photos="updatePhotosAfterDeletion"
-                class="mt-4"
-                @photo-deleted="handlePhotoDeleted"
-              />
+          <!-- No estimate message -->
+          <div
+            v-else-if="!loading && !project.estimate"
+            class="p-8 text-center bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+          >
+            <i class="pi pi-exclamation-circle text-yellow-500 text-4xl mb-4"></i>
+            <h3 class="text-xl font-medium mb-2">No Estimate Found</h3>
+            <p class="text-gray-500 mb-4">This project doesn't have an associated estimate.</p>
+          </div>
+
+          <!-- Receipt Upload Modal -->
+          <div v-if="showReceiptUpload" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">
+            <div class="bg-white dark:bg-gray-800 rounded-lg overflow-hidden max-w-md w-full">
+              <!-- Modal Header -->
+              <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 class="text-lg font-medium">Upload Receipt</h3>
+                <button @click="showReceiptUpload = false" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+
+              <!-- Modal Body -->
+              <div class="p-4">
+                <PhotoUploadSection
+                  :project-id="project.id"
+                  photo-type="receipt"
+                  label="Upload receipt photos"
+                  @photo-added="handleReceiptAdded"
+                />
+
+                <!-- Existing Receipts -->
+                <div class="mt-4">
+                  <h4 class="font-medium mb-2">Existing Receipts</h4>
+                  <PhotoGrid
+                    :photos="getPhotosByType('receipt')"
+                    @update:photos="updatePhotosAfterDeletion"
+                    @photo-deleted="handlePhotoDeleted"
+                  />
+                </div>
+              </div>
+
+              <!-- Modal Footer -->
+              <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                <BaseButton @click="showReceiptUpload = false" variant="secondary" size="sm">
+                  Close
+                </BaseButton>
+              </div>
             </div>
           </div>
         </section>
@@ -281,6 +280,7 @@
 </template>
 
 <script setup>
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PhotoUploadSection from '@/components/projects/PhotoUploadSection.vue';
@@ -289,6 +289,7 @@ import AssessmentContent from '@/components/projects/AssessmentContent.vue';
 import SelectButton from 'primevue/selectbutton';
 import PreviousStateCard from '@/components/projects/PreviousStateCard.vue';
 import ConvertToJobButton from '@/components/projects/ConvertToJobButton.vue';
+import EstimateItemPhotos from '@/components/projects/EstimateItemPhotos.vue';
 import projectsService from '@/services/projects.service';
 import BaseBadge from '@/components/data-display/BaseBadge.vue';
 import BaseTextarea from '@/components/form/BaseTextarea.vue';
@@ -303,7 +304,8 @@ const loading = ref(true);
 const saving = ref(false);
 const project = ref(null);
 const assessmentData = ref(null);
-const selectedStateView = ref('assessment'); // Added state for SelectButton
+const selectedStateView = ref('active'); // Default to active view for active projects
+const showReceiptUpload = ref(false); // Control receipt upload modal
 const localPhotos = ref([]); // Added local photos reference
 
 // Form data for assessment
@@ -376,10 +378,10 @@ const formatAddressParts = (address) => {
   if (!address) return 'No address provided';
 
   const parts = [
-    address.street_address || address.street,
+    address.streetAddress || address.street,
     address.city,
     address.state,
-    address.postal_code || address.zipCode || address.zip_code
+    address.postalCode || address.zipCode
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(', ') : 'Address details incomplete';
@@ -611,90 +613,99 @@ const loadProject = async () => {
   try {
     console.log('Loading project data...');
     const response = await projectsService.getProject(route.params.id);
-    console.log('Project data loaded:', {
-      id: response.data.id,
-      type: response.data.type,
-      status: response.data.status,
-      photoCount: response.data.photos?.length || 0,
-      photos: response.data.photos?.map(p => ({
+
+    if (!response.data) {
+      console.error('No project data returned');
+      return;
+    }
+
+    // Create a deep copy of the response data before converting to camelCase
+    // This prevents Vue from tracking the conversion and creating reactivity issues
+    const responseDataCopy = JSON.parse(JSON.stringify(response.data));
+    const camelCaseProject = toCamelCase(responseDataCopy);
+
+    console.log('Project data loaded (camelCase):', {
+      id: camelCaseProject.id,
+      type: camelCaseProject.type,
+      status: camelCaseProject.status,
+      photoCount: camelCaseProject.photos?.length || 0,
+      photos: camelCaseProject.photos?.map(p => ({ // Log camelCase properties
         id: p.id,
-        type: p.photo_type,
-        path: p.file_path
+        type: p.photoType,
+        path: p.filePath
       }))
     });
-    project.value = response.data;
 
-    // Update the local photos reference
-    localPhotos.value = response.data.photos || [];
+    // Set the project value all at once to minimize reactivity triggers
+    project.value = camelCaseProject;
+
+    // Set local photos as a new array to avoid reactivity issues
+    localPhotos.value = project.value.photos ? [...project.value.photos] : [];
 
     // Initialize inspection data from existing inspections
-    if (project.value.inspections) {
-      // Group inspections by category and use the most recent one for each category
+    if (project.value.inspections && project.value.inspections.length > 0) {
+      // Process inspections to find the latest of each category
       const latestInspections = {};
       project.value.inspections.forEach(inspection => {
-        // If we haven't seen this category yet, or this inspection is newer than the one we have
         if (!latestInspections[inspection.category] ||
-            new Date(inspection.created_at) > new Date(latestInspections[inspection.category].created_at)) {
+            new Date(inspection.createdAt) > new Date(latestInspections[inspection.category].createdAt)) {
           latestInspections[inspection.category] = inspection;
         }
       });
 
-      // Use only the latest inspection for each category
-      Object.values(latestInspections).forEach(inspection => {
-        switch (inspection.category) {
-          case 'condition':
-            condition.value = inspection.content;
-            break;
-          case 'measurements':
-            if (inspection.content.items) {
-              measurements.value = inspection.content;
-            } else {
-              // Handle legacy format
-              measurements.value = {
-                items: [{
-                  description: inspection.content.description || '',
-                  length: inspection.content.dimensions?.length || '',
-                  width: inspection.content.dimensions?.width || '',
-                  units: inspection.content.dimensions?.units || 'feet'
-                }]
-              };
-            }
-            break;
-          case 'materials':
-            materials.value = inspection.content;
-            break;
-        }
-      });
+      // Create deep copies of inspection data to avoid reactivity issues
+      // and only set once to avoid triggering watches repeatedly
+      const conditionData = latestInspections.condition?.content;
+      const measurementsData = latestInspections.measurements?.content;
+      const materialsData = latestInspections.materials?.content;
+
+      // Only update if data exists and is different
+      if (conditionData) {
+        condition.value = JSON.parse(JSON.stringify(conditionData));
+      }
+
+      if (measurementsData) {
+        measurements.value = JSON.parse(JSON.stringify(measurementsData));
+      }
+
+      if (materialsData) {
+        materials.value = JSON.parse(JSON.stringify(materialsData));
+      }
     }
 
-    // If this is a job created from an assessment, fetch the assessment data
-    if (project.value.assessment_id) {
+    // If this is a job created from an assessment, fetch the assessment data and convert it
+    if (project.value.assessmentId) { // Use assessmentId
       try {
-        const assessmentResponse = await projectsService.getProject(project.value.assessment_id);
-        assessmentData.value = assessmentResponse.data;
+        const assessmentResponse = await projectsService.getProject(project.value.assessmentId); // Use assessmentId
+        assessmentData.value = toCamelCase(assessmentResponse.data); // Convert fetched assessment data
       } catch (error) {
         console.error('Failed to load assessment data:', error);
       }
     }
 
     // If this is an assessment that's been converted to a job, fetch the job data
-    if (project.value.converted_to_job_id) {
-      console.log('This assessment has been converted to job:', project.value.converted_to_job_id);
+    if (project.value.convertedToJobId) { // Use convertedToJobId
+      console.log('This assessment has been converted to job:', project.value.convertedToJobId); // Use convertedToJobId
     }
 
-    // Debug output for estimate structure
+    // Debug output for estimate structure (already camelCased)
     if (project.value.estimate) {
-      console.log('Loaded estimate:', project.value.estimate);
-      console.log('Estimate items:', project.value.estimate.items || project.value.estimate.estimateItems);
+      console.log('Loaded estimate (camelCase):', project.value.estimate);
+      console.log('Estimate items (camelCase):', project.value.estimate.items); // Should be items now
     }
 
-    // Set additional work notes if they exist
-    if (project.value.additional_work) {
-      additionalWork.value = project.value.additional_work;
+    // Set additional work notes if they exist (use additionalWork)
+    if (project.value.additionalWork) {
+      additionalWork.value = project.value.additionalWork;
     }
 
     // Set the initial view based on the current stage
     selectedStateView.value = currentProjectStage.value;
+
+    // Default to active view for active projects
+    if (project.value?.type === 'active') {
+      selectedStateView.value = 'active';
+    }
 
   } catch (error) {
     console.error('Error loading project:', error);
@@ -848,6 +859,12 @@ const handlePhotoDeleted = async (photoId) => {
 const handleConversionComplete = (newJobId) => {
   // Redirect to the new job
   router.push(`/projects/${newJobId}`);
+};
+
+// Handle receipt upload
+const handleReceiptAdded = async () => {
+  await handlePhotoAdded();
+  showReceiptUpload.value = false;
 };
 
 // Load project on mount

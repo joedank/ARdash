@@ -146,7 +146,9 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'Project',
     tableName: 'projects',
     underscored: true,
-    timestamps: true
+    timestamps: true,
+    createdAt: 'created_at', // Explicit mapping
+    updatedAt: 'updated_at'  // Explicit mapping
   });
 
   return Project;

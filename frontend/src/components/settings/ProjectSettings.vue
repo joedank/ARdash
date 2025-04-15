@@ -1,244 +1,112 @@
 <template>
   <div class="project-settings">
-    <!-- Alert Messages -->
-    <BaseAlert
-      v-if="alertMessage"
-      :variant="alertVariant"
-      :message="alertMessage"
-      dismissible
-      class="mb-4"
-      @close="alertMessage = ''"
-    />
-
+    <!-- Alert Messages Handled by useErrorHandler -->
     <!-- Project Management Controls -->
     <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
       <div class="flex flex-col mb-4 md:mb-0">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Projects</h3>
+        <h2 class="text-lg font-medium text-gray-900 dark:text-white">Project Management</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">Manage your project assessments and active jobs</p>
       </div>
-      
-      <div class="flex items-center">
+
+      <BaseButton
+        variant="primary"
+        @click="navigateToCreateProject"
+        class="flex items-center space-x-2"
+      >
+        <span>Add Project</span>
+        <BaseIcon name="plus" class="w-4 h-4" />
+      </BaseButton>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
+      <div class="relative w-full md:w-64">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <BaseIcon name="search" class="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="Search projects..."
+          class="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 focus:border-transparent"
+          @input="handleSearch"
+        />
+      </div>
+
+      <div class="flex items-center space-x-2 w-full md:w-auto">
         <BaseSelect
           v-model="filterType"
-          class="w-40 mr-2"
+          class="w-full md:w-40"
           :options="filterTypeOptions"
-          @update:modelValue="loadProjects"
+          @update:modelValue="handleFilter"
         />
         <BaseSelect
           v-model="filterStatus"
-          class="w-40 mr-2"
+          class="w-full md:w-40"
           :options="filterStatusOptions"
-          @update:modelValue="loadProjects"
+          @update:modelValue="handleFilter"
         />
         <BaseButton
-          variant="primary"
-          @click="openCreateProjectModal"
+          variant="outline"
+          size="sm"
+          @click="resetFilters"
+          class="whitespace-nowrap"
         >
-          <BaseIcon name="plus" class="w-4 h-4 mr-2" />
-          New
+          <BaseIcon name="refresh-cw" class="w-4 h-4 mr-1" />
+          Reset
         </BaseButton>
       </div>
     </div>
 
-    <!-- Projects List -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow mb-6">
-      <div v-if="loading" class="p-4 text-center">
-        <BaseLoader />
-      </div>
-      
-      <div v-else-if="projects.length === 0" class="p-8 text-center">
-        <div class="text-gray-500 dark:text-gray-400">
-          No projects found with the selected filters
-        </div>
-      </div>
-      
-      <table v-else class="min-w-full">
-        <thead class="bg-gray-50 dark:bg-gray-700 text-left">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Client
-            </th>
-            <th scope="col" class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Type
-            </th>
-            <th scope="col" class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Status
-            </th>
-            <th scope="col" class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Scheduled Date
-            </th>
-            <th scope="col" class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Estimate
-            </th>
-            <th scope="col" class="px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-          <tr v-for="project in projects" :key="project.id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ getClientName(project.client) }}
-              </div>
-              <div v-if="project.client" class="text-xs text-gray-500 dark:text-gray-400">
-                {{ project.client.email || 'No email' }}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <BaseBadge :variant="project.type === 'assessment' ? 'red' : 'green'" size="sm">
-                {{ formatProjectType(project.type) }}
-              </BaseBadge>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <BaseBadge :variant="getStatusVariant(project.status)" size="sm">
-                {{ formatStatus(project.status) }}
-              </BaseBadge>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm text-gray-900 dark:text-white">
-                {{ formatDate(project.scheduled_date) }}
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div v-if="project.estimate" class="text-sm text-gray-900 dark:text-white">
-                {{ project.estimate.number }}
-                <span class="text-xs px-2 py-0.5 rounded-full ml-1"
-                  :class="getEstimateStatusClasses(project.estimate.status)">
-                  {{ formatEstimateStatus(project.estimate.status) }}
-                </span>
-              </div>
-              <div v-else class="text-sm text-gray-500 dark:text-gray-400 italic">
-                Not linked
-              </div>
-            </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="flex items-center space-x-2">
-                <button 
-                  @click="viewProject(project.id)"
-                  class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                  title="View Project"
-                >
-                  <BaseIcon name="eye" class="w-5 h-5" />
-                </button>
-                <button 
-                  @click="editProject(project)"
-                  class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
-                  title="Edit Project"
-                >
-                  <BaseIcon name="pencil" class="w-5 h-5" />
-                </button>
-                <button 
-                  @click="confirmDelete(project)"
-                  class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                  title="Delete Project"
-                >
-                  <BaseIcon name="trash" class="w-5 h-5" />
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <!-- Projects Table / Grid View -->
+    <BaseCard variant="default" class="mb-6">
+      <!-- Table View -->
+      <ProjectTableResponsive
+        v-if="viewMode === 'table'"
+        :filtered-projects="paginatedProjects"
+        :loading="loading"
+        :sort-key="sortConfig.key"
+        :sort-order="sortConfig.order"
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :total-items="totalItems"
+        :items-per-page="itemsPerPage"
+        :format-project-type="formatProjectType"
+        :format-project-status="formatStatus"
+        :get-status-badge-variant="getStatusVariant"
+        :get-client-name="getClientName"
+        v-model:columns-display="columnsDisplay"
+        @view-change="handleViewChange"
+        @sort-change="handleSort"
+        @page-change="handlePageChange"
+        @row-click="handleRowClick"
+        @edit="editProject"
+        @delete="confirmDelete"
+        @reset-filters="resetFilters"
+      />
 
-    <!-- Pagination Controls -->
-    <div class="flex justify-between items-center">
-      <div class="text-sm text-gray-500 dark:text-gray-400">
-        Showing {{ projects.length }} projects
-      </div>
-      
-      <!-- Future pagination controls can be added here -->
-    </div>
+      <!-- Grid View -->
+      <ProjectTableCompact
+        v-else
+        :filtered-projects="paginatedProjects"
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :total-items="totalItems"
+        :items-per-page="itemsPerPage"
+        :format-project-type="formatProjectType"
+        :format-project-status="formatStatus"
+        :get-status-badge-variant="getStatusVariant"
+        :get-client-name="getClientName"
+        @view-change="handleViewChange"
+        @page-change="handlePageChange"
+        @row-click="handleRowClick"
+        @edit="editProject"
+        @delete="confirmDelete"
+        @reset-filters="resetFilters"
+      />
+    </BaseCard>
 
-    <!-- Create Project Modal -->
-    <BaseModal
-      v-model="showCreateProjectModal"
-      title="Create New Project"
-      persistent
-    >
-      <form @submit.prevent="createProject">
-        <div class="space-y-4">
-          <!-- Client Selection -->
-          <ClientSelector
-            id="client"
-            v-model="newProject.client_id"
-            :required="true"
-            label="Client"
-          />
-          
-          <!-- Estimate Selection -->
-          <EstimateSelector
-            id="estimate"
-            v-model="newProject.estimate"
-            :clientId="getClientIdValue(newProject.client_id)"
-            :label="getEstimateSelectorLabel"
-            :placeholder-text="getEstimatePlaceholderText"
-            :class="{'border-2 border-green-300 dark:border-green-700 rounded p-2': newProject.type === 'active'}"
-          />
-          
-          <!-- Project Type -->
-          <BaseFormGroup
-            label="Project Type"
-            input-id="project-type"
-            helper-text="Select the type of project"
-          >
-            <BaseSelect
-              id="project-type"
-              v-model="newProject.type"
-              :options="typeOptions"
-              :required="true"
-            />
-          </BaseFormGroup>
-          
-          <!-- Project Status -->
-          <BaseFormGroup
-            label="Status"
-            input-id="project-status"
-            helper-text="Select the project status"
-          >
-            <BaseSelect
-              id="project-status"
-              v-model="newProject.status"
-              :options="statusOptions"
-              :required="true"
-            />
-          </BaseFormGroup>
-          
-          <!-- Scheduled Date -->
-          <BaseFormGroup
-            label="Scheduled Date"
-            input-id="scheduled-date"
-            helper-text="When is this project scheduled for?"
-          >
-            <BaseInput
-              id="scheduled-date"
-              v-model="newProject.scheduled_date"
-              type="date"
-              :required="true"
-            />
-          </BaseFormGroup>
-          
-          <!-- Project Scope Field Removed -->
-        </div>
-        
-        <div class="flex justify-end space-x-2 mt-6">
-          <BaseButton
-            variant="outline"
-            @click="showCreateProjectModal = false"
-          >
-            Cancel
-          </BaseButton>
-          <BaseButton
-            type="submit"
-            variant="primary"
-            :loading="submitting"
-          >
-            Create Project
-          </BaseButton>
-        </div>
-      </form>
-    </BaseModal>
+    <!-- Create Project Modal Removed -->
 
     <!-- Edit Project Modal -->
     <BaseModal
@@ -249,23 +117,23 @@
       <form @submit.prevent="updateProject">
         <div class="space-y-4">
           <!-- Client Selection -->
-          <ClientSelector
+          <ClientSelector>
             id="edit-client"
-            v-model="editingProject.client_id"
+            v-model="editingProject.clientId" <!-- camelCase -->
             :required="true"
             label="Client"
-          />
-          
+          </ClientSelector>
+
           <!-- Estimate Selection -->
-          <EstimateSelector
+          <EstimateSelector>
             id="edit-estimate"
             v-model="editingProject.estimate"
-            :clientId="getClientIdValue(editingProject.client_id)"
+            :clientId="getClientIdValue(editingProject.clientId)" <!-- camelCase -->
             :label="getEditEstimateSelectorLabel"
             :placeholder-text="getEditEstimatePlaceholderText"
             :class="{'border-2 border-green-300 dark:border-green-700 rounded p-2': editingProject.type === 'active'}"
-          />
-          
+          </EstimateSelector>
+
           <!-- Project Type -->
           <BaseFormGroup
             label="Project Type"
@@ -279,7 +147,7 @@
               :required="true"
             />
           </BaseFormGroup>
-          
+
           <!-- Project Status -->
           <BaseFormGroup
             label="Status"
@@ -293,24 +161,23 @@
               :required="true"
             />
           </BaseFormGroup>
-          
+
           <!-- Scheduled Date -->
-          <BaseFormGroup
+          <BaseFormGroup>
             label="Scheduled Date"
             input-id="edit-scheduled-date"
             helper-text="When is this project scheduled for?"
-          >
-            <BaseInput
+          </BaseFormGroup>
+            <BaseInput>
               id="edit-scheduled-date"
-              v-model="editingProject.scheduled_date"
+              v-model="editingProject.scheduledDate" <!-- camelCase -->
               type="date"
               :required="true"
-            />
-          </BaseFormGroup>
-          
+            </BaseInput>
+
           <!-- Project Scope Field Removed -->
         </div>
-        
+
         <div class="flex justify-end space-x-2 mt-6">
           <BaseButton
             variant="outline"
@@ -346,7 +213,7 @@
           This action cannot be undone.
         </p>
       </div>
-      
+
       <div class="flex justify-end space-x-2">
         <BaseButton
           variant="outline"
@@ -369,10 +236,12 @@
 <script setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import projectsService from '@/services/projects.service';
+// Use standardized service
+import projectsService from '@/services/standardized-projects.service.js';
+import useErrorHandler from '@/composables/useErrorHandler.js'; // Import error handler
 
 // Import components
-import BaseAlert from '@/components/feedback/BaseAlert.vue';
+// BaseAlert removed as errors are handled by useErrorHandler
 import BaseButton from '@/components/base/BaseButton.vue';
 import BaseIcon from '@/components/base/BaseIcon.vue';
 import BaseLoader from '@/components/feedback/BaseLoader.vue';
@@ -381,43 +250,59 @@ import BaseModal from '@/components/overlays/BaseModal.vue';
 import BaseFormGroup from '@/components/form/BaseFormGroup.vue';
 import BaseInput from '@/components/form/BaseInput.vue';
 import BaseSelect from '@/components/form/BaseSelect.vue';
-import BaseTextarea from '@/components/form/BaseTextarea.vue';
+import BaseCard from '@/components/data-display/BaseCard.vue';
+// BaseTextarea removed as scope field is removed
 import ClientSelector from '@/components/invoicing/ClientSelector.vue';
 import EstimateSelector from '@/components/invoicing/EstimateSelector.vue';
 
+// Import Custom Components
+import ProjectTableResponsive from './project-tables/ProjectTableResponsive.vue';
+import ProjectTableCompact from './project-tables/ProjectTableCompact.vue';
+
 const router = useRouter();
+const { handleError } = useErrorHandler(); // Instantiate error handler
 
 // State variables
 const loading = ref(false);
 const submitting = ref(false);
 const projects = ref([]);
-const alertMessage = ref('');
-const alertVariant = ref('success');
+// alertMessage and alertVariant removed - handled by useErrorHandler
+const searchQuery = ref('');
 const filterType = ref('all');
 const filterStatus = ref('all');
+const viewMode = ref('table'); // 'table' or 'grid'
+const columnsDisplay = ref('default'); // 'default', 'compact', 'full'
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalItems = ref(0);
+
+// Sorting
+const sortConfig = ref({ key: 'client', order: 'asc' });
 
 // Modal states
-const showCreateProjectModal = ref(false);
+// const showCreateProjectModal = ref(false); // Removed
 const showEditProjectModal = ref(false);
 const showDeleteModal = ref(false);
 const projectHasRelationships = ref(false);
 
-// Form data
-const newProject = reactive({
-  client_id: null,
-  estimate: null,
-  type: 'assessment',
-  status: 'pending',
-  scheduled_date: new Date().toISOString().split('T')[0] // Today's date in YYYY-MM-DD format
-});
+// Form data (using camelCase)
+// const newProject = reactive({ // Removed
+//   clientId: null,
+//   estimate: null, // Store the whole estimate object if needed, or just estimateId
+//   type: 'assessment',
+//   status: 'pending',
+//   scheduledDate: new Date().toISOString().split('T')[0] // Today's date in YYYY-MM-DD format
+// });
 
 const editingProject = reactive({
   id: '',
-  client_id: '',
-  estimate: null,
+  clientId: '',
+  estimate: null, // Store the whole estimate object if needed, or just estimateId
   type: 'assessment',
   status: 'pending',
-  scheduled_date: ''
+  scheduledDate: ''
 });
 
 const projectToDelete = ref(null);
@@ -480,19 +365,24 @@ const formatProjectType = (type) => {
 // Format date as "Apr 2, 2025"
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
-  
+
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+  // Add timezone offset to interpret date as local
+  const offset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() + offset);
+
+  return localDate.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
   });
 };
 
+
 // Format estimate status
 const formatEstimateStatus = (status) => {
   if (!status) return '';
-  
+
   switch (status) {
     case 'draft': return 'Draft';
     case 'sent': return 'Sent';
@@ -518,22 +408,22 @@ const getEstimateStatusClasses = (status) => {
   }
 };
 
-// Dynamic labels for estimate selector based on project type
-const getEstimateSelectorLabel = computed(() => {
-  return newProject.type === 'active' 
-    ? 'Link Estimate (Recommended for Active Projects)' 
-    : 'Link Estimate';
-});
+// Dynamic labels for estimate selector based on project type - Removed for Create Project
+// const getEstimateSelectorLabel = computed(() => {
+//   return newProject.type === 'active'
+//     ? 'Link Estimate (Recommended for Active Projects)'
+//     : 'Link Estimate';
+// });
 
-const getEstimatePlaceholderText = computed(() => {
-  return newProject.type === 'active'
-    ? 'Select an estimate for this active project'
-    : 'Select an estimate for this project';
-});
+// const getEstimatePlaceholderText = computed(() => {
+//   return newProject.type === 'active'
+//     ? 'Select an estimate for this active project'
+//     : 'Select an estimate for this project';
+// });
 
 const getEditEstimateSelectorLabel = computed(() => {
-  return editingProject.type === 'active' 
-    ? 'Link Estimate (Recommended for Active Projects)' 
+  return editingProject.type === 'active'
+    ? 'Link Estimate (Recommended for Active Projects)'
     : 'Link Estimate';
 });
 
@@ -543,174 +433,86 @@ const getEditEstimatePlaceholderText = computed(() => {
     : 'Select an estimate for this project';
 });
 
-// Get client name with fallback
+// Get client name with fallback (assuming client object is camelCase)
 const getClientName = (client) => {
   if (!client) return 'Unknown Client';
-  
-  // Try different client name properties
-  if (client.display_name) return client.display_name;
-  if (client.displayName) return client.displayName;
-  if (client.name) return client.name;
-  
-  // If no name property, check ID properties
-  if (client.id) return `Client #${client.id}`;
-  if (client.client_id) return `Client #${client.client_id}`;
-  
-  return 'Unknown Client';
-};
-
-// Format error message for better display
-const formatErrorMessage = (error) => {
-  // Extract the most relevant part of the error message
-  if (error.message && typeof error.message === 'string') {
-    // Look for specific patterns in error messages
-    if (error.message.includes('foreign key constraint')) {
-      return 'Cannot delete project because it has related records. Please try again.';
-    }
-    
-    // Check if there's a more specific message in the response data
-    if (error.data && error.data.message) {
-      return error.data.message;
-    }
-    
-    // Clean up generic error messages
-    return error.message.replace(/Error:/g, '').trim();
-  }
-  
-  return 'An unexpected error occurred. Please try again.';
+  return client.displayName || `Client #${client.id}` || 'Unknown Client';
 };
 
 // Load all projects with optional filters
 const loadProjects = async () => {
   loading.value = true;
-  
   try {
-    const response = await projectsService.getAllProjects({
-      type: filterType.value !== 'all' ? filterType.value : undefined,
-      status: filterStatus.value !== 'all' ? filterStatus.value : undefined
-    });
-    
-    projects.value = response.data || [];
-  } catch (error) {
-    console.error('Error loading projects:', error);
-    alertMessage.value = 'Failed to load projects. Please try again.';
-    alertVariant.value = 'danger';
+    const params = {};
+    if (filterType.value !== 'all') params.type = filterType.value;
+    if (filterStatus.value !== 'all') params.status = filterStatus.value;
+
+    const response = await projectsService.getAll(params); // Use BaseService getAll
+
+    if (response.success) {
+      projects.value = response.data || [];
+      totalItems.value = projects.value.length;
+    } else {
+      handleError(new Error(response.message || 'Failed to load projects'), 'Failed to load projects.');
+      projects.value = [];
+      totalItems.value = 0;
+    }
+  } catch (err) {
+    handleError(err, 'Error loading projects.');
+    projects.value = [];
+    totalItems.value = 0;
   } finally {
     loading.value = false;
   }
 };
 
-// Helper function to extract client ID
-const getClientIdValue = (clientObj) => {
-  if (!clientObj) return null;
-  
-  // Handle different ways client ID can be stored
-  if (typeof clientObj === 'string') return clientObj;
-  if (clientObj.id) return clientObj.id;
-  if (clientObj.client_id) return clientObj.client_id;
-  
-  return null;
+// Helper function to extract client ID (handles object or string)
+const getClientIdValue = (clientInput) => {
+  if (!clientInput) return null;
+  return typeof clientInput === 'string' ? clientInput : clientInput.id;
 };
 
-// Create new project
-const createProject = async () => {
-  submitting.value = true;
-  
-  try {
-    // Prepare data for API
-    const projectData = {
-      client_id: getClientIdValue(newProject.client_id),
-      estimate_id: newProject.estimate ? newProject.estimate.id : null,
-      type: newProject.type,
-      status: newProject.status,
-      scheduled_date: newProject.scheduled_date
-    };
-    
-    await projectsService.createProject(projectData);
-    
-    // Reset form and close modal
-    Object.assign(newProject, {
-      client_id: null,
-      estimate: null,
-      type: 'assessment',
-      status: 'pending',
-      scheduled_date: new Date().toISOString().split('T')[0]
-    });
-    
-    showCreateProjectModal.value = false;
-    
-    // Show success message and reload projects
-    alertMessage.value = 'Project created successfully!';
-    alertVariant.value = 'success';
-    
-    await loadProjects();
-  } catch (error) {
-    console.error('Error creating project:', error);
-    alertMessage.value = formatErrorMessage(error);
-    alertVariant.value = 'danger';
-  } finally {
-    submitting.value = false;
-  }
-};
+// Create new project function removed
 
-// Open create project modal
-const openCreateProjectModal = () => {
-  console.log('Opening create project modal');
-  // Reset form when opening modal
-  Object.assign(newProject, {
-    client_id: null,
-    estimate: null,
-    type: 'assessment',
-    status: 'pending',
-    scheduled_date: new Date().toISOString().split('T')[0]
-  });
-  showCreateProjectModal.value = true;
-  console.log('showCreateProjectModal set to:', showCreateProjectModal.value);
-};
+// Open create project modal function removed
 
-// Open edit modal with project data
+// Open edit modal with project data (assume project data is camelCase)
 const editProject = (project) => {
-  // Copy project data to editing form
   Object.assign(editingProject, {
     id: project.id,
-    client_id: project.client_id || (project.client ? project.client.id : ''),
-    estimate: project.estimate || null,
+    clientId: project.clientId || (project.client ? project.client.id : ''), // Handle client object or just ID
+    estimate: project.estimate || null, // Assume estimate object is passed or null
     type: project.type || 'assessment',
     status: project.status || 'pending',
-    scheduled_date: project.scheduled_date ? new Date(project.scheduled_date).toISOString().split('T')[0] : ''
+    scheduledDate: project.scheduledDate ? new Date(project.scheduledDate).toISOString().split('T')[0] : ''
   });
-  
   showEditProjectModal.value = true;
 };
 
 // Update project
 const updateProject = async () => {
   submitting.value = true;
-  
   try {
-    // Prepare data for API
+    // Prepare data for API (already camelCase)
     const projectData = {
-      client_id: getClientIdValue(editingProject.client_id),
-      estimate_id: editingProject.estimate ? editingProject.estimate.id : null,
+      clientId: getClientIdValue(editingProject.clientId),
+      estimateId: editingProject.estimate ? editingProject.estimate.id : null, // Send only ID
       type: editingProject.type,
       status: editingProject.status,
-      scheduled_date: editingProject.scheduled_date
+      scheduledDate: editingProject.scheduledDate
     };
-    
-    await projectsService.updateProject(editingProject.id, projectData);
-    
-    // Close modal
-    showEditProjectModal.value = false;
-    
-    // Show success message and reload projects
-    alertMessage.value = 'Project updated successfully!';
-    alertVariant.value = 'success';
-    
-    await loadProjects();
-  } catch (error) {
-    console.error('Error updating project:', error);
-    alertMessage.value = formatErrorMessage(error);
-    alertVariant.value = 'danger';
+
+    const response = await projectsService.update(editingProject.id, projectData); // Use BaseService update
+
+    if (response.success) {
+      showEditProjectModal.value = false;
+      handleError({ message: 'Project updated successfully!' }, 'Project updated successfully!'); // Use handleError for success toast
+      await loadProjects();
+    } else {
+       handleError(new Error(response.message || 'Failed to update project'), 'Failed to update project.');
+    }
+  } catch (err) {
+    handleError(err, 'Error updating project.');
   } finally {
     submitting.value = false;
   }
@@ -719,38 +521,32 @@ const updateProject = async () => {
 // Open delete confirmation modal
 const confirmDelete = (project) => {
   projectToDelete.value = project;
-  
-  // Check if project has associated inspections or photos
-  projectHasRelationships.value = 
-    (project.inspections && project.inspections.length > 0) || 
-    (project.photos && project.photos.length > 0);
-  
+  // Check if project has associated inspections or photos (assuming camelCase)
+  projectHasRelationships.value =
+    (project.inspections && project.inspections.length > 0) || // Corrected operator
+    (project.photos && project.photos.length > 0); // Corrected operator
   showDeleteModal.value = true;
 };
 
 // Delete project
 const deleteProject = async () => {
   if (!projectToDelete.value) return;
-  
   submitting.value = true;
-  
   try {
-    await projectsService.deleteProject(projectToDelete.value.id);
-    
-    // Close modal
-    showDeleteModal.value = false;
-    projectToDelete.value = null;
-    
-    // Show success message and reload projects
-    alertMessage.value = 'Project deleted successfully!';
-    alertVariant.value = 'success';
-    
-    await loadProjects();
-  } catch (error) {
-    console.error('Error deleting project:', error);
-    showDeleteModal.value = false;
-    alertMessage.value = 'Failed to delete project: ' + formatErrorMessage(error);
-    alertVariant.value = 'danger';
+    const response = await projectsService.delete(projectToDelete.value.id); // Use BaseService delete
+
+    if (response.success) {
+      showDeleteModal.value = false;
+      projectToDelete.value = null;
+      handleError({ message: 'Project deleted successfully!' }, 'Project deleted successfully!'); // Use handleError for success toast
+      await loadProjects();
+    } else {
+       showDeleteModal.value = false; // Close modal even on failure
+       handleError(new Error(response.message || 'Failed to delete project'), 'Failed to delete project.');
+    }
+  } catch (err) {
+    showDeleteModal.value = false; // Close modal on exception
+    handleError(err, 'Error deleting project.');
   } finally {
     submitting.value = false;
   }
@@ -761,20 +557,107 @@ const viewProject = (id) => {
   router.push(`/projects/${id}`);
 };
 
-// Watch for project type changes to enhance UX for estimate selection
-watch(() => newProject.type, (newType) => {
-  console.log('Project type changed to:', newType);
-  // We don't need to do anything special here as the computed properties will handle the UI changes
-});
+// Navigate to create project page
+const navigateToCreateProject = () => {
+  router.push('/projects/create');
+};
+
+// Watch for project type changes to enhance UX for estimate selection - Removed for Create Project
+// watch(() => newProject.type, (newType) => {
+//   // console.log('Project type changed to:', newType);
+//   // Logic removed as computed properties handle UI changes
+// });
 
 watch(() => editingProject.type, (newType) => {
-  console.log('Editing project type changed to:', newType);
-  // We don't need to do anything special here as the computed properties will handle the UI changes
+  // console.log('Editing project type changed to:', newType);
+   // Logic removed as computed properties handle UI changes
 });
+
+// Computed properties for pagination
+const totalPages = computed(() => {
+  return Math.ceil(filteredProjects.value.length / itemsPerPage.value) || 1;
+});
+
+const filteredProjects = computed(() => {
+  if (!searchQuery.value.trim() && filterType.value === 'all' && filterStatus.value === 'all') {
+    return projects.value;
+  }
+
+  return projects.value.filter(project => {
+    // Search query filter
+    const query = searchQuery.value.toLowerCase().trim();
+    const matchesSearch = !query ||
+      (project.client && project.client.displayName && project.client.displayName.toLowerCase().includes(query)) ||
+      (project.client && project.client.email && project.client.email.toLowerCase().includes(query));
+
+    // Type filter
+    const matchesType = filterType.value === 'all' || project.type === filterType.value;
+
+    // Status filter
+    const matchesStatus = filterStatus.value === 'all' || project.status === filterStatus.value;
+
+    return matchesSearch && matchesType && matchesStatus;
+  });
+});
+
+const paginatedProjects = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredProjects.value.slice(start, end);
+});
+
+// Handle search input
+function handleSearch() {
+  currentPage.value = 1; // Reset to first page on search
+}
+
+// Handle filter changes
+function handleFilter() {
+  currentPage.value = 1; // Reset to first page on filter change
+}
+
+// Handle view mode change
+function handleViewChange(newMode) {
+  viewMode.value = newMode;
+}
+
+// Handle sort change
+function handleSort(newSortConfig) {
+  sortConfig.value = newSortConfig;
+  currentPage.value = 1; // Reset to first page on sort
+}
+
+// Handle page change
+function handlePageChange(newPage) {
+  currentPage.value = newPage;
+}
+
+// Handle row click
+function handleRowClick(project) {
+  viewProject(project.id);
+}
+
+// Reset filters
+function resetFilters() {
+  searchQuery.value = '';
+  filterType.value = 'all';
+  filterStatus.value = 'all';
+  currentPage.value = 1;
+}
 
 // Load projects on component mount
 onMounted(() => {
-  console.log('ProjectSettings component mounted');
+  // Set initial value for totalItems to prevent undefined during initial render
+  totalItems.value = 0;
   loadProjects();
+});
+
+// Watch for filtered projects changes to update pagination
+watch(filteredProjects, (newProjects) => {
+  totalItems.value = newProjects.length;
+  const maxPossiblePage = Math.max(1, Math.ceil(newProjects.length / itemsPerPage.value));
+  if (currentPage.value > maxPossiblePage) {
+    currentPage.value = maxPossiblePage;
+  }
 });
 </script>

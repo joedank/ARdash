@@ -73,10 +73,10 @@
                       <div class="flex justify-between items-start">
                         <div>
                           <h4 class="font-medium text-gray-900 dark:text-white">
-                            {{ project.client?.display_name || 'Unknown Client' }}
+                            {{ project.client?.displayName || 'Unknown Client' }}
                           </h4>
                           <p class="text-sm text-gray-600 dark:text-gray-400">
-                            Scheduled: {{ formatDate(project.scheduled_date) }}
+                            Scheduled: {{ formatDate(project.scheduledDate) }}
                           </p>
                           <p v-if="project.scope" class="text-xs text-gray-500 dark:text-gray-500 mt-1">
                             {{ truncateText(project.scope, 100) }}
@@ -196,10 +196,12 @@ const refreshProjects = async () => {
     const response = await projectsService.getAllProjects({ type: 'assessment' });
     
     if (response.success && response.data) {
-      // Filter to only assessment projects
-      availableProjects.value = response.data
+      // Convert projects to camelCase, filter, and sort
+      const rawProjects = Array.isArray(response.data) ? response.data : [];
+      availableProjects.value = rawProjects
+        .map(p => toCamelCase(p)) // Convert to camelCase
         .filter(p => p.type === 'assessment')
-        .sort((a, b) => new Date(b.scheduled_date) - new Date(a.scheduled_date)); // Sort newest first
+        .sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate)); // Sort using camelCase
     } else {
       toast.error(response.message || 'Failed to load assessment projects');
     }
@@ -226,8 +228,9 @@ const selectProject = async (project) => {
     const response = await estimateService.getAssessmentData(project.id);
     
     if (response.success && response.data) {
-      assessment.value = response.data;
-      // Store the selected project in the assessment data for reference
+      // Convert assessment data to camelCase
+      assessment.value = toCamelCase(response.data);
+      // Store the selected project (already camelCased from refreshProjects)
       assessment.value.project = project;
       toast.success('Assessment data loaded successfully');
     } else {
@@ -313,8 +316,11 @@ const createEstimate = async () => {
       sourceProjectId: assessmentId.value
     };
     
+    // Convert payload to snake_case before sending
+    const snakeCaseEstimateData = toSnakeCase(estimateData);
+    
     // Save the estimate
-    const response = await estimateService.saveEstimateWithSourceMap(estimateData);
+    const response = await estimateService.saveEstimateWithSourceMap(snakeCaseEstimateData);
     
     if (response.success && response.data) {
       toast.success('Estimate created successfully');

@@ -18,12 +18,12 @@ module.exports = (sequelize, DataTypes) => {
         onDelete: 'CASCADE'
       });
       Estimate.belongsTo(models.Invoice, {
-        foreignKey: 'convertedToInvoiceId',
+        foreignKey: 'converted_to_invoice_id', // Explicitly use DB column name
         as: 'invoice',
         constraints: false // Optional relationship
       });
       Estimate.belongsTo(models.Client, {
-        foreignKey: 'client_fk_id',
+        foreignKey: 'client_id', // Standardized client ID reference
         as: 'client'
       });
       Estimate.belongsTo(models.ClientAddress, {
@@ -49,20 +49,20 @@ module.exports = (sequelize, DataTypes) => {
       unique: true,
       field: 'estimate_number'
     },
-    clientId: { // Legacy field
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: 'Legacy NextCloud contact UID (deprecated)',
-      field: 'client_id'
-    },
-    client_fk_id: {
+    // clientId: { // Legacy field - REMOVED as it causes issues with SELECT generation
+    //   type: DataTypes.STRING,
+    //   allowNull: true,
+    //   comment: 'Legacy NextCloud contact UID (deprecated)',
+    //   field: 'client_id_legacy'
+    // },
+    client_id: {
       type: DataTypes.UUID,
       allowNull: true,
       references: {
         model: 'clients',
         key: 'id'
       },
-      field: 'client_fk_id',
+      field: 'client_id',
       comment: 'Foreign key to clients table'
     },
     address_id: {
@@ -78,12 +78,12 @@ module.exports = (sequelize, DataTypes) => {
     dateCreated: {
       type: DataTypes.DATEONLY,
       allowNull: false,
-      field: 'dateCreated'
+      field: 'date_created' // Standardized to snake_case
     },
     validUntil: {
       type: DataTypes.DATEONLY,
       allowNull: false,
-      field: 'validUntil'
+      field: 'valid_until' // Standardized to snake_case
     },
     status: {
       type: DataTypes.ENUM('draft', 'sent', 'accepted', 'rejected', 'expired'),
@@ -154,8 +154,8 @@ module.exports = (sequelize, DataTypes) => {
     deletedAt: 'deleted_at',
     indexes: [
       { unique: true, fields: ['estimate_number'] },
-      { fields: ['client_id'] }, // Legacy index
-      { fields: ['client_fk_id'] },
+      // Removed client_id_legacy index as the field no longer exists
+      { fields: ['client_id'] },
       { fields: ['status'] },
       { fields: ['address_id'] },
       { fields: ['project_id'] }

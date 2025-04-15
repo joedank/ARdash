@@ -317,15 +317,15 @@
               </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <tr v-for="payment in estimate.revisions" :key="payment.id">
+              <tr v-for="payment in (estimate.payments || estimate.revisions)" :key="payment.id">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {{ formatDate(payment.date) }}
+                {{ formatDate(payment.paymentDate || payment.date) }} 
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   ${{ formatNumber(payment.amount) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {{ payment.method }}
+                  {{ payment.paymentMethod || payment.method }} 
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
                   {{ payment.notes || '-' }}
@@ -455,6 +455,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import estimatesService from '@/services/estimates.service';
+import { toCamelCase } from '@/utils/casing';
 
 const route = useRoute();
 const router = useRouter();
@@ -513,7 +514,27 @@ const loadEstimate = async () => {
     const response = await estimatesService.getEstimate(estimateId);
 
     if (response && response.success && response.data) {
-      estimate.value = response.data;
+      // Convert estimate data to camelCase, preserving client
+      const rawEstimateData = response.data;
+      const clientData = rawEstimateData.client; // Keep client separate
+      const camelCaseEstimate = toCamelCase(rawEstimateData);
+      camelCaseEstimate.client = clientData; // Re-attach potentially normalized client
+      
+      // Normalize nested items array
+      if (Array.isArray(camelCaseEstimate.items)) {
+          camelCaseEstimate.items = camelCaseEstimate.items.map(item => toCamelCase(item));
+      }
+      // Normalize nested payments/revisions array if it exists
+      if (Array.isArray(camelCaseEstimate.payments)) { // Assuming payments might be the key
+          camelCaseEstimate.payments = camelCaseEstimate.payments.map(payment => toCamelCase(payment));
+      } else if (Array.isArray(camelCaseEstimate.revisions)) { // Fallback for revisions
+          camelCaseEstimate.revisions = camelCaseEstimate.revisions.map(revision => toCamelCase(revision));
+          // Optionally rename revisions to payments for consistency if desired
+          // camelCaseEstimate.payments = camelCaseEstimate.revisions;
+          // delete camelCaseEstimate.revisions;
+      }
+      
+      estimate.value = camelCaseEstimate;
     } else {
       error.value = response?.message || 'Failed to load estimate. Please try again.';
     }
@@ -633,8 +654,24 @@ const formatNumber = (value) => {
 
 const formatAddress = (address) => {
   if (!address) return '';
-  // Replace semicolons with commas and spaces
-  return address.replace(/;/g, ', ');
+  // Assuming address object is normalized by clientService
+  // Replace semicolons with commas and spaces if it's a string, otherwise format object
+  if (typeof address === 'string') {
+       return address.replace(/;/g, ', ');
+  }
+  
+  const parts = [];
+  if (address.streetAddress) parts.push(address.streetAddress); // Use camelCase
+  if (address.street2) parts.push(address.street2); // Assuming street2 is correct
+  const cityLine = [
+    address.city,
+    address.state,
+    address.postalCode || address.zipCode // Use camelCase postalCode
+  ].filter(Boolean).join(', ');
+  if (cityLine) parts.push(cityLine);
+  if (address.country) parts.push(address.country);
+  
+  return parts.length > 0 ? parts.join('\n') : 'Address details incomplete';
 };
 
 const capitalize = (str) => {

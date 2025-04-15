@@ -111,7 +111,7 @@
         <div class="mb-4">
           <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Invoice Items</h2>
           
-          <LineItemsEditor 
+          <LineItemsEditor
             v-model="invoice.items"
             @update:totals="updateTotals"
             :error="errors.items"
@@ -214,8 +214,10 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ClientSelector from '@/components/invoicing/ClientSelector.vue';
 import LineItemsEditor from '@/components/invoicing/LineItemsEditor.vue';
+import standardizedInvoicesService from '@/services/standardized-invoices.service';
 import invoicesService from '@/services/invoices.service';
 import settingsService from '@/services/settings.service';
+import { toSnakeCase } from '@/utils/casing';
 
 const router = useRouter();
 const route = useRoute();
@@ -261,7 +263,9 @@ const isGeneratingPdf = ref(false); // PDF loading state
 const updateClient = (client) => {
   // Only update if there's an actual change
   if (client) {
-    const newClientId = client.id || client.clientId;
+    // Since client object should be normalized by clientsService, we only need to use clientId
+    // No need for fallback to snake_case property
+    const newClientId = client.clientId;
     const newAddressId = client.selectedAddressId || null;
     
     // Check if values are already set to avoid unnecessary updates
@@ -317,7 +321,7 @@ const loadInvoiceData = async () => {
   
   try {
     isSubmitting.value = true; // Use submitting state for loading indicator
-    const response = await invoicesService.getInvoice(invoiceId.value);
+    const response = await standardizedInvoicesService.getInvoice(invoiceId.value);
     if (response && response.success && response.data) {
       const loadedInvoice = response.data;
       
@@ -373,21 +377,21 @@ const loadDefaults = async () => {
     // Get settings using the correct method names
     try {
       // Get invoice prefix
-      const prefixResponse = await settingsService.getSetting('invoice_prefix');
-      if (prefixResponse && prefixResponse.success && prefixResponse.data) {
-        invoicePrefix = prefixResponse.data.value || 'INV-';
+      const prefixSetting = await settingsService.getSetting('invoice_prefix');
+      if (prefixSetting && prefixSetting.success && prefixSetting.data) {
+        invoicePrefix = prefixSetting.data.value || 'INV-';
       }
       
       // Get due days
-      const dueDaysResponse = await settingsService.getSetting('invoice_due_days');
-      if (dueDaysResponse && dueDaysResponse.success && dueDaysResponse.data) {
-        dueDays = parseInt(dueDaysResponse.data.value || '30', 10);
+      const dueDaysSetting = await settingsService.getSetting('invoice_due_days');
+      if (dueDaysSetting && dueDaysSetting.success && dueDaysSetting.data) {
+        dueDays = parseInt(dueDaysSetting.data.value || '30', 10);
       }
       
       // Get terms
-      const termsResponse = await settingsService.getSetting('default_invoice_terms');
-      if (termsResponse && termsResponse.success && termsResponse.data) {
-        terms = termsResponse.data.value || '';
+      const termsSetting = await settingsService.getSetting('default_invoice_terms');
+      if (termsSetting && termsSetting.success && termsSetting.data) {
+        terms = termsSetting.data.value || '';
       }
     } catch (settingsError) {
       console.error('Error fetching settings:', settingsError);
@@ -396,7 +400,7 @@ const loadDefaults = async () => {
     
     // Generate next invoice number
     try {
-      const response = await invoicesService.getNextInvoiceNumber();
+      const response = await standardizedInvoicesService.getNextInvoiceNumber();
       if (response && response.success && response.data) {
         invoice.value.invoiceNumber = response.data.invoiceNumber;
       } else {
@@ -524,10 +528,16 @@ const saveInvoiceToServer = async (status) => {
   isGeneratingPdf.value = false; // Reset PDF loading state
 
   try {
-    // Prepare invoice data for API
+    // Debug client information before submission
+    console.log('Before preparing invoice data:');
+    console.log('invoice.value.client:', invoice.value.client);
+    console.log('invoice.value.clientId:', invoice.value.clientId);
+    console.log('invoice.value.addressId:', invoice.value.addressId);
+
+    // Prepare invoice data for API using standardized approach
     const invoiceData = {
       clientId: invoice.value.clientId,
-      addressId: invoice.value.addressId, // Send the selected address ID
+      addressId: invoice.value.addressId,
       invoiceNumber: invoice.value.invoiceNumber,
       dateCreated: invoice.value.dateCreated,
       dateDue: invoice.value.dateDue,
@@ -542,16 +552,17 @@ const saveInvoiceToServer = async (status) => {
       // Always generate PDF - we need it for both types of invoices
       generatePdf: true
     };
-
+    
+    // Use the standardized service instead of direct snake_case conversion
     let response;
     if (isEditing.value) {
       // --- 1a. Update Invoice ---
       console.log("Updating invoice:", invoiceId.value, "with data:", invoiceData);
-      response = await invoicesService.updateInvoice(invoiceId.value, invoiceData);
+      response = await standardizedInvoicesService.updateInvoice(invoiceId.value, invoiceData);
     } else {
       // --- 1b. Create Invoice ---
       console.log("Creating invoice with data:", invoiceData);
-      response = await invoicesService.createInvoice(invoiceData);
+      response = await standardizedInvoicesService.createInvoice(invoiceData);
     }
     
     const resultInvoice = response?.data; // Use optional chaining
@@ -576,11 +587,11 @@ const saveInvoiceToServer = async (status) => {
         await new Promise(resolve => setTimeout(resolve, 500));
         
         console.log('Requesting PDF for invoice:', savedInvoiceId);
-        const pdfBlob = await invoicesService.getInvoicePdf(savedInvoiceId);
+        const pdfResponse = await standardizedInvoicesService.getInvoicePdf(savedInvoiceId);
         
-        if (pdfBlob instanceof Blob && pdfBlob.type === 'application/pdf') {
-          console.log('Received PDF blob of size:', pdfBlob.size);
-          const pdfUrl = URL.createObjectURL(pdfBlob);
+        if (pdfResponse instanceof Blob && pdfResponse.type === 'application/pdf') {
+          console.log('Received PDF blob of size:', pdfResponse.size);
+          const pdfUrl = URL.createObjectURL(pdfResponse);
           window.open(pdfUrl, '_blank');
           // Revoke URL after a short delay
           setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
@@ -632,7 +643,9 @@ const saveInvoiceToServer = async (status) => {
 // Watch for client changes and update clientId and addressId
 watch(() => invoice.value.client, (newClient) => {
   if (newClient) {
-    const newClientId = newClient.id || newClient.clientId;
+    // Since client object should be normalized by clientsService, we only need to use clientId
+    // No need for fallback to snake_case property
+    const newClientId = newClient.clientId;
     const newAddressId = newClient.selectedAddressId || null;
     
     // Only update if values have changed to avoid unnecessary updates

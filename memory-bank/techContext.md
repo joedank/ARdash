@@ -33,8 +33,22 @@
 - **Testing**: Vitest for frontend, Jest for backend
 - **Build Process**: Vite for frontend bundling with integrated Tailwind CSS via the @tailwindcss/vite plugin
 - **Development Servers**: Vite dev server for frontend, Nodemon for backend
-- **Database**: PostgreSQL running locally (installed via Homebrew)
+- **Database**: PostgreSQL running locally (installed via Homebrew) or in Docker container
 - **Service Management**: Custom services.sh script for controlling frontend and backend processes
+- **Containerization**: Docker and Docker Compose for consistent development environments
+
+## Docker Environment
+- **Frontend Container**: Node.js 20 Alpine with Vite development server on port 5173
+- **Backend Container**: Node.js 20 Alpine with Express server on port 3000
+- **Database Container**: PostgreSQL 16 Alpine on port 5432
+- **Volume Mounts**:
+  - Named volumes for node_modules to prevent host overriding
+  - Host source code mounted for live development
+  - Persistent volume for database data
+  - Persistent volume for uploaded files
+- **Network**: Custom bridge network for inter-container communication
+- **Environment Variables**: Configured in docker-compose.yml for each service
+- **Health Checks**: Implemented for all services to ensure proper startup order
 ## Service Management
 A custom services.sh Bash script manages the starting, stopping, and restarting of frontend and backend services:
 - **Command Structure**: `./services.sh {start|stop|restart|status} [frontend|backend|all]`
@@ -86,3 +100,15 @@ Dependencies are managed through package.json files in both frontend and backend
 - puppeteer (HTML-to-PDF rendering)
 - ejs (PDF templates)
 - multer (File uploads)
+
+## Development Patterns
+- **API Communication**: Standardized services extending BaseService for consistent data handling
+- **Data Transformation**: Centralized conversion between camelCase (frontend) and snake_case (backend) using apiAdapter
+- **Error Handling**: Standardized error handling with consistent response format and detailed logging
+- **Form Validation**: Client-side validation with field-specific error messages and visual indicators
+- **Component Structure**: Single-file components with script, template, and style sections
+- **State Management**: Composition API with ref and reactive for local state
+- **Entity ID Handling**: Dual property pattern (id and entityId) for backward compatibility
+- **PDF Generation**: Robust error handling with fallbacks for undefined values
+- **Docker Compatibility**: Special configuration for Puppeteer in containerized environments
+- **File System Access**: Proper directory structure and permissions for file operations

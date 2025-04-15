@@ -4,6 +4,7 @@ const projectService = require('../services/projectService');
 const { ValidationError } = require('../utils/errors');
 const multer = require('multer');
 const logger = require('../utils/logger');
+const { success, error } = require('../utils/response.util');
 
 // Configure multer for photo uploads
 const upload = multer({
@@ -30,13 +31,10 @@ const getAll = async (req, res, next) => {
     };
     
     const projects = await projectService.getAllProjects(filters);
-    return res.json({
-      success: true,
-      data: projects
-    });
-  } catch (error) {
-    logger.error('Error getting all projects:', error);
-    next(error);
+    return res.json(success(projects, 'Projects retrieved successfully'));
+  } catch (err) {
+    logger.error('Error getting all projects:', err);
+    next(err);
   }
 };
 
@@ -49,13 +47,10 @@ const getAll = async (req, res, next) => {
 const post = async (req, res, next) => {
   try {
     const project = await projectService.createProject(req.body);
-    return res.json({
-      success: true,
-      data: project
-    });
-  } catch (error) {
-    logger.error('Error creating project:', error);
-    next(error);
+    return res.json(success(project, 'Project created successfully'));
+  } catch (err) {
+    logger.error('Error creating project:', err);
+    next(err);
   }
 };
 
@@ -68,13 +63,10 @@ const post = async (req, res, next) => {
 const getTodayProjects = async (req, res, next) => {
   try {
     const projects = await projectService.getTodayProjects();
-    return res.json({
-      success: true,
-      data: projects
-    });
-  } catch (error) {
-    logger.error('Error getting today\'s projects:', error);
-    next(error);
+    return res.json(success(projects, 'Today\'s projects retrieved successfully'));
+  } catch (err) {
+    logger.error('Error getting today\'s projects:', err);
+    next(err);
   }
 };
 
@@ -87,13 +79,10 @@ const getTodayProjects = async (req, res, next) => {
 const get = async (req, res, next) => {
   try {
     const project = await projectService.getProjectWithDetails(req.params.id);
-    return res.json({
-      success: true,
-      data: project
-    });
-  } catch (error) {
-    logger.error(`Error getting project ${req.params.id}:`, error);
-    next(error);
+    return res.json(success(project, 'Project retrieved successfully'));
+  } catch (err) {
+    logger.error(`Error getting project ${req.params.id}:`, err);
+    next(err);
   }
 };
 
@@ -106,13 +95,10 @@ const get = async (req, res, next) => {
 const update = async (req, res, next) => {
   try {
     const project = await projectService.updateProject(req.params.id, req.body);
-    return res.json({
-      success: true,
-      data: project
-    });
-  } catch (error) {
-    logger.error(`Error updating project ${req.params.id}:`, error);
-    next(error);
+    return res.json(success(project, 'Project updated successfully'));
+  } catch (err) {
+    logger.error(`Error updating project ${req.params.id}:`, err);
+    next(err);
   }
 };
 
@@ -125,13 +111,10 @@ const update = async (req, res, next) => {
 const deleteProject = async (req, res, next) => {
   try {
     await projectService.deleteProject(req.params.id);
-    return res.json({
-      success: true,
-      message: 'Project deleted successfully'
-    });
-  } catch (error) {
-    logger.error(`Error deleting project ${req.params.id}:`, error);
-    next(error);
+    return res.json(success(null, 'Project deleted successfully'));
+  } catch (err) {
+    logger.error(`Error deleting project ${req.params.id}:`, err);
+    next(err);
   }
 };
 
@@ -149,13 +132,10 @@ const updateStatus = async (req, res, next) => {
     }
 
     const project = await projectService.updateProjectStatus(req.params.id, status);
-    return res.json({
-      success: true,
-      data: project
-    });
-  } catch (error) {
-    logger.error(`Error updating project status for ${req.params.id}:`, error);
-    next(error);
+    return res.json(success(project, `Project status updated to ${status} successfully`));
+  } catch (err) {
+    logger.error(`Error updating project status for ${req.params.id}:`, err);
+    next(err);
   }
 };
 
@@ -168,13 +148,10 @@ const updateStatus = async (req, res, next) => {
 const addInspection = async (req, res, next) => {
   try {
     const inspection = await projectService.addInspection(req.params.id, req.body);
-    return res.json({
-      success: true,
-      data: inspection
-    });
-  } catch (error) {
-    logger.error(`Error adding inspection to project ${req.params.id}:`, error);
-    next(error);
+    return res.json(success(inspection, 'Inspection added to project successfully'));
+  } catch (err) {
+    logger.error(`Error adding inspection to project ${req.params.id}:`, err);
+    next(err);
   }
 };
 
@@ -196,13 +173,10 @@ const addPhoto = async (req, res, next) => {
       req.body
     );
 
-    return res.json({
-      success: true,
-      data: photo
-    });
-  } catch (error) {
-    logger.error(`Error adding photo to project ${req.params.id}:`, error);
-    next(error);
+    return res.json(success(photo, 'Photo added to project successfully'));
+  } catch (err) {
+    logger.error(`Error adding photo to project ${req.params.id}:`, err);
+    next(err);
   }
 };
 
@@ -223,14 +197,10 @@ const deletePhoto = async (req, res, next) => {
     await projectService.deleteProjectPhoto(projectId, photoId);
     const updatedProject = await projectService.getProjectWithDetails(projectId);
 
-    return res.json({
-      success: true,
-      message: 'Photo deleted successfully',
-      data: updatedProject
-    });
-  } catch (error) {
-    logger.error(`Error deleting photo ${req.params.photoId} from project ${req.params.id}:`, error);
-    next(error);
+    return res.json(success(updatedProject, 'Photo deleted successfully'));
+  } catch (err) {
+    logger.error(`Error deleting photo ${req.params.photoId} from project ${req.params.id}:`, err);
+    next(err);
   }
 };
 
@@ -244,13 +214,10 @@ const deletePhoto = async (req, res, next) => {
 const convertToEstimate = async (req, res, next) => {
   try {
     const result = await projectService.convertToEstimate(req.params.id);
-    return res.json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    logger.error(`Error converting project ${req.params.id} to estimate:`, error);
-    next(error);
+    return res.json(success(result, 'Project converted to estimate successfully'));
+  } catch (err) {
+    logger.error(`Error converting project ${req.params.id} to estimate:`, err);
+    next(err);
   }
 };
 
@@ -277,13 +244,10 @@ const convertToJob = async (req, res, next) => {
     // Then convert the project to a job
     const jobProject = await projectService.convertAssessmentToJob(req.params.id, estimate_id);
     
-    return res.json({
-      success: true,
-      data: jobProject
-    });
-  } catch (error) {
-    logger.error(`Error converting assessment ${req.params.id} to job:`, error);
-    next(error);
+    return res.json(success(jobProject, 'Assessment converted to job successfully'));
+  } catch (err) {
+    logger.error(`Error converting assessment ${req.params.id} to job:`, err);
+    next(err);
   }
 };
 
@@ -303,13 +267,10 @@ const updateAdditionalWork = async (req, res, next) => {
     
     const project = await projectService.updateAdditionalWork(req.params.id, additional_work);
     
-    return res.json({
-      success: true,
-      data: project
-    });
-  } catch (error) {
-    logger.error(`Error updating additional work for project ${req.params.id}:`, error);
-    next(error);
+    return res.json(success(project, 'Additional work notes updated successfully'));
+  } catch (err) {
+    logger.error(`Error updating additional work for project ${req.params.id}:`, err);
+    next(err);
   }
 };
 
@@ -324,7 +285,7 @@ module.exports = {
   updateStatus,
   addInspection,
   addPhoto,
-  deletePhoto, // Added deletePhoto export
+  deletePhoto,
   convertToEstimate,
   convertToJob,
   updateAdditionalWork

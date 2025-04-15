@@ -15,11 +15,11 @@ module.exports = (sequelize, DataTypes) => {
         onDelete: 'CASCADE'
       });
       Client.hasMany(models.Invoice, {
-        foreignKey: 'client_fk_id',
+        foreignKey: 'client_id',
         as: 'invoices'
       });
       Client.hasMany(models.Estimate, {
-        foreignKey: 'client_fk_id',
+        foreignKey: 'client_id',
         as: 'estimates'
       });
       Client.hasMany(models.Project, {
@@ -60,7 +60,8 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     payment_terms: {
-      type: DataTypes.STRING,
+      // Use TEXT instead of STRING to avoid type conversion issues
+      type: DataTypes.TEXT,
       allowNull: true,
       field: 'payment_terms'
     },

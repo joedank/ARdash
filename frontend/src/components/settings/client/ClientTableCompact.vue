@@ -26,12 +26,12 @@
       >
         <div class="p-4">
           <div class="flex justify-between items-start mb-2">
-            <h4 class="font-medium text-gray-900 dark:text-white truncate">{{ client.display_name }}</h4>
+            <h4 class="font-medium text-gray-900 dark:text-white truncate">{{ client.displayName }}</h4>
             <BaseBadge
-              :variant="getClientTypeBadgeVariant(client.client_type)"
+              :variant="getClientTypeBadgeVariant(client.clientType)"
               size="sm"
             >
-              {{ formatClientType(client.client_type) }}
+              {{ formatClientType(client.clientType) }}
             </BaseBadge>
           </div>
           
@@ -43,8 +43,8 @@
           
           <div class="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-700">
             <div>
-              <span class="text-xs inline-block" :class="client.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                {{ client.is_active ? 'Active' : 'Inactive' }}
+              <span class="text-xs inline-block" :class="client.isActive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                {{ client.isActive ? 'Active' : 'Inactive' }}
               </span>
             </div>
             <div class="flex space-x-2">

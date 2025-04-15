@@ -192,6 +192,7 @@
 </template>
 
 <script setup>
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 import { ref, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import ClientSelector from '@/components/invoicing/ClientSelector.vue';
@@ -405,8 +406,11 @@ const updateInvoice = async () => {
       generatePdf: true // Regenerate PDF with the updated information
     };
     
+    // Convert payload to snake_case before sending
+    const snakeCaseInvoiceData = toSnakeCase(invoiceData);
+    
     // Update invoice
-    const response = await invoicesService.updateInvoice(invoiceId.value, invoiceData);
+    const response = await invoicesService.updateInvoice(invoiceId.value, snakeCaseInvoiceData); // Send snake_case
     
     if (response && response.success) { // Use &&
       // Navigate back to invoice details

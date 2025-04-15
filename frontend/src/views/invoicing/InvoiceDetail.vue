@@ -1,4 +1,10 @@
-<template>
+/**
+ * Normalize invoice data to use camelCase keys consistently
+ * while preserving already normalized client data
+ *//**
+ * Normalize invoice data to use camelCase keys consistently
+ * while preserving already normalized client data
+ */<template>
   <div class="invoice-detail">
     <!-- Header with back button and title -->
     <div class="mb-6">
@@ -8,15 +14,15 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </router-link>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Invoice {{ invoice.invoiceNumber }}</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Invoice {{ normalizedInvoice.invoiceNumber }}</h1>
         
         <!-- Status Badge -->
         <span 
-          v-if="invoice.status" 
+          v-if="normalizedInvoice.status" 
           class="ml-3 px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full" 
-          :class="getStatusClass(invoice.status)"
+          :class="getStatusClass(normalizedInvoice.status)"
         >
-          {{ capitalize(invoice.status) }}
+          {{ capitalize(normalizedInvoice.status) }}
         </span>
 
         <!-- Delete Trash Can Icon -->
@@ -31,7 +37,7 @@
         </button>
       </div>
       <p class="text-sm text-gray-600 dark:text-gray-400">
-        Created on {{ formatDate(invoice.dateCreated) }} • Due on {{ formatDate(invoice.dateDue) }}
+        Created on {{ formatDate(normalizedInvoice.dateCreated) }} • Due on {{ formatDate(normalizedInvoice.dateDue) }}
       </p>
     </div>
 
@@ -64,7 +70,7 @@
         <div class="flex flex-wrap gap-3 justify-end">
           <!-- Mark as Sent/Viewed (based on current status) -->
           <button
-            v-if="invoice.status === 'draft'"
+            v-if="normalizedInvoice.status === 'draft'"
             @click="markAsSent"
             class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
@@ -91,7 +97,7 @@
           
           <!-- Record Payment Button -->
           <button
-            v-if="invoice.status !== 'paid' && invoice.status !== 'draft'"
+            v-if="normalizedInvoice.status !== 'paid' && normalizedInvoice.status !== 'draft'"
             @click="showPaymentModal = true"
             class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
           >
@@ -125,30 +131,30 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Client Information</h2>
           
-          <div v-if="invoice.client" class="border border-gray-200 dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-700">
+          <div v-if="normalizedInvoice.client" class="border border-gray-200 dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-700">
             <div class="flex justify-between">
               <div>
                 <h3 class="text-base font-medium text-gray-900 dark:text-white">
-                  {{ getClientName(invoice.client) }}
+                  {{ getClientName(normalizedInvoice.client) }}
                 </h3>
-                <p v-if="invoice.client.company" class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  {{ invoice.client.company }}
+                <p v-if="normalizedInvoice.client.company" class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  {{ normalizedInvoice.client.company }}
                 </p>
               </div>
             </div>
             
             <div class="mt-3 text-sm text-gray-600 dark:text-gray-400">
-              <p v-if="invoice.client.email">
-                <span class="font-medium">Email:</span> {{ invoice.client.email }}
+              <p v-if="normalizedInvoice.client.email">
+                <span class="font-medium">Email:</span> {{ normalizedInvoice.client.email }}
               </p>
-              <p v-if="invoice.client.phone">
-                <span class="font-medium">Phone:</span> {{ invoice.client.phone }}
+              <p v-if="normalizedInvoice.client.phone">
+                <span class="font-medium">Phone:</span> {{ normalizedInvoice.client.phone }}
               </p>
               
               <!-- Display the invoice address -->
-              <div v-if="invoice.address" class="mt-2">
+              <div v-if="normalizedInvoice.address" class="mt-2">
                 <p class="font-medium">Invoice Address:</p>
-                <p class="whitespace-pre-wrap">{{ formatInvoiceAddress(invoice.address) }}</p>
+                <p class="whitespace-pre-wrap">{{ formatInvoiceAddress(normalizedInvoice.address) }}</p>
               </div>
             </div>
           </div>
@@ -161,7 +167,7 @@
           <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
               <p class="font-medium text-gray-700 dark:text-gray-300">Invoice Number</p>
-              <p class="text-gray-900 dark:text-white">{{ invoice.invoiceNumber }}</p>
+              <p class="text-gray-900 dark:text-white">{{ normalizedInvoice.invoiceNumber }}</p>
             </div>
             
             <div>
@@ -169,36 +175,36 @@
               <p>
                 <span 
                   class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full" 
-                  :class="getStatusClass(invoice.status)"
+                  :class="getStatusClass(normalizedInvoice.status)"
                 >
-                  {{ capitalize(invoice.status) }}
+                  {{ capitalize(normalizedInvoice.status) }}
                 </span>
               </p>
             </div>
             
             <div>
               <p class="font-medium text-gray-700 dark:text-gray-300">Date Created</p>
-              <p class="text-gray-900 dark:text-white">{{ formatDate(invoice.dateCreated) }}</p>
+              <p class="text-gray-900 dark:text-white">{{ formatDate(normalizedInvoice.dateCreated) }}</p>
             </div>
             
             <div>
               <p class="font-medium text-gray-700 dark:text-gray-300">Due Date</p>
-              <p class="text-gray-900 dark:text-white">{{ formatDate(invoice.dateDue) }}</p>
+              <p class="text-gray-900 dark:text-white">{{ formatDate(normalizedInvoice.dateDue) }}</p>
             </div>
             
-            <div v-if="invoice.dateSent">
+            <div v-if="normalizedInvoice.dateSent">
               <p class="font-medium text-gray-700 dark:text-gray-300">Date Sent</p>
-              <p class="text-gray-900 dark:text-white">{{ formatDate(invoice.dateSent) }}</p>
+              <p class="text-gray-900 dark:text-white">{{ formatDate(normalizedInvoice.dateSent) }}</p>
             </div>
             
-            <div v-if="invoice.dateViewed">
+            <div v-if="normalizedInvoice.dateViewed">
               <p class="font-medium text-gray-700 dark:text-gray-300">Date Viewed</p>
-              <p class="text-gray-900 dark:text-white">{{ formatDate(invoice.dateViewed) }}</p>
+              <p class="text-gray-900 dark:text-white">{{ formatDate(normalizedInvoice.dateViewed) }}</p>
             </div>
             
-            <div v-if="invoice.datePaid">
+            <div v-if="normalizedInvoice.datePaid">
               <p class="font-medium text-gray-700 dark:text-gray-300">Date Paid</p>
-              <p class="text-gray-900 dark:text-white">{{ formatDate(invoice.datePaid) }}</p>
+              <p class="text-gray-900 dark:text-white">{{ formatDate(normalizedInvoice.datePaid) }}</p>
             </div>
           </div>
         </div>
@@ -231,7 +237,7 @@
               </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <tr v-for="(item, index) in invoice.items" :key="index">
+              <tr v-for="(item, index) in normalizedInvoice.items" :key="index">
                 <td class="px-3 py-4 whitespace-pre-wrap text-sm text-gray-900 dark:text-white">
                   {{ item.description }}
                 </td>
@@ -257,19 +263,19 @@
           <div class="w-64 space-y-2">
             <div class="flex justify-between text-sm">
               <span class="text-gray-600 dark:text-gray-400">Subtotal:</span>
-              <span class="font-medium text-gray-900 dark:text-white">${{ formatNumber(invoice.subtotal) }}</span>
+              <span class="font-medium text-gray-900 dark:text-white">${{ formatNumber(normalizedInvoice.subtotal) }}</span>
             </div>
             <div class="flex justify-between text-sm">
               <span class="text-gray-600 dark:text-gray-400">Tax:</span>
-              <span class="font-medium text-gray-900 dark:text-white">${{ formatNumber(invoice.taxTotal) }}</span>
+              <span class="font-medium text-gray-900 dark:text-white">${{ formatNumber(normalizedInvoice.taxTotal) }}</span>
             </div>
-            <div v-if="invoice.discountAmount > 0" class="flex justify-between text-sm">
+            <div v-if="normalizedInvoice.discountAmount > 0" class="flex justify-between text-sm">
               <span class="text-gray-600 dark:text-gray-400">Discount:</span>
-              <span class="font-medium text-gray-900 dark:text-white">-${{ formatNumber(invoice.discountAmount) }}</span>
+              <span class="font-medium text-gray-900 dark:text-white">-${{ formatNumber(normalizedInvoice.discountAmount) }}</span>
             </div>
             <div class="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 text-base">
               <span class="font-medium text-gray-700 dark:text-gray-300">Total:</span>
-              <span class="font-bold text-gray-900 dark:text-white">${{ formatNumber(invoice.total) }}</span>
+              <span class="font-bold text-gray-900 dark:text-white">${{ formatNumber(normalizedInvoice.total) }}</span>
             </div>
           </div>
         </div>
@@ -282,7 +288,7 @@
           <div>
             <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Notes</h2>
             <div class="border border-gray-200 dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-              {{ invoice.notes || 'No notes provided.' }}
+              {{ normalizedInvoice.notes || 'No notes provided.' }}
             </div>
           </div>
           
@@ -290,14 +296,14 @@
           <div>
             <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Terms & Conditions</h2>
             <div class="border border-gray-200 dark:border-gray-700 rounded-md p-4 bg-gray-50 dark:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-              {{ invoice.terms || 'No terms provided.' }}
+              {{ normalizedInvoice.terms || 'No terms provided.' }}
             </div>
           </div>
         </div>
       </div>
       
       <!-- Payment History -->
-      <div v-if="invoice.payments && invoice.payments.length > 0" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div v-if="normalizedInvoice.payments && normalizedInvoice.payments.length > 0" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Payment History</h2>
         
         <div class="overflow-x-auto">
@@ -319,15 +325,15 @@
               </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <tr v-for="payment in invoice.payments" :key="payment.id">
+              <tr v-for="payment in normalizedInvoice.payments" :key="payment.id">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {{ formatDate(payment.date) }}
+                  {{ formatDate(payment.paymentDate) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   ${{ formatNumber(payment.amount) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {{ payment.method }}
+                  {{ payment.paymentMethod }}
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
                   {{ payment.notes || '-' }}
@@ -364,12 +370,12 @@
                     min="0.01"
                     step="0.01"
                     class="pl-7 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
-                    :placeholder="`Due: $${formatNumber(invoice.total)}`"
+                    :placeholder="`Due: ${formatNumber(normalizedInvoice.total)}`"
                     required
                   />
                 </div>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Total due: ${{ formatNumber(invoice.total) }}
+                  Total due: ${{ formatNumber(normalizedInvoice.total) }}
                 </p>
               </div>
               
@@ -467,9 +473,9 @@
               </h3>
               <div class="mt-2">
                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                  Are you sure you want to delete invoice {{ invoice.invoiceNumber }}? This action cannot be undone.
+                  Are you sure you want to delete invoice {{ normalizedInvoice.invoiceNumber }}? This action cannot be undone.
                 </p>
-                <p v-if="invoice.status !== 'draft'" class="mt-2 text-sm text-red-500 dark:text-red-400 font-medium">
+                <p v-if="normalizedInvoice.status !== 'draft'" class="mt-2 text-sm text-red-500 dark:text-red-400 font-medium">
                   Warning: This invoice is not in draft status. Deleting it may have business and accounting implications.
                 </p>
               </div>
@@ -499,19 +505,63 @@
             </button>
           </div>
         </div>
+import { toCamelCase } from '@/utils/casing';
       </div>
     </div>
   </teleport>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import invoicesService from '@/services/invoices.service';
 import clientsService from '@/services/clients.service';
+import { toCamelCase } from '@/utils/casing';
 
 const route = useRoute();
 const router = useRouter();
+
+
+/**
+ * Enhanced normalizeInvoice function that recursively normalizes nested arrays:
+ * - Preserves already normalized client object
+ * - Recursively normalizes payments array items
+ * - Recursively normalizes items array items
+ */
+const normalizeInvoice = (data) => {
+  // Don't process null or undefined
+  if (!data) return data;
+  
+  // Create a copy of the invoice to normalize
+  const normalizedData = { ...data };
+  
+  // Store the client object separately since it may already be normalized
+  const clientData = normalizedData.client;
+  delete normalizedData.client;
+  
+  // Normalize the invoice data (except client)
+  const camelCaseInvoice = toCamelCase(normalizedData);
+  
+  // Reattach the client data (which may already be normalized)
+  camelCaseInvoice.client = clientData;
+  
+  // Ensure payments array items are normalized
+  if (Array.isArray(camelCaseInvoice.payments)) {
+    camelCaseInvoice.payments = camelCaseInvoice.payments.map(payment => toCamelCase(payment));
+  }
+  
+  // Ensure invoice items are normalized
+  if (Array.isArray(camelCaseInvoice.items)) {
+    camelCaseInvoice.items = camelCaseInvoice.items.map(item => toCamelCase(item));
+  }
+  
+  return camelCaseInvoice;
+};
+
+// Create a normalized version of the invoice for consistent property access
+const normalizedInvoice = computed(() => {
+  return normalizeInvoice(invoice.value);
+});
 
 // State
 const invoice = ref({
@@ -553,23 +603,21 @@ const paymentError = ref('');
 const showDeleteModal = ref(false);
 const isDeleting = ref(false);
 
-// Helper function to get client name regardless of property naming convention
+// Helper function to get client name using camelCase properties
 const getClientName = (client) => {
   if (!client) return 'Unknown Client';
   
-  // Try different client name properties
+  // Use camelCase properties (client object should be normalized by clientsService)
   if (client.displayName) return client.displayName;
-  if (client.display_name) return client.display_name;
   if (client.name) return client.name;
   
-  // If no name property is found, check any potential ID properties
+  // Fallback to ID if no name found
   if (client.id) return `Client #${client.id}`;
-  if (client.client_id) return `Client #${client.client_id}`;
   
   return 'Unknown Client';
 };
 
-// Load invoice data
+// Enhance loadInvoice to properly handle normalization
 const loadInvoice = async () => {
   try {
     isLoading.value = true;
@@ -579,18 +627,19 @@ const loadInvoice = async () => {
     const response = await invoicesService.getInvoice(invoiceId);
     
     if (response && response.success && response.data) {
-      invoice.value = response.data;
+      invoice.value = response.data; // Store original data - normalization happens in computed property
       
       // Log client information for debugging
-      console.log('Client data received:', invoice.value.client);
+      console.log('Client data received:', normalizedInvoice.value.client);
       
       // If the client reference exists but has no name properties, try to fetch directly
-      if (invoice.value.client && !getClientName(invoice.value.client) && invoice.value.client_fk_id) {
+      if (normalizedInvoice.value.client && !getClientName(normalizedInvoice.value.client) && normalizedInvoice.value.clientId) {
         try {
-          const clientResponse = await clientsService.getClient(invoice.value.client_fk_id);
+          const clientResponse = await clientsService.getClient(normalizedInvoice.value.clientId);
           if (clientResponse && clientResponse.success && clientResponse.data) {
+            // Store the already normalized client data
             invoice.value.client = clientResponse.data;
-            console.log('Client data fetched directly:', invoice.value.client);
+            console.log('Client data fetched directly:', normalizedInvoice.value.client);
           }
         } catch (clientErr) {
           console.error('Error fetching client data directly:', clientErr);
@@ -599,19 +648,20 @@ const loadInvoice = async () => {
       
       // If the address isn't included in the response but we have an addressId,
       // we may need to fetch it separately
-      if (!invoice.value.address && invoice.value.address_id) {
+      if (!normalizedInvoice.value.address && normalizedInvoice.value.addressId) {
         try {
           // Fetch address directly if needed
-          const clientId = invoice.value.client_fk_id || invoice.value.client_id;
+          const clientId = normalizedInvoice.value.clientId;
           if (clientId) {
-            console.log('Attempting to fetch address with clientId:', clientId, 'and addressId:', invoice.value.address_id);
-            const addressResponse = await clientsService.getClientAddress(clientId, invoice.value.address_id);
+            console.log('Attempting to fetch address with clientId:', clientId, 'and addressId:', normalizedInvoice.value.addressId);
+            const addressResponse = await clientsService.getClientAddress(clientId, normalizedInvoice.value.addressId);
             if (addressResponse && addressResponse.success && addressResponse.data) {
+              // Store the already normalized address data
               invoice.value.address = addressResponse.data;
-              console.log('Address data fetched directly:', invoice.value.address);
+              console.log('Address data fetched directly:', normalizedInvoice.value.address);
             }
           } else {
-            console.warn('No client ID found for invoice:', invoice.value.id);
+            console.warn('No client ID found for invoice:', normalizedInvoice.value.id);
           }
         } catch (addressErr) {
           console.error('Error loading invoice address:', addressErr);
@@ -766,7 +816,7 @@ const formatNumber = (value) => {
   return parseFloat(value).toFixed(2);
 };
 
-// Format address for display
+// Format address for display using camelCase properties
 const formatInvoiceAddress = (address) => {
   if (!address) return 'No address available';
   
@@ -776,16 +826,16 @@ const formatInvoiceAddress = (address) => {
     return address.replace(/;/g, '\n');
   }
   
-  // If address is an object with address fields
+  // If address is an object with address fields (using camelCase properties)
   const parts = [];
   
-  if (address.street_address) parts.push(address.street_address);
+  if (address.streetAddress) parts.push(address.streetAddress);
   if (address.street2) parts.push(address.street2);
   
   const cityLine = [
     address.city,
     address.state,
-    address.postal_code || address.zipCode || address.zip
+    address.postalCode
   ].filter(Boolean).join(', ');
   
   if (cityLine) parts.push(cityLine);

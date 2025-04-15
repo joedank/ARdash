@@ -20,6 +20,7 @@ import AssessmentToEstimateView from '../views/invoicing/AssessmentToEstimateVie
 // Project Management Views
 import ProjectDetail from '../views/projects/ProjectDetail.vue';
 import ProjectsView from '../views/projects/ProjectsView.vue';
+// ProjectLineItemPhotos was removed and integrated into ProjectDetail
 
 // Import Settings Routes
 import settingsRoutes from './settings.routes';
@@ -66,6 +67,12 @@ const routes = [
         path: ':id',
         name: 'project-detail',
         component: ProjectDetail
+      },
+      // Line item photos route removed - integrated directly into project detail
+      {
+        path: 'create',
+        name: 'create-project',
+        component: () => import('../views/projects/CreateProject.vue')
       }
     ]
   },

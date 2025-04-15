@@ -1,8 +1,11 @@
 // Load environment variables
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
+// Ensure PORT is explicitly set to avoid confusion with DB_PORT
+const PORT = process.env.PORT || 3000;
+
 const config = {
-  port: process.env.PORT || 3000,
+  port: PORT, // Use the explicitly defined PORT
   nodeEnv: process.env.NODE_ENV || 'development',
   apiPrefix: process.env.API_PREFIX || '/api',
   db: {

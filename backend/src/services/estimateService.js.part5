@@ -1,0 +1,66 @@
+
+  /**
+   * Update an existing estimate
+   * @param {string} estimateId - Estimate ID to update
+   * @param {Object} estimateData - Updated estimate data
+   * @returns {Promise<Object>} - Updated estimate
+   */
+  async updateEstimate(estimateId, estimateData) {
+    try {
+      const estimate = await Estimate.findByPk(estimateId);
+      if (!estimate) {
+        throw new Error('Estimate not found');
+      }
+
+      // Prevent updating certain fields if estimate is not in draft status
+      if (estimate.status !== 'draft' &&
+          (estimateData.client_id || estimateData.estimateNumber)) {
+        throw new ValidationError('Cannot change client or estimate number for non-draft estimates');
+      }
+
+       // Ensure address exists if address_id is provided and changing
+       if (estimateData.address_id && estimateData.address_id !== estimate.address_id) {
+        const client_id_to_check = estimateData.client_id || estimate.client_id;
+        const address = await ClientAddress.findOne({
+            where: { id: estimateData.address_id, client_id: client_id_to_check }
+        });
+        if (!address) {
+            throw new Error(`Address with ID ${estimateData.address_id} not found for client ${client_id_to_check}`);
+        }
+      }
+
+      // Update estimate fields
+      await estimate.update(estimateData);
+
+      // Update estimate items if provided
+      if (estimateData.items && Array.isArray(estimateData.items)) {
+        // Delete existing items
+        await EstimateItem.destroy({ where: { estimateId } });
+
+        // Create new items
+        for (const [index, item] of estimateData.items.entries()) {
+          await EstimateItem.create({
+            ...item,
+            estimateId,
+            sortOrder: index
+          });
+        }
+      }
+
+      // Recalculate totals
+      await this.calculateEstimateTotals(estimateId);
+
+      // PDF generation is now typically handled separately via controller/route
+      // if (estimateData.generatePdf) {
+      //  await this.generateEstimatePDF(estimateId); // Call new function if needed immediately
+      // }
+
+      return this.getEstimateWithDetails(estimateId);
+    } catch (error) {
+      logger.error(`Error updating estimate ${estimateId}:`, error);
+      throw error;
+    }
+  }
+}
+
+module.exports = new EstimateService();

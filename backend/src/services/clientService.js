@@ -13,29 +13,29 @@ class ClientService {
    */
   async createClient(clientData) {
     let transaction;
-    
+
     try {
       // Begin a transaction to ensure data integrity
       transaction = await sequelize.transaction();
-      
+
       // Extract addresses from client data
       const { addresses, ...clientOnly } = clientData;
-      
+
       // Set default client_type if not provided
       if (!clientOnly.client_type) {
         clientOnly.client_type = 'resident';
       }
-      
+
       // Explicitly generate a UUID for the client if not provided
       if (!clientOnly.id) {
         const { v4: uuidv4 } = require('uuid');
         clientOnly.id = uuidv4();
       }
-      
+
       // Create the client without addresses first
       const client = await Client.create(clientOnly, { transaction });
       logger.info(`Created new client: ${clientOnly.display_name} (Type: ${clientOnly.client_type}) with ID: ${client.id}`);
-      
+
       // Now create addresses if they exist
       if (addresses && Array.isArray(addresses) && addresses.length > 0) {
         for (const addressData of addresses) {
@@ -44,10 +44,10 @@ class ClientService {
             logger.warn('Skipping incomplete address for client', client.id);
             continue;
           }
-          
+
           // Ensure client_id is set and remove any temporary id
           const { id, ...addressOnly } = addressData;
-          
+
           // Create the address with explicit reference to the client
           await ClientAddress.create({
             ...addressOnly,
@@ -56,10 +56,10 @@ class ClientService {
         }
         logger.info(`Added ${addresses.length} addresses for client ${client.id}`);
       }
-      
+
       // Commit the transaction
       await transaction.commit();
-      
+
       // Fetch the complete client with addresses
       return await this.getClientById(client.id);
     } catch (error) {
@@ -72,7 +72,7 @@ class ClientService {
 
   /**
    * Get a client by ID with all associated data
-   * @param {string} id - Client ID 
+   * @param {string} id - Client ID
    * @returns {Promise<Object|null>} - Complete client object with addresses
    */
   async getClientById(id) {
@@ -100,12 +100,12 @@ class ClientService {
   async getAllClients(type = null) {
     try {
       const whereClause = {};
-      
+
       // Add client_type filter if provided
       if (type) {
         whereClause.client_type = type;
       }
-      
+
       return await Client.findAll({
         where: whereClause,
         include: [
@@ -139,7 +139,7 @@ class ClientService {
           { email: { [Op.iLike]: searchQuery } }
         ]
       };
-      
+
       // Add client_type filter if provided
       if (type) {
         whereClause.client_type = type;
@@ -171,11 +171,11 @@ class ClientService {
   async updateClient(id, data) {
     try {
       const client = await Client.findByPk(id);
-      
+
       if (!client) {
         throw new Error(`Client with ID ${id} not found`);
       }
-      
+
       await client.update(data);
       return client;
     } catch (error) {
@@ -192,21 +192,43 @@ class ClientService {
   async deleteClient(id) {
     try {
       const client = await Client.findByPk(id);
-      
+
       if (!client) {
         throw new Error(`Client with ID ${id} not found`);
       }
-      
+
       // Delete associated addresses
-      await ClientAddress.destroy({ 
-        where: { client_id: id } 
+      await ClientAddress.destroy({
+        where: { client_id: id }
       });
-      
+
       // Delete the client
       await client.destroy();
       return true;
     } catch (error) {
       logger.error(`Error deleting client ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get client by ID
+   * @param {string} id - Client ID
+   * @returns {Promise<Object|null>} - Client object with addresses
+   */
+  async getClientById(id) {
+    try {
+      return await Client.findByPk(id, {
+        include: [
+          {
+            model: ClientAddress,
+            as: 'addresses',
+            required: false
+          }
+        ]
+      });
+    } catch (error) {
+      logger.error(`Error getting client by ID ${id}:`, error);
       throw error;
     }
   }
@@ -250,13 +272,13 @@ class ClientService {
           { where: { client_id: clientId, is_primary: true } }
         );
       }
-      
+
       // Create the new address
       const address = await ClientAddress.create({
         ...addressData,
         client_id: clientId
       });
-      
+
       return address;
     } catch (error) {
       logger.error(`Error adding address to client ${clientId}:`, error);
@@ -273,11 +295,11 @@ class ClientService {
   async updateClientAddress(addressId, addressData) {
     try {
       const address = await ClientAddress.findByPk(addressId);
-      
+
       if (!address) {
         throw new Error(`Address with ID ${addressId} not found`);
       }
-      
+
       // If this is being set as primary, unset any existing primary addresses
       if (addressData.is_primary && !address.is_primary) {
         await ClientAddress.update(
@@ -285,7 +307,7 @@ class ClientService {
           { where: { client_id: address.client_id, is_primary: true } }
         );
       }
-      
+
       await address.update(addressData);
       return address;
     } catch (error) {
@@ -302,26 +324,26 @@ class ClientService {
   async deleteClientAddress(addressId) {
     try {
       const address = await ClientAddress.findByPk(addressId);
-      
+
       if (!address) {
         throw new Error(`Address with ID ${addressId} not found`);
       }
-      
+
       // If this was a primary address, set another address as primary
       if (address.is_primary) {
         const nextAddress = await ClientAddress.findOne({
-          where: { 
+          where: {
             client_id: address.client_id,
             id: { [Op.not]: addressId }
           },
           order: [['created_at', 'ASC']]
         });
-        
+
         if (nextAddress) {
           await nextAddress.update({ is_primary: true });
         }
       }
-      
+
       await address.destroy();
       return true;
     } catch (error) {
@@ -329,7 +351,7 @@ class ClientService {
       throw error;
     }
   }
-  
+
   /**
    * Get a client address by ID
    * @param {string} clientId - Client ID
@@ -339,7 +361,7 @@ class ClientService {
   async getClientAddress(clientId, addressId) {
     try {
       return await ClientAddress.findOne({
-        where: { 
+        where: {
           id: addressId,
           client_id: clientId
         }

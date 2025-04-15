@@ -1,7 +1,7 @@
 'use strict';
 
 const { sequelize } = require('../utils/database');
-const Sequelize = require('sequelize'); // Import Sequelize itself for DataTypes
+const Sequelize = require('sequelize');
 
 // Manually require each model definition function
 const UserModelDefinition = require('./User');
@@ -19,6 +19,8 @@ const ProjectInspectionModelDefinition = require('./ProjectInspection');
 const ProjectPhotoModelDefinition = require('./ProjectPhoto');
 const LLMPromptModelDefinition = require('./llmPrompt');
 const SourceMapModelDefinition = require('./SourceMap');
+const EstimateItemPhotoModelDefinition = require('./estimateItemPhoto');
+const EstimateItemAdditionalWorkModelDefinition = require('./estimateItemAdditionalWork');
 
 // Initialize each model
 const User = UserModelDefinition(sequelize, Sequelize.DataTypes);
@@ -36,6 +38,8 @@ const ProjectInspection = ProjectInspectionModelDefinition(sequelize, Sequelize.
 const ProjectPhoto = ProjectPhotoModelDefinition(sequelize, Sequelize.DataTypes);
 const LLMPrompt = LLMPromptModelDefinition(sequelize, Sequelize.DataTypes);
 const SourceMap = SourceMapModelDefinition(sequelize, Sequelize.DataTypes);
+const EstimateItemPhoto = EstimateItemPhotoModelDefinition(sequelize, Sequelize.DataTypes);
+const EstimateItemAdditionalWork = EstimateItemAdditionalWorkModelDefinition(sequelize, Sequelize.DataTypes); // Added initialization
 
 // Store models in db object
 const db = {
@@ -53,7 +57,9 @@ const db = {
   ProjectInspection,
   ProjectPhoto,
   LLMPrompt,
-  SourceMap
+  SourceMap,
+  EstimateItemPhoto,
+  EstimateItemAdditionalWork
 };
 
 // Call associate method for each model

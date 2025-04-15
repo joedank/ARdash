@@ -48,6 +48,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { toCamelCase } from '@/utils/casing';
 import projectsService from '@/services/projects.service';
 import BaseButton from '@/components/base/BaseButton.vue';
 import BaseModal from '@/components/overlays/BaseModal.vue';
@@ -64,14 +65,21 @@ const router = useRouter();
 const showConvertModal = ref(false);
 const isConverting = ref(false);
 
-// Check if project has an estimate
+// Normalize the project prop for consistent access
+const normalizedProject = computed(() => {
+  return props.project ? toCamelCase(props.project) : {};
+});
+
+
+// Check if project has an estimate using normalized data
 const hasEstimate = computed(() => {
-  return !!props.project.estimate_id;
+  return !!normalizedProject.value.estimateId;
 });
 
 // Navigation helper
 const navigateToCreateEstimate = () => {
-  router.push(`/invoicing/create-estimate?clientId=${props.project.client_id}&projectId=${props.project.id}`);
+  // Use normalized project data
+  router.push(`/invoicing/create-estimate?clientId=${normalizedProject.value.clientId}&projectId=${normalizedProject.value.id}`);
 };
 
 // Conversion action
@@ -83,9 +91,11 @@ const convertToJob = async () => {
   isConverting.value = true;
   
   try {
+    // Use normalized project data
+    console.log('Converting Assessment to Job - Client ID:', normalizedProject.value.clientId, 'Estimate ID:', normalizedProject.value.estimateId, 'Assessment Project ID:', normalizedProject.value.id);
     const response = await projectsService.convertToJob(
-      props.project.id,
-      props.project.estimate_id
+      normalizedProject.value.id,
+      normalizedProject.value.estimateId // Pass the normalized estimateId
     );
     
     showConvertModal.value = false;

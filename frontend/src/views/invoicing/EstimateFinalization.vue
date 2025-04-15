@@ -49,6 +49,7 @@
 </template>
 
 <script setup>
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { LoadingSpinner, ExclamationCircleIcon } from '@heroicons/vue/outline'
@@ -75,8 +76,9 @@ const loadEstimate = async () => {
       assessmentService.getAssessmentForEstimate(estimateId)
     ])
     
-    estimate.value = estimateData
-    assessmentData.value = assessmentResult
+    // Convert fetched data to camelCase
+    estimate.value = toCamelCase(estimateData);
+    assessmentData.value = toCamelCase(assessmentResult);
   } catch (err) {
     error.value = err.message || 'Failed to load estimate data'
   } finally {
@@ -91,7 +93,9 @@ const updateEstimate = (updates) => {
 const saveEstimate = async () => {
   saving.value = true
   try {
-    await estimateService.updateEstimate(route.params.id, estimate.value)
+    // Convert estimate data to snake_case before sending
+    const snakeCaseEstimate = toSnakeCase(estimate.value);
+    await estimateService.updateEstimate(route.params.id, snakeCaseEstimate)
     router.push({ name: 'EstimatesList' })
   } catch (err) {
     error.value = err.message || 'Failed to save estimate'

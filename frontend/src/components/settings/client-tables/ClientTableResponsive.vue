@@ -98,25 +98,25 @@
               ]"
             >
               <!-- Client Type Column -->
-              <template v-if="column.key === 'client_type'">
+              <template v-if="column.key === 'clientType'">
                 <BaseBadge
-                  :variant="getClientTypeBadgeVariant(client.client_type)"
+                  :variant="getClientTypeBadgeVariant(client.clientType)"
                   size="sm"
                 >
-                  {{ formatClientType(client.client_type) }}
+                  {{ formatClientType(client.clientType) }}
                 </BaseBadge>
               </template>
 
               <!-- Status Column -->
-              <template v-else-if="column.key === 'is_active'">
+              <template v-else-if="column.key === 'isActive'">
                 <BaseToggleSwitch
-                  :model-value="client.is_active"
+                  :model-value="client.isActive"
                   @update:model-value="$emit('toggle-status', client)"
                   @click.stop
                   size="sm"
                 >
-                  <span class="ml-2 text-xs" :class="client.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                    {{ client.is_active ? 'Active' : 'Inactive' }}
+                  <span class="ml-2 text-xs" :class="client.isActive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                    {{ client.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </BaseToggleSwitch>
               </template>
@@ -183,7 +183,7 @@ import BaseToggleSwitch from '@/components/form/BaseToggleSwitch.vue';
 const props = defineProps({
   filteredClients: { type: Array, required: true },
   loading: { type: Boolean, default: false },
-  sortKey: { type: String, default: 'display_name' },
+  sortKey: { type: String, default: 'displayName' },
   sortOrder: { type: String, default: 'asc' },
   currentPage: { type: Number, required: true },
   totalPages: { type: Number, required: true },
@@ -215,25 +215,25 @@ watch(() => props.columnsDisplay, (newValue) => {
 
 const columnDefinitions = {
   default: [
-    { key: 'display_name', label: 'Name', sortable: true, allowWrap: false, truncate: true, width: '25%' },
-    { key: 'client_type', label: 'Type', sortable: true, allowWrap: false, width: '15%' },
+    { key: 'displayName', label: 'Name', sortable: true, allowWrap: false, truncate: true, width: '25%' },
+    { key: 'clientType', label: 'Type', sortable: true, allowWrap: false, width: '15%' },
     { key: 'email', label: 'Email', sortable: true, allowWrap: false, truncate: true, width: '25%' },
-    { key: 'is_active', label: 'Status', sortable: true, allowWrap: false, width: '15%', align: 'center' },
+    { key: 'isActive', label: 'Status', sortable: true, allowWrap: false, width: '15%', align: 'center' },
     { key: 'actions', label: 'Actions', sortable: false, allowWrap: false, width: '10%', align: 'right' }
   ],
   compact: [
-    { key: 'display_name', label: 'Name', sortable: true, allowWrap: false, truncate: true, width: '40%' },
-    { key: 'client_type', label: 'Type', sortable: true, allowWrap: false, width: '20%' },
-    { key: 'is_active', label: 'Status', sortable: true, allowWrap: false, width: '20%', align: 'center' },
+    { key: 'displayName', label: 'Name', sortable: true, allowWrap: false, truncate: true, width: '40%' },
+    { key: 'clientType', label: 'Type', sortable: true, allowWrap: false, width: '20%' },
+    { key: 'isActive', label: 'Status', sortable: true, allowWrap: false, width: '20%', align: 'center' },
     { key: 'actions', label: 'Actions', sortable: false, allowWrap: false, width: '10%', align: 'right' }
   ],
   full: [
-    { key: 'display_name', label: 'Name', sortable: true, allowWrap: false, truncate: true, width: '20%' },
+    { key: 'displayName', label: 'Name', sortable: true, allowWrap: false, truncate: true, width: '20%' },
     { key: 'company', label: 'Company', sortable: true, allowWrap: false, truncate: true, width: '20%' },
-    { key: 'client_type', label: 'Type', sortable: true, allowWrap: false, width: '10%' },
+    { key: 'clientType', label: 'Type', sortable: true, allowWrap: false, width: '10%' },
     { key: 'email', label: 'Email', sortable: true, allowWrap: false, truncate: true, width: '20%' },
     { key: 'phone', label: 'Phone', sortable: true, allowWrap: false, truncate: true, width: '15%' },
-    { key: 'is_active', label: 'Status', sortable: true, allowWrap: false, width: '5%', align: 'center' },
+    { key: 'isActive', label: 'Status', sortable: true, allowWrap: false, width: '5%', align: 'center' },
     { key: 'actions', label: 'Actions', sortable: false, allowWrap: false, width: '10%', align: 'right' }
   ]
 };
@@ -251,7 +251,9 @@ const visibleColumns = computed(() => {
 // Helper to get nested values if needed (e.g., 'address.city')
 function getClientValue(client, key) {
   if (!key) return '';
-  // Basic implementation, can be expanded for deep nesting
+
+  // Remove snake_case fallbacks, rely on normalized camelCase keys
+  // Basic implementation, can be expanded for deep nesting if needed later
   return client[key] ?? '';
 }
 

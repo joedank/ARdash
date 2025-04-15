@@ -23,13 +23,13 @@
         <div class="flex justify-between items-start">
           <div>
             <h3 class="text-base font-medium text-gray-900 dark:text-white">
-              {{ selectedClient.display_name }}
+              {{ getClientName(selectedClient) }}
             </h3>
             <p v-if="selectedClient.company" class="mt-1 text-sm text-gray-600 dark:text-gray-400">
               {{ selectedClient.company }}
             </p>
-            <p v-if="selectedClient.client_type" class="mt-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full inline-block">
-              {{ formatClientType(selectedClient.client_type) }}
+            <p v-if="selectedClient.clientType" class="mt-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full inline-block">
+              {{ formatClientType(selectedClient.clientType) }}
             </p>
           </div>
           <div class="flex gap-2">
@@ -275,13 +275,13 @@
                   <div class="flex justify-between items-start">
                     <div>
                       <h4 class="font-medium text-gray-900 dark:text-white">
-                        {{ client.display_name }}
+                        {{ getClientName(client) }}
                       </h4>
                       <p v-if="client.company" class="text-sm text-gray-600 dark:text-gray-400">
                         {{ client.company }}
                       </p>
-                      <p v-if="client.client_type" class="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full inline-block mt-1">
-                        {{ formatClientType(client.client_type) }}
+                      <p v-if="client.clientType" class="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded-full inline-block mt-1">
+                        {{ formatClientType(client.clientType) }}
                       </p>
                     </div>
                   </div>
@@ -303,6 +303,19 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import clientsService from '@/services/clients.service';
+import { normalizeClient } from '@/utils/casing';
+
+// Helper function to get client name with fallbacks
+const getClientName = (client) => {
+  if (!client) return 'Unnamed Client';
+  
+  // Use the normalized displayName, fallback to name or phone
+  if (client.displayName) return client.displayName;
+  if (client.name) return client.name; // Fallback if displayName somehow missing
+  if (client.phone) return client.phone; // Further fallback
+  
+  return 'Unnamed Client';
+};
 
 const props = defineProps({
   modelValue: {
@@ -336,6 +349,7 @@ const isModalOpen = ref(false);
 const isLoading = ref(false);
 const searchQuery = ref('');
 const selectedAddressId = ref(null);
+const isAddingClient = ref(false);
 
 // Add a new client form data
 const newClientForm = ref({
@@ -345,8 +359,6 @@ const newClientForm = ref({
   phone: '',
   client_type: 'resident' // Default value is resident
 });
-
-const isAddingClient = ref(false);
 
 const showAddClientForm = () => {
   // Reset the form
@@ -401,13 +413,15 @@ const filteredClients = computed(() => {
   
   const query = searchQuery.value.toLowerCase();
   return clients.value.filter(client => {
-    const displayName = client.display_name?.toLowerCase() || '';
-    const company = client.company?.toLowerCase() || '';
-    const email = client.email?.toLowerCase() || '';
+    const displayName = (client.displayName || '').toLowerCase(); // Rely on normalized displayName
+    const company = (client.company || '').toLowerCase();
+    const email = (client.email || '').toLowerCase();
+    const phone = (client.phone || '').toLowerCase();
     
-    return displayName.includes(query) || 
-           company.includes(query) || 
-           email.includes(query);
+    return displayName.includes(query) ||
+           company.includes(query) ||
+           email.includes(query) || 
+           phone.includes(query);
   });
 });
 
@@ -419,8 +433,8 @@ watch(() => props.modelValue, (newValue) => {
     
     // Set default address if available
     if (newValue && newValue.addresses && newValue.addresses.length > 0) {
-      // Find primary address first
-      const primaryAddress = newValue.addresses.find(addr => addr.is_primary);
+      // Find primary address first (rely on normalized isPrimary)
+      const primaryAddress = newValue.addresses.find(addr => addr.isPrimary);
       if (primaryAddress) {
         selectedAddressId.value = primaryAddress.id;
       } else {
@@ -466,7 +480,7 @@ watch(selectedAddressId, (newValue) => {
 
 // Format client type for display
 const formatClientType = (type) => {
-  if (type === 'property_manager') {
+  if (type === 'propertyManager') { // Rely on normalized camelCase
     return 'Property Manager';
   } else if (type === 'resident') {
     return 'Resident';
@@ -479,10 +493,10 @@ const formatAddressForDisplay = (address) => {
   if (!address) return '';
   
   const parts = [
-    address.street_address,
+    address.streetAddress, // Rely on normalized streetAddress
     address.city,
     address.state,
-    address.postal_code,
+    address.postalCode, // Rely on normalized postalCode
     address.country
   ].filter(Boolean);
   
@@ -496,7 +510,15 @@ const loadClients = async () => {
     const response = await clientsService.getAllClients();
     
     if (response && response.success && response.data) {
-      clients.value = response.data;
+      console.log('Client data before normalization:', response.data);
+      
+      // Set clientId property for each client for backend compatibility
+      clients.value = response.data.map(client => {
+        console.log('Processing client:', client);
+        return normalizeClient(client);
+      });
+      
+      console.log('Clients after normalization:', clients.value);
     } else {
       console.error('Error loading clients:', response);
     }
@@ -514,12 +536,17 @@ const selectClient = (client) => {
     return;
   }
   
-  selectedClient.value = client;
+  // For debugging
+  console.log('Client being selected:', client);
+  // Normalize client data to ensure consistent field naming
+  const normalizedClient = normalizeClient(client);
+  console.log('After normalization:', normalizedClient);
+  selectedClient.value = normalizedClient;
   
   // Set default address if client has addresses
   if (client && client.addresses && client.addresses.length > 0) {
     // Find primary address first
-    const primaryAddress = client.addresses.find(addr => addr.is_primary);
+    const primaryAddress = client.addresses.find(addr => (addr.isPrimary || addr.is_primary));
     if (primaryAddress) {
       selectedAddressId.value = primaryAddress.id;
     } else {

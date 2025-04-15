@@ -376,6 +376,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { toCamelCase } from '@/utils/casing';
 import productsService from '@/services/products.service';
 
 const props = defineProps({
@@ -503,7 +504,8 @@ const loadProducts = async () => {
     const response = await productsService.listProducts({ isActive: true });
 
     if (response && response.success && response.data) {
-      products.value = response.data;
+      // Convert incoming snake_case product data to camelCase
+      products.value = response.data.map(product => toCamelCase(product));
     } else {
       console.error('Error loading products:', response);
     }
@@ -622,7 +624,7 @@ const addProductToLineItems = (product) => {
     quantity: 1,
     unit: product.unit || 'each',
     price: product.price,
-    taxRate: product.taxRate || 0,
+    taxRate: product.taxRate || 0, // Already using camelCase, seems correct
     itemTotal: 0 // Will be calculated
   };
 

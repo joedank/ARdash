@@ -45,7 +45,7 @@
             <option value="overdue">Overdue</option>
           </select>
         </div>
-        
+
         <!-- Client Filter -->
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Client</label>
@@ -55,13 +55,13 @@
             @change="loadInvoices"
           >
             <option value="">All Clients</option>
-            <!-- Assuming getAllClients returns objects with 'id' and 'display_name' -->
+            <!-- Assuming standardized service returns objects with 'id' and 'displayName' -->
             <option v-for="client in clients" :key="client.id" :value="client.id">
-              {{ client.display_name }}
+              {{ client.displayName }} <!-- Use camelCase -->
             </option>
           </select>
         </div>
-        
+
         <!-- Date Range -->
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date From</label>
@@ -72,7 +72,7 @@
             @change="loadInvoices"
           />
         </div>
-        
+
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date To</label>
           <input
@@ -84,7 +84,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Invoice List -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
       <div v-if="isLoading" class="p-8 flex justify-center">
@@ -92,7 +92,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
       </div>
-      
+
       <div v-else-if="invoices.length === 0" class="p-8 text-center">
         <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -110,7 +110,7 @@
           </router-link>
         </div>
       </div>
-      
+
       <table v-else class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead class="bg-gray-50 dark:bg-gray-700">
           <tr>
@@ -146,7 +146,7 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="text-sm text-gray-900 dark:text-white">
-                {{ getClientName(invoice.clientId) }}
+                {{ invoice.client?.displayName || 'Unknown Client' }}
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
@@ -183,13 +183,13 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div class="flex justify-end gap-2">
-                <router-link 
+                <router-link
                   :to="`/invoicing/invoice/${invoice.id}`"
                   class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-200"
                 >
                   View
                 </router-link>
-                <a 
+                <a
                   v-if="invoice.status === 'draft'"
                   @click.prevent="markAsSent(invoice.id)"
                   href="#"
@@ -197,7 +197,7 @@
                 >
                   Send
                 </a>
-                <a 
+                <a
                   v-if="invoice.status === 'draft'"
                   @click.prevent="confirmDelete(invoice)"
                   href="#"
@@ -205,7 +205,7 @@
                 >
                   Delete
                 </a>
-                <a 
+                <a
                   @click.prevent="downloadPdf(invoice.id)"
                   href="#"
                   class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 cursor-pointer"
@@ -217,51 +217,19 @@
           </tr>
         </tbody>
       </table>
-      
+
       <!-- Pagination -->
-      <div class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
-        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-          <div>
-            <p class="text-sm text-gray-700 dark:text-gray-300">
-              Showing
-              <span class="font-medium">{{ startIndex + 1 }}</span>
-              to
-              <span class="font-medium">{{ endIndex }}</span>
-              of
-              <span class="font-medium">{{ totalInvoices }}</span>
-              results
-            </p>
-          </div>
-          <div>
-            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-              <a
-                href="#"
-                @click.prevent="prevPage"
-                :class="{ 'opacity-50 cursor-not-allowed': currentPage === 0 }"
-                class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <span class="sr-only">Previous</span>
-                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-              </a>
-              <a
-                href="#"
-                @click.prevent="nextPage"
-                :class="{ 'opacity-50 cursor-not-allowed': currentPage >= totalPages - 1 }"
-                class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <span class="sr-only">Next</span>
-                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                </svg>
-              </a>
-            </nav>
-          </div>
-        </div>
+      <div v-if="invoices.length > 0" class="bg-gray-50 dark:bg-gray-700 px-6 py-4 border-t border-gray-200 dark:border-gray-600">
+        <BasePagination
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          :total-items="totalInvoices"
+          :items-per-page="itemsPerPage"
+          @update:current-page="handlePageChange"
+        />
       </div>
     </div>
-    
+
     <!-- Delete Confirmation Modal -->
     <teleport to="body">
       <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">
@@ -310,19 +278,21 @@
 </template>
 
 <script setup>
+import { toCamelCase, normalizeClient } from '@/utils/casing';
 import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import invoicesService from '@/services/invoices.service';
-import clientsService from '@/services/clients.service';
-
-const router = useRouter();
+// Import services
+import invoicesService from '@/services/invoices.service.js';
+import clientsService from '@/services/clients.service.js';
+import useErrorHandler from '@/composables/useErrorHandler.js'; // Import error handler
+import BasePagination from '@/components/navigation/BasePagination.vue';
+const { handleError } = useErrorHandler(); // Instantiate error handler
 
 // State
 const invoices = ref([]);
 const clients = ref([]);
 const isLoading = ref(true);
 const totalInvoices = ref(0);
-const currentPage = ref(0);
+const currentPage = ref(1); // for BasePagination
 const itemsPerPage = ref(10);
 const totalPages = ref(1);
 const filters = ref({
@@ -335,7 +305,7 @@ const showDeleteModal = ref(false);
 const invoiceToDelete = ref(null);
 
 // Computed properties
-const startIndex = computed(() => currentPage.value * itemsPerPage.value);
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value);
 const endIndex = computed(() => {
   const end = startIndex.value + itemsPerPage.value;
   return end > totalInvoices.value ? totalInvoices.value : end;
@@ -344,17 +314,19 @@ const endIndex = computed(() => {
 // Load clients for filter dropdown
 const loadClients = async () => {
   try {
-    const response = await clientsService.getAllClients();
-    if (response && response.success && Array.isArray(response.data)) { // Check if data is an array
+    console.log('Loading clients...');
+    const response = await clientsService.getAllClients(); // Use correct method name
+    console.log('Clients response:', response);
+    if (response.success && Array.isArray(response.data)) {
       clients.value = response.data;
-      console.log('Clients loaded for dropdown:', JSON.stringify(clients.value)); // Log loaded clients
+      console.log('Clients loaded successfully:', clients.value.length, 'clients');
     } else {
-      console.error('Error loading clients or invalid data format:', response);
-      clients.value = []; // Ensure it's an empty array on failure
+      handleError(new Error(response.message || 'Failed to load clients'), 'Failed to load clients.');
+      clients.value = [];
     }
-  } catch (error) {
-    console.error('Exception loading clients:', error);
-    clients.value = []; // Ensure it's an empty array on exception
+  } catch (err) {
+    handleError(err, 'Failed to load clients.');
+    clients.value = [];
   }
 };
 
@@ -362,40 +334,105 @@ const loadClients = async () => {
 const loadInvoices = async () => {
   try {
     isLoading.value = true;
-    
+
+    // Use currentPage directly
+    const calculatedPage = currentPage.value - 1; // Convert to 0-based for API
+
     const response = await invoicesService.listInvoices(
       filters.value,
-      currentPage.value,
+      calculatedPage,
       itemsPerPage.value
     );
-    
+
+    console.log('Raw invoices response data:', response.data);
+
+    // Check if the response has the expected structure (invoices + pagination)
     if (response && response.success && response.data) {
-      invoices.value = response.data.invoices || [];
-      totalInvoices.value = response.data.total || 0;
-      totalPages.value = response.data.totalPages || 1;
+      // Verify we have actual invoice data by checking for invoice-specific properties
+      if (Array.isArray(response.data)) {
+        // Backend returned an array instead of paginated data structure
+        // IMPORTANT FIX: Only include items that are definitely invoices by checking for invoice-specific properties
+        // This prevents mixing with other entity types like clients, estimates, etc.
+        const filteredInvoices = response.data.filter(item => {
+          // Check for invoice-specific properties to ensure we only get invoices
+          return (item.invoiceNumber || item.invoice_number) &&
+                 // Additional check to ensure it's not an estimate
+                 !(item.estimateNumber || item.estimate_number);
+        });
+        console.log(`Found ${filteredInvoices.length} actual invoices out of ${response.data.length} items`);
+
+        // Create a proper paginated response structure
+        const rawInvoices = filteredInvoices;
+        invoices.value = rawInvoices.map(inv => {
+          // Convert to camelCase and normalize client
+          const { client: rawClient, ...restOfInvoice } = inv;
+          const camelInv = toCamelCase(restOfInvoice);
+
+          // Normalize the client object if it exists
+          if (rawClient) {
+            camelInv.client = normalizeClient(rawClient);
+          }
+
+          return camelInv;
+        });
+
+        totalInvoices.value = filteredInvoices.length;
+        totalPages.value = Math.ceil(filteredInvoices.length / itemsPerPage.value);
+
+        console.log('Filtered invoice data:', invoices.value);
+      } else if (response.data.invoices) {
+        // Convert invoice data to camelCase, properly normalizing the client object
+        const rawInvoices = response.data.invoices || [];
+        invoices.value = rawInvoices.map(inv => {
+          // First, convert the invoice to camelCase but exclude the client
+          const { client: rawClient, ...restOfInvoice } = inv;
+          const camelInv = toCamelCase(restOfInvoice);
+
+          // Normalize the client object if it exists
+          if (rawClient) {
+            // Use the normalizeClient function to handle client properly
+            camelInv.client = normalizeClient(rawClient);
+          }
+
+          return camelInv;
+        });
+        console.log('Invoice data (normalized):', invoices.value[0]);
+        console.log('Clients loaded:', clients.value);
+        totalInvoices.value = response.data.total || 0;
+        totalPages.value = response.data.totalPages || 1;
+
+        // Ensure current page is valid
+        if (currentPage.value > totalPages.value && totalPages.value > 0) {
+          currentPage.value = totalPages.value;
+        }
+      } else {
+        // Unexpected data structure
+        console.error('Unexpected response format - no invoices array found:', response.data);
+        handleError(new Error(response.message || 'Failed to load invoices'), 'Failed to load invoices.');
+        invoices.value = [];
+        totalInvoices.value = 0;
+        totalPages.value = 1;
+      }
     } else {
-      console.error('Error loading invoices:', response);
+      handleError(new Error(response.message || 'Failed to load invoices'), 'Failed to load invoices.');
+      invoices.value = [];
+      totalInvoices.value = 0;
+      totalPages.value = 1;
     }
-  } catch (error) {
-    console.error('Error loading invoices:', error);
+  } catch (err) {
+    handleError(err, 'Error loading invoices.');
+    invoices.value = [];
+    totalInvoices.value = 0;
+    totalPages.value = 1;
   } finally {
     isLoading.value = false;
   }
 };
 
 // Pagination methods
-const prevPage = () => {
-  if (currentPage.value > 0) {
-    currentPage.value--;
-    loadInvoices();
-  }
-};
-
-const nextPage = () => {
-  if (currentPage.value < totalPages.value - 1) {
-    currentPage.value++;
-    loadInvoices();
-  }
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage;
+  loadInvoices();
 };
 
 // Actions
@@ -404,12 +441,12 @@ const markAsSent = async (id) => {
     const response = await invoicesService.markInvoiceAsSent(id);
     if (response && response.success) {
       // Reload invoices to reflect status change
-      loadInvoices();
+      await loadInvoices(); // Use await
     } else {
-      console.error('Error marking invoice as sent:', response);
+      handleError(new Error(response.message || 'Failed to mark invoice as sent'), 'Failed to mark invoice as sent.');
     }
-  } catch (error) {
-    console.error('Error marking invoice as sent:', error);
+  } catch (err) {
+    handleError(err, 'Error marking invoice as sent.');
   }
 };
 
@@ -420,24 +457,25 @@ const confirmDelete = (invoice) => {
 
 const deleteInvoice = async () => {
   if (!invoiceToDelete.value) return;
-  
+
   try {
-    const response = await invoicesService.deleteInvoice(invoiceToDelete.value.id);
+    // Use standardized delete method
+    const response = await invoicesService.delete(invoiceToDelete.value.id);
     if (response && response.success) {
       // Remove invoice from list
       invoices.value = invoices.value.filter(inv => inv.id !== invoiceToDelete.value.id);
-      
+
       // Adjust total count
       totalInvoices.value--;
-      
+
       // Reset modal
       showDeleteModal.value = false;
       invoiceToDelete.value = null;
     } else {
-      console.error('Error deleting invoice:', response);
+      handleError(new Error(response.message || 'Failed to delete invoice'), 'Failed to delete invoice.');
     }
-  } catch (error) {
-    console.error('Error deleting invoice:', error);
+  } catch (err) {
+    handleError(err, 'Error deleting invoice.');
   }
 };
 
@@ -445,7 +483,7 @@ const downloadPdf = async (id) => {
   try {
     // Get and download PDF
     const blob = await invoicesService.getInvoicePdf(id);
-    
+
     // Create download link
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -455,8 +493,8 @@ const downloadPdf = async (id) => {
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error('Error downloading PDF:', error);
+  } catch (err) {
+    handleError(err, 'Error downloading PDF.');
   }
 };
 
@@ -478,13 +516,7 @@ const getStatusClass = (status) => {
   }
 };
 
-const getClientName = (clientId) => {
-  if (!clientId || !clients.value || clients.value.length === 0) return 'Unknown Client'; // Add check for populated clients array
-  // Ensure comparison uses the correct ID property from the client object (likely 'id')
-  const client = clients.value.find(c => c.id === clientId);
-  // Use display_name which matches the backend model field name
-  return client ? client.display_name : 'Unknown Client';
-};
+// getClientName function removed as we now access client directly from the invoice object
 
 const formatDate = (dateString) => {
   if (!dateString) return '';
@@ -499,17 +531,18 @@ const formatNumber = (value) => {
 // Function to update invoice status
 const updateInvoiceStatus = async (invoice) => {
   try {
-    const response = await invoicesService.updateInvoice(invoice.id, { status: invoice.status });
+    // Use standardized update method (BaseService handles case conversion)
+    const response = await invoicesService.update(invoice.id, { status: invoice.status });
     if (response && response.success) {
       // Reload the invoices to get updated data
       await loadInvoices();
     } else {
-      console.error('Error updating invoice status:', response);
+      handleError(new Error(response.message || 'Failed to update invoice status'), 'Failed to update invoice status.');
       // Reload to revert status if update failed
       await loadInvoices();
     }
-  } catch (error) {
-    console.error('Error updating invoice status:', error);
+  } catch (err) {
+    handleError(err, 'Error updating invoice status.');
     // Reload to revert status if update failed
     await loadInvoices();
   }

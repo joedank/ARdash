@@ -26,53 +26,53 @@
         <h4 class="font-medium text-md text-gray-800 dark:text-gray-200 mb-2">Match Summary</h4>
         <div class="flex space-x-4 text-sm">
           <div class="flex flex-col items-center justify-center p-2 rounded bg-white dark:bg-gray-800">
-            <span class="font-bold text-lg">{{ matchResults.summary?.total_items || 0 }}</span>
+            <span class="font-bold text-lg">{{ matchResults.summary?.totalItems || 0 }}</span> {/* camelCase */}
             <span class="text-gray-500 dark:text-gray-400">Total Items</span>
           </div>
           <div class="flex flex-col items-center justify-center p-2 rounded bg-green-50 dark:bg-green-900">
-            <span class="font-bold text-lg text-green-600 dark:text-green-400">{{ matchResults.summary?.matched_items || 0 }}</span>
+            <span class="font-bold text-lg text-green-600 dark:text-green-400">{{ matchResults.summary?.matchedItems || 0 }}</span> {/* camelCase */}
             <span class="text-green-500 dark:text-green-400">Matched</span>
           </div>
           <div class="flex flex-col items-center justify-center p-2 rounded bg-amber-50 dark:bg-amber-900">
-            <span class="font-bold text-lg text-amber-600 dark:text-amber-400">{{ matchResults.summary?.unmatched_items || 0 }}</span>
+            <span class="font-bold text-lg text-amber-600 dark:text-amber-400">{{ matchResults.summary?.unmatchedItems || 0 }}</span> {/* camelCase */}
             <span class="text-amber-500 dark:text-amber-400">Unmatched</span>
           </div>
         </div>
       </div>
 
       <!-- Line Items List -->
-      <div v-for="(item, index) in matchResults.lineItems" :key="index" 
+      <div v-for="(item, index) in matchResults.lineItems" :key="index"
            class="border rounded-md p-4 transition-all duration-200"
            :class="{
-             'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20': item.match_status === 'CONFIDENT_MATCH',
-             'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20': item.match_status === 'POSSIBLE_MATCH',
-             'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20': item.match_status === 'WEAK_MATCH' || item.match_status === 'NO_MATCH'
+             'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20': item.matchStatus === 'CONFIDENT_MATCH',
+             'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20': item.matchStatus === 'POSSIBLE_MATCH',
+             'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20': item.matchStatus === 'WEAK_MATCH' || item.matchStatus === 'NO_MATCH'
            }">
-        
+
         <!-- Original Line Item -->
         <div class="flex justify-between items-start mb-3">
           <div>
-            <h5 class="text-md font-semibold">{{ item.original.product_name }}</h5>
+            <h5 class="text-md font-semibold">{{ item.original.productName }}</h5>
             <div class="text-sm text-gray-600 dark:text-gray-400">
-              <p>{{ item.original.quantity }} {{ item.original.unit }} × ${{ item.original.unit_price.toFixed(2) }} = ${{ (item.original.quantity * item.original.unit_price).toFixed(2) }}</p>
+              <p>{{ item.original.quantity || 0 }} {{ item.original.unit || 'each' }} × ${{ parseFloat(item.original.unitPrice || item.original.price || 0).toFixed(2) }} = ${{ (parseFloat(item.original.quantity || 0) * parseFloat(item.original.unitPrice || item.original.price || 0)).toFixed(2) }}</p>
               <p class="text-xs mt-1 text-gray-500 dark:text-gray-500">{{ item.original.description }}</p>
             </div>
           </div>
           <div class="text-xs px-2 py-1 rounded-full"
                :class="{
-                 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200': item.match_status === 'CONFIDENT_MATCH',
-                 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200': item.match_status === 'POSSIBLE_MATCH',
-                 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200': item.match_status === 'WEAK_MATCH',
-                 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200': item.match_status === 'NO_MATCH'
+                 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200': item.matchStatus === 'CONFIDENT_MATCH',
+                 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200': item.matchStatus === 'POSSIBLE_MATCH',
+                 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200': item.matchStatus === 'WEAK_MATCH',
+                 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200': item.matchStatus === 'NO_MATCH'
                }">
-            {{ formatMatchStatus(item.match_status) }}
+            {{ formatMatchStatus(item.matchStatus) }}
           </div>
         </div>
-        
+
         <!-- Service Matches -->
         <div v-if="item.matches && item.matches.length > 0" class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3">
           <h6 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Service Matches</h6>
-          
+
           <!-- Match Selection Radio Group -->
           <div class="space-y-2">
             <div v-for="(match, matchIndex) in item.matches" :key="matchIndex"
@@ -82,7 +82,7 @@
                    'hover:bg-gray-50 dark:hover:bg-gray-700/50': selectedMatches[index] !== matchIndex
                  }"
                  @click="selectMatch(index, matchIndex)">
-              
+
               <input type="radio"
                      :id="`match-${index}-${matchIndex}`"
                      :name="`product-match-${index}`"
@@ -90,22 +90,23 @@
                      v-model="selectedMatches[index]"
                      class="mr-3 mt-1"
                      @click.stop>
-              
+
               <label :for="`match-${index}-${matchIndex}`" class="flex-grow cursor-pointer">
                 <div class="flex justify-between">
-                  <span class="font-medium">{{ match.service.name }}</span>
+                  <span class="font-medium">{{ match.service?.name || match.product?.name || 'Unknown Service' }}</span>
                   <span class="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full text-gray-600 dark:text-gray-400">
-                    Score: {{ (match.score * 100).toFixed(0) }}%
+                    Score: {{ (parseFloat(match.score || 0) * 100).toFixed(0) }}%
                   </span>
                 </div>
                 <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  <p>Unit: {{ match.service.unit }} | Rate: ${{ match.service.rate.toFixed(2) }}/{{ match.service.unit }}</p>
-                  <p v-if="match.service.description" class="text-xs mt-1 text-gray-500 dark:text-gray-500">{{ match.service.description }}</p>
+                  {/* Assuming service/product objects within matches are also camelCased */}
+                  <p>Unit: {{ match.service?.unit || match.product?.unit || 'each' }} | Rate: ${{ parseFloat(match.service?.rate || match.service?.price || match.product?.price || 0).toFixed(2) }}/{{ match.service?.unit || match.product?.unit || 'each' }}</p>
+                  <p v-if="match.service?.description || match.product?.description" class="text-xs mt-1 text-gray-500 dark:text-gray-500">{{ match.service?.description || match.product?.description }}</p>
                 </div>
               </label>
             </div>
           </div>
-          
+
           <!-- Create New Service Option -->
           <div class="mt-3 flex items-start p-2 rounded-md cursor-pointer"
                :class="{
@@ -113,7 +114,7 @@
                  'hover:bg-gray-50 dark:hover:bg-gray-700/50': selectedMatches[index] !== 'new'
                }"
                @click="selectMatch(index, 'new')">
-            
+
             <input type="radio"
                    :id="`match-${index}-new`"
                    :name="`product-match-${index}`"
@@ -121,7 +122,7 @@
                    v-model="selectedMatches[index]"
                    class="mr-3 mt-1"
                    @click.stop>
-            
+
             <label :for="`match-${index}-new`" class="flex-grow cursor-pointer">
               <div class="font-medium text-green-600 dark:text-green-400">Create New Service</div>
               <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -130,11 +131,11 @@
             </label>
           </div>
         </div>
-        
+
         <!-- No Matches Found -->
         <div v-else class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3">
           <p class="text-sm text-gray-600 dark:text-gray-400">No matching services found in your catalog.</p>
-          
+
           <!-- Auto-select Create New Service -->
           <div class="mt-3 flex items-start p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
             <input type="radio"
@@ -144,7 +145,7 @@
                    v-model="selectedMatches[index]"
                    class="mr-3 mt-1"
                    checked>
-            
+
             <label :for="`match-${index}-new-auto`" class="flex-grow">
               <div class="font-medium text-green-600 dark:text-green-400">Create New Service</div>
               <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -154,17 +155,17 @@
           </div>
         </div>
       </div>
-      
+
       <!-- New Service Forms (shown when "Create New Service" is selected) -->
       <div v-if="showNewProductForms" class="mt-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
         <h4 class="text-md font-semibold mb-3 text-gray-800 dark:text-gray-200">New Services</h4>
-        
-        <div v-for="(item, index) in matchResults.lineItems" :key="`new-${index}`" 
+
+        <div v-for="(item, index) in matchResults.lineItems" :key="`new-${index}`"
              v-show="selectedMatches[index] === 'new'"
              class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-md shadow-sm">
-          
-          <h5 class="font-medium mb-3">New Service: {{ item.original.product_name }}</h5>
-          
+
+          <h5 class="font-medium mb-3">New Service: {{ item.original.productName }}</h5>
+
           <div class="space-y-3">
             <div>
               <label :for="`new-product-name-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -178,7 +179,7 @@
                 required
               />
             </div>
-            
+
             <div class="grid grid-cols-3 gap-3">
               <div>
                 <label :for="`new-product-price-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -194,7 +195,7 @@
                   required
                 />
               </div>
-              
+
               <div>
                 <label :for="`new-product-unit-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Unit
@@ -207,7 +208,7 @@
                   required
                 />
               </div>
-              
+
               <div>
                 <label :for="`new-product-type-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Type
@@ -223,7 +224,7 @@
                 </select>
               </div>
             </div>
-            
+
             <div>
               <label :for="`new-product-description-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                Service Description
@@ -238,7 +239,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Action Buttons -->
       <div class="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
         <button
@@ -247,7 +248,7 @@
         >
           Go Back
         </button>
-        
+
         <div>
           <button
             v-if="showNewProductForms"
@@ -256,7 +257,7 @@
           >
             Back to Matches
           </button>
-          
+
           <button
             v-if="hasNewProducts && !showNewProductForms"
             @click="showNewProductForms = true"
@@ -264,7 +265,7 @@
           >
             Review New Services ({{ newProductCount }})
           </button>
-          
+
           <button
             @click="finalizeMatches"
             :disabled="loading"
@@ -280,6 +281,7 @@
 </template>
 
 <script setup>
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 import { ref, computed, onMounted, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import estimatesService from '@/services/estimates.service.js';
@@ -340,34 +342,36 @@ const matchProducts = async () => {
   loading.value = true;
   error.value = null;
   loadingMessage.value = 'Matching products to your catalog...';
-  
+
   try {
     const response = await estimatesService.matchProductsToLineItems(props.lineItems);
-    
+
     if (response.success && response.data) {
-      matchResults.value = response.data;
-      
+      // Convert response data to camelCase
+      matchResults.value = toCamelCase(response.data);
+
       // Initialize selected matches (default to first match or 'new' if no matches)
       matchResults.value.lineItems.forEach((item, index) => {
-        if (item.matches && item.matches.length > 0 && item.matches.some(m => m.is_primary)) {
+        // Use camelCase isPrimary
+        if (item.matches && item.matches.length > 0 && item.matches.some(m => m.isPrimary)) {
           // Find index of primary match
-          const primaryIndex = item.matches.findIndex(m => m.is_primary);
+          const primaryIndex = item.matches.findIndex(m => m.isPrimary);
           selectedMatches.value[index] = primaryIndex;
         } else {
           // No matches or no primary match, default to 'new'
           selectedMatches.value[index] = 'new';
         }
-        
-        // Initialize new product data from original line item
+
+        // Initialize new product data from original line item (using camelCase)
         newProducts.value[index] = {
-          name: item.original.product_name || '',
-          price: item.original.unit_price || 0,
-          unit: item.original.unit || '',
+          name: item.original.productName || '',
+          price: item.original.unitPrice || 0,
+          unit: item.original.unit || '', // unit seems consistent
           description: item.original.description || '',
-          type: 'product'
+          type: 'service' // Default new items to 'service' as per guidelines
         };
       });
-      
+
       toast.success('Product matching completed.');
     } else {
       error.value = response.message || 'Failed to match products.';
@@ -393,7 +397,7 @@ const finalizeMatches = async () => {
   if (showNewProductForms && hasNewProducts) {
     // Validate new product forms
     const invalidProducts = [];
-    
+
     Object.entries(selectedMatches.value).forEach(([lineItemIndex, matchValue]) => {
       if (matchValue === 'new') {
         const product = newProducts.value[lineItemIndex];
@@ -402,33 +406,33 @@ const finalizeMatches = async () => {
         }
       }
     });
-    
+
     if (invalidProducts.length > 0) {
       const itemNumbers = invalidProducts.map(i => i + 1).join(', ');
       toast.error(`Please complete all required fields for new product(s) ${itemNumbers}.`);
       return;
     }
-    
+
     // Create new products
     loading.value = true;
     loadingMessage.value = 'Creating new products...';
-    
+
     try {
       // Prepare array of new products to create
       const productsToCreate = [];
-      
+
       Object.entries(selectedMatches.value).forEach(([lineItemIndex, matchValue]) => {
         if (matchValue === 'new') {
           productsToCreate.push(newProducts.value[lineItemIndex]);
         }
       });
-      
+
       if (productsToCreate.length > 0) {
         const response = await estimatesService.createProductsFromLineItems(productsToCreate);
-        
+
         if (response.success && response.data) {
           toast.success(`Successfully created ${response.data.length} new products.`);
-          
+
           // Update the finalData with newly created product IDs
           // This would require matching new products back to their line items
           // For now, just toggle back to matches view to continue
@@ -448,20 +452,20 @@ const finalizeMatches = async () => {
       loading.value = false;
     }
   }
-  
-  // Prepare finalized data for creating estimate
-  const finalizedLineItems = matchResults.value.lineItems.map((item, index) => {
+
+  // Prepare finalized data for creating estimate (using camelCase internally)
+  const finalizedLineItemsCamel = matchResults.value.lineItems.map((item, index) => {
     const matchIndex = selectedMatches.value[index];
-    
-    // If using existing product
+
+    // If using existing product (assume selectedProduct is camelCase)
     if (matchIndex !== 'new' && item.matches && item.matches[matchIndex]) {
-      const selectedProduct = item.matches[matchIndex].product;
+      const selectedProduct = item.matches[matchIndex].product || item.matches[matchIndex].service; // Handle both product/service matches
       return {
-        product_id: selectedProduct.id,
-        product_name: selectedProduct.name,
+        productId: selectedProduct.id,
+        productName: selectedProduct.name,
         quantity: item.original.quantity,
         unit: selectedProduct.unit,
-        unit_price: selectedProduct.price,
+        unitPrice: selectedProduct.price || selectedProduct.rate, // Use price or rate
         description: item.original.description || selectedProduct.description || '',
         notes: item.original.notes || ''
       };
@@ -469,20 +473,23 @@ const finalizeMatches = async () => {
     // If creating new product
     else {
       return {
-        product_id: null, // Will be populated after product creation
-        product_name: newProducts.value[index].name,
+        productId: null, // Will be populated after product creation
+        productName: newProducts.value[index].name,
         quantity: item.original.quantity,
         unit: newProducts.value[index].unit,
-        unit_price: newProducts.value[index].price,
+        unitPrice: newProducts.value[index].price,
         description: newProducts.value[index].description || '',
         notes: item.original.notes || ''
       };
     }
   });
   
-  // Emit finished event with finalized data
+  // Convert finalized line items to snake_case before emitting
+  const finalizedLineItemsSnake = finalizedLineItemsCamel.map(item => toSnakeCase(item));
+
+  // Emit finished event with finalized data (snake_case)
   emit('finished', {
-    lineItems: finalizedLineItems,
+    lineItems: finalizedLineItemsSnake,
     // Additional estimate metadata could be included here
   });
 };

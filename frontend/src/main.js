@@ -8,6 +8,7 @@ import Timeline from 'primevue/timeline';
 import ColorPicker from 'primevue/colorpicker';
 import Menubar from 'primevue/menubar';
 import Select from 'primevue/select';
+import Paginator from 'primevue/paginator';
 import ToastService from 'primevue/toastservice';
 import { setupCalendar } from 'v-calendar';
 import clickOutsideDirective from './directives/click-outside';
@@ -18,13 +19,16 @@ import 'primeicons/primeicons.css';
 import 'v-calendar/style.css';
 import 'vue-toastification/dist/index.css';
 import './style.css';
+// Theme variables and custom component styles
+import './assets/css/theme-variables.css';
+import './assets/css/custom-paginator.css';
 
 const app = createApp(App);
 
 // Ensure Pinia is installed before the router
 app.use(pinia);
 app.use(router);
-app.use(PrimeVue, { 
+app.use(PrimeVue, {
   theme: {
     preset: Aura
   }
@@ -38,6 +42,7 @@ app.component('Timeline', Timeline);
 app.component('ColorPicker', ColorPicker);
 app.component('Menubar', Menubar);
 app.component('Select', Select);
+app.component('Paginator', Paginator);
 
 // Setup v-calendar
 app.use(setupCalendar, {});

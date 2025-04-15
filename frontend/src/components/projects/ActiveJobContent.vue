@@ -6,15 +6,15 @@
       <div class="grid sm:grid-cols-2 gap-4">
         <div>
           <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
-          <p>{{ project.status }}</p>
+          <p>{{ normalizedProject.status }}</p>
         </div>
         <div>
           <p class="text-sm text-gray-500 dark:text-gray-400">Scheduled Date</p>
-          <p>{{ formatDate(project.scheduled_date) }}</p>
+          <p>{{ formatDate(normalizedProject.scheduledDate) }}</p>
         </div>
         <div class="sm:col-span-2">
           <p class="text-sm text-gray-500 dark:text-gray-400">Scope</p>
-          <p>{{ project.scope || 'No scope provided' }}</p>
+          <p>{{ normalizedProject.scope || 'No scope provided' }}</p>
         </div>
       </div>
     </div>
@@ -23,7 +23,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
       <h3 class="font-medium mb-2">Before Photos</h3>
       <PhotoUploadSection
-        :project-id="project.id"
+        :project-id="normalizedProject.id"
         photo-type="before"
         label="Add before photos"
       />
@@ -37,7 +37,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
       <h3 class="font-medium mb-2">After Photos</h3>
       <PhotoUploadSection
-        :project-id="project.id"
+        :project-id="normalizedProject.id"
         photo-type="after"
         label="Add after photos"
       />
@@ -51,7 +51,7 @@
     <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-4">
       <h3 class="font-medium mb-2">Receipts</h3>
       <PhotoUploadSection
-        :project-id="project.id"
+        :project-id="normalizedProject.id"
         photo-type="receipt"
         label="Upload receipts"
       />
@@ -62,7 +62,7 @@
     </div>
     
     <!-- Additional Work Section (if applicable) -->
-    <div v-if="project.estimate" class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+    <div v-if="normalizedProject.estimate" class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
       <h3 class="font-medium mb-2">Additional Work</h3>
       <BaseTextarea
         v-model="additionalWork"
@@ -83,6 +83,7 @@
 </template>
 
 <script setup>
+import { toCamelCase } from '@/utils/casing';
 import { ref, computed } from 'vue';
 import BaseTextarea from '@/components/form/BaseTextarea.vue';
 import BaseButton from '@/components/base/BaseButton.vue';
@@ -97,12 +98,19 @@ const props = defineProps({
   }
 });
 
-const additionalWork = ref(props.project?.additional_work || '');
+// Normalize the project prop for consistent access
+const normalizedProject = computed(() => {
+  return props.project ? toCamelCase(props.project) : {};
+});
+
+const additionalWork = ref(normalizedProject.value?.additionalWork || ''); // Use normalized project
 const saving = ref(false);
+
 
 // Get photos by type
 const getPhotosByType = (type) => {
-  return props.project?.photos?.filter(p => p.photo_type === type) || [];
+  // Use normalized project and rely on normalized photoType
+  return normalizedProject.value?.photos?.filter(p => p.photoType === type) || [];
 };
 
 // Helper to format dates
@@ -116,7 +124,8 @@ const formatDate = (dateString) => {
 const saveAdditionalWork = async () => {
   saving.value = true;
   try {
-    await projectsService.updateAdditionalWork(props.project.id, additionalWork.value);
+    // Use normalized project ID
+    await projectsService.updateAdditionalWork(normalizedProject.value.id, additionalWork.value);
     // Could emit an event to notify parent or show a success message
   } catch (error) {
     console.error('Error saving additional work:', error);

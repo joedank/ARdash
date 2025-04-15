@@ -217,18 +217,18 @@
 
     <!-- Read-only version for viewing historical data -->
     <template v-else>
-      <div v-if="project" class="space-y-4">
+      <div v-if="normalizedProject" class="space-y-4"> {/* Use normalizedProject */}
         <!-- Basic Project Info -->
         <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
           <h3 class="font-medium mb-2">Assessment Information</h3>
           <div class="grid sm:grid-cols-2 gap-4">
             <div>
               <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
-              <p>{{ project.status }}</p>
+              <p>{{ normalizedProject.status }}</p> {/* Use normalizedProject */}
             </div>
             <div>
               <p class="text-sm text-gray-500 dark:text-gray-400">Scheduled Date</p>
-              <p>{{ formatDate(project.scheduled_date) }}</p>
+              <p>{{ formatDate(normalizedProject.scheduledDate) }}</p> {/* Use normalized scheduledDate */}
             </div>
             <!-- Scope removed -->
           </div>
@@ -236,13 +236,13 @@
 
         <!-- Inspection Data (if available) -->
         <div
-          v-if="project.inspections && project.inspections.length > 0"
+          v-if="normalizedProject.inspections && normalizedProject.inspections.length > 0"
           class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4"
         >
           <h3 class="font-medium mb-2">Assessment Details</h3>
 
           <!-- Display inspection data in read-only format -->
-          <div v-for="inspection in project.inspections" :key="inspection.id" class="mb-4">
+          <div v-for="inspection in normalizedProject.inspections" :key="inspection.id" class="mb-4">
             <h4 class="font-medium mb-1 capitalize">{{ inspection.category }}</h4>
 
             <!-- Condition -->
@@ -260,10 +260,10 @@
                       <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ getMeasurementTypeLabel(item) }}</p>
                         <p v-if="getMeasurementType(item) === 'area'">
-                          {{ item.dimensions?.length || item.length || 'N/A' }} ft × {{ item.dimensions?.width || item.width || 'N/A' }} ft = {{ calculateSquareFootage(item) }}
+                          {{ item.length || 'N/A' }} ft × {{ item.width || 'N/A' }} ft = {{ calculateSquareFootage(item) }}
                         </p>
                         <p v-else-if="getMeasurementType(item) === 'linear'">
-                          {{ item.dimensions?.length || item.length || 'N/A' }} linear ft
+                          {{ item.length || 'N/A' }} linear ft
                         </p>
                         <p v-else-if="getMeasurementType(item) === 'quantity'">
                           {{ item.quantity || 'N/A' }} {{ item.quantityUnit || 'units' }}
@@ -338,6 +338,7 @@
 </template>
 
 <script setup>
+import { toCamelCase } from '@/utils/casing';
 import { ref, computed, watch } from 'vue';
 import BaseTextarea from '@/components/form/BaseTextarea.vue';
 import BaseInput from '@/components/form/BaseInput.vue';
@@ -379,6 +380,16 @@ const props = defineProps({
       items: [{ name: '', quantity: '', unit: 'each' }]
     })
   }
+});
+
+
+// Normalize the project prop for consistent access - Convert once to avoid reactivity issues
+const normalizedProject = computed(() => {
+  // Use a non-reactive conversion to avoid reactivity loops
+  if (!props.project) return {};
+  // Use a non-reactive approach to normalize
+  const projectCopy = JSON.parse(JSON.stringify(props.project));
+  return toCamelCase(projectCopy);
 });
 
 // Form data initialized from props
@@ -453,10 +464,10 @@ const getMeasurementType = (item) => {
   // If the item has an explicit measurement type, use it
   if (item.measurementType) return item.measurementType;
 
-  // Otherwise infer from the data structure
+  // Otherwise infer from the data structure (use direct properties)
   if (item.quantity && item.quantityUnit) return 'quantity';
-  if ((item.dimensions?.width || item.width) && (item.dimensions?.length || item.length)) return 'area';
-  if (item.dimensions?.length || item.length) return 'linear';
+  if (item.width && item.length) return 'area'; // Check direct width and length
+  if (item.length) return 'linear'; // Check direct length
 
   // Default to area if we can't determine
   return 'area';
@@ -482,9 +493,9 @@ const formatLinearFeet = (measurement) => {
 
 // Calculate square footage
 const calculateSquareFootage = (measurement) => {
-  // Handle both direct properties and nested dimensions
-  const length = parseFloat(measurement.dimensions?.length || measurement.length) || 0;
-  const width = parseFloat(measurement.dimensions?.width || measurement.width) || 0;
+  // Use direct properties
+  const length = parseFloat(measurement.length) || 0;
+  const width = parseFloat(measurement.width) || 0;
 
   if (length === 0 || width === 0) return '0 sq ft';
 
@@ -509,61 +520,88 @@ const removeMeasurement = (index) => {
   measurements.value.items.splice(index, 1);
 };
 
-// Initialize form data from project inspections
-watch(() => props.project, (newProject) => {
-  if (newProject && newProject.inspections) {
-    newProject.inspections.forEach(inspection => {
+// Initialize form data from project inspections - use onMounted to avoid reactivity issues
+import { onMounted } from 'vue';
+
+// Initialize inspection data once on component mount, not on every prop change
+onMounted(() => {
+  // Only initialize if values aren't already set via props
+  const normProject = normalizedProject.value;
+  if (normProject && normProject.inspections && normProject.inspections.length > 0) {
+    let hasUpdatedCondition = false;
+    let hasUpdatedMeasurements = false;
+    let hasUpdatedMaterials = false;
+    
+    normProject.inspections.forEach(inspection => {
       switch (inspection.category) {
         case 'condition':
-          condition.value = inspection.content;
+          if (!hasUpdatedCondition && (!condition.value || !condition.value.assessment)) {
+            condition.value = JSON.parse(JSON.stringify(inspection.content || { assessment: '' }));
+            hasUpdatedCondition = true;
+          }
           break;
         case 'measurements':
-          if (inspection.content && Array.isArray(inspection.content.items)) {
-            // Transform items to ensure dimensions are properly extracted
-            measurements.value.items = inspection.content.items.map(item => {
-              // Determine measurement type
-              const measurementType = item.measurementType ||
-                (item.quantity ? 'quantity' :
-                 (item.dimensions?.width || item.width ? 'area' : 'linear'));
+          if (!hasUpdatedMeasurements && (!measurements.value || !measurements.value.items || measurements.value.items.length === 0)) {
+            if (inspection.content && Array.isArray(inspection.content.items)) {
+              // Transform items using normalized properties
+              const updatedItems = inspection.content.items.map(item => {
+                // Determine measurement type
+                const measurementType = item.measurementType ||
+                  (item.quantity ? 'quantity' :
+                   (item.width ? 'area' : 'linear'));
 
-              // Create base item with common properties
-              const transformedItem = {
-                description: item.description || '',
-                measurementType: measurementType,
-                units: item.dimensions?.units || item.units || 'feet',
-              };
+                // Create base item with common properties
+                const transformedItem = {
+                  description: item.description || '',
+                  measurementType: measurementType,
+                  units: item.units || 'feet',
+                };
 
-              // Add type-specific properties
-              if (measurementType === 'area' || measurementType === 'linear') {
-                transformedItem.length = item.dimensions?.length || item.length || '';
-                if (measurementType === 'area') {
-                  transformedItem.width = item.dimensions?.width || item.width || '';
+                // Add type-specific properties
+                if (measurementType === 'area' || measurementType === 'linear') {
+                  transformedItem.length = item.length || '';
+                  if (measurementType === 'area') {
+                    transformedItem.width = item.width || '';
+                  }
+                } else if (measurementType === 'quantity') {
+                  transformedItem.quantity = item.quantity || '1';
+                  transformedItem.quantityUnit = item.quantityUnit || 'each';
                 }
-              } else if (measurementType === 'quantity') {
-                transformedItem.quantity = item.quantity || '1';
-                transformedItem.quantityUnit = item.quantityUnit || 'each';
-              }
 
-              return transformedItem;
-            });
-          } else if (inspection.content) {
-            // Handle legacy format
-            measurements.value.items = [{
-              description: inspection.content.description || '',
-              measurementType: 'area', // Default to area for legacy format
-              length: inspection.content.dimensions?.length || '',
-              width: inspection.content.dimensions?.width || '',
-              units: inspection.content.dimensions?.units || 'feet'
-            }];
+                return transformedItem;
+              });
+              
+              measurements.value = { items: updatedItems };
+            } else if (inspection.content) {
+              // Handle legacy format
+              measurements.value = {
+                items: [{
+                  description: inspection.content.description || '',
+                  measurementType: 'area',
+                  length: inspection.content.length || '',
+                  width: inspection.content.width || '',
+                  units: inspection.content.units || 'feet'
+                }]
+              };
+            }
+            hasUpdatedMeasurements = true;
           }
           break;
         case 'materials':
-          materials.value = inspection.content;
+          if (!hasUpdatedMaterials && (!materials.value || !materials.value.items || materials.value.items.length === 0)) {
+            materials.value = JSON.parse(JSON.stringify(inspection.content || { items: [{ name: '', quantity: '', unit: 'each' }] }));
+            hasUpdatedMaterials = true;
+          }
           break;
       }
     });
+    
+    // After initializing, emit updates
+    if (hasUpdatedCondition) emit('update:condition', condition.value);
+    if (hasUpdatedMeasurements) emit('update:measurements', measurements.value);
+    if (hasUpdatedMaterials) emit('update:materials', materials.value);
   }
-}, { immediate: true });
+});
 
 // Materials list management
 const addMaterial = () => {
@@ -587,10 +625,13 @@ const removeMaterial = (index) => {
 // Local references for photos to ensure proper deletion
 const localConditionPhotos = ref([]);
 
-// Watch for changes in project photos and update local references
-watch(() => props.project?.photos, (newPhotos) => {
-  if (newPhotos) {
-    localConditionPhotos.value = newPhotos.filter(p => p.photo_type === 'condition');
+// Update photos once and when project changes explicitly, avoiding reactive loops
+watch(() => props.project?.id, () => {
+  const normProject = normalizedProject.value;
+  if (normProject?.photos) {
+    localConditionPhotos.value = normProject.photos
+      .filter(p => p.photoType === 'condition' || p.photo_type === 'condition')
+      .map(p => ({ ...p })); // Create a copy to avoid reactivity issues
   } else {
     localConditionPhotos.value = [];
   }

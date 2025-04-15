@@ -4,6 +4,7 @@ const userRoutes = require('./user.routes');
 const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
 const clientsRoutes = require('./clients.routes');
+const addressesRoutes = require('./addresses.routes');
 const invoicesRoutes = require('./invoices.routes');
 const estimatesRoutes = require('./estimates.routes');
 const productsRoutes = require('./products.routes');
@@ -12,6 +13,8 @@ const uploadRoutes = require('./upload.routes');
 const projectsRoutes = require('./projects.routes');
 const llmPromptRoutes = require('./llmPrompt.routes');
 const assessmentRoutes = require('./assessment.routes');
+const estimateItemPhotosRoutes = require('./estimateItemPhotos.routes');
+const estimateItemAdditionalWorkRoutes = require('./estimateItemAdditionalWork.routes');
 
 const router = express.Router();
 
@@ -27,6 +30,7 @@ router.use('/admin', adminRoutes);
 
 // Invoicing/Estimating routes
 router.use('/clients', clientsRoutes);
+router.use('/addresses', addressesRoutes);
 router.use('/invoices', invoicesRoutes);
 router.use('/estimates', estimatesRoutes);
 router.use('/products', productsRoutes);
@@ -40,6 +44,12 @@ router.use('/projects', projectsRoutes);
 router.use('/llm-prompts', llmPromptRoutes);
 
 // Assessment routes
-router.use('/assessments', assessmentRoutes);
+router.use('/assessment', assessmentRoutes);
+
+// Estimate item photos routes
+router.use('/api', estimateItemPhotosRoutes);
+
+// Estimate item additional work routes
+router.use('/api', estimateItemAdditionalWorkRoutes);
 
 module.exports = router;

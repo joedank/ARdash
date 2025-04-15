@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
         onDelete: 'CASCADE'
       });
       Invoice.belongsTo(models.Client, {
-        foreignKey: 'client_fk_id',
+        foreignKey: 'client_id', // Standardized client ID reference
         as: 'client'
       });
       Invoice.belongsTo(models.ClientAddress, {
@@ -42,20 +42,15 @@ module.exports = (sequelize, DataTypes) => {
       unique: true,
       field: 'invoice_number'
     },
-    clientId: { // Legacy field
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: 'Legacy client identifier (deprecated)',
-      field: 'client_id'
-    },
-    client_fk_id: {
+    // clientId field removed as client_id_legacy column doesn't exist in the database
+    client_id: {
       type: DataTypes.UUID,
       allowNull: true,
       references: {
         model: 'clients',
         key: 'id'
       },
-      field: 'client_fk_id',
+      field: 'client_id',
       comment: 'Foreign key to clients table'
     },
     address_id: {
@@ -130,8 +125,8 @@ module.exports = (sequelize, DataTypes) => {
     deletedAt: 'deleted_at',
     indexes: [
       { unique: true, fields: ['invoice_number'] },
-      { fields: ['client_id'] }, // Legacy index
-      { fields: ['client_fk_id'] },
+      // Legacy index removed as client_id_legacy column doesn't exist
+      { fields: ['client_id'] },
       { fields: ['status'] },
       { fields: ['address_id'] }
     ]
