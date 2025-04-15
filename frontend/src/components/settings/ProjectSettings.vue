@@ -2,11 +2,7 @@
   <div class="project-settings">
     <!-- Alert Messages Handled by useErrorHandler -->
     <!-- Project Management Controls -->
-    <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
-      <div class="flex flex-col mb-4 md:mb-0">
-        <h2 class="text-lg font-medium text-gray-900 dark:text-white">Project Management</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400">Manage your project assessments and active jobs</p>
-      </div>
+    <div class="flex justify-end mb-6">
 
       <BaseButton
         variant="primary"
@@ -117,22 +113,22 @@
       <form @submit.prevent="updateProject">
         <div class="space-y-4">
           <!-- Client Selection -->
-          <ClientSelector>
+          <ClientSelector
             id="edit-client"
-            v-model="editingProject.clientId" <!-- camelCase -->
+            v-model="editingProject.clientId"
             :required="true"
             label="Client"
-          </ClientSelector>
+          />
 
           <!-- Estimate Selection -->
-          <EstimateSelector>
+          <EstimateSelector
             id="edit-estimate"
             v-model="editingProject.estimate"
-            :clientId="getClientIdValue(editingProject.clientId)" <!-- camelCase -->
+            :clientId="getClientIdValue(editingProject.clientId)"
             :label="getEditEstimateSelectorLabel"
             :placeholder-text="getEditEstimatePlaceholderText"
             :class="{'border-2 border-green-300 dark:border-green-700 rounded p-2': editingProject.type === 'active'}"
-          </EstimateSelector>
+          />
 
           <!-- Project Type -->
           <BaseFormGroup
@@ -163,17 +159,18 @@
           </BaseFormGroup>
 
           <!-- Scheduled Date -->
-          <BaseFormGroup>
+          <BaseFormGroup
             label="Scheduled Date"
             input-id="edit-scheduled-date"
             helper-text="When is this project scheduled for?"
-          </BaseFormGroup>
-            <BaseInput>
+          >
+            <BaseInput
               id="edit-scheduled-date"
-              v-model="editingProject.scheduledDate" <!-- camelCase -->
+              v-model="editingProject.scheduledDate"
               type="date"
               :required="true"
-            </BaseInput>
+            />
+          </BaseFormGroup>
 
           <!-- Project Scope Field Removed -->
         </div>
@@ -355,8 +352,6 @@ const editingProject = reactive({
   scheduledDate: ''
 });
 
-const projectToDelete = ref(null);
-
 // Options for selects
 const typeOptions = [
   { value: 'assessment', label: 'Assessment' },
@@ -528,14 +523,31 @@ const getClientIdValue = (clientInput) => {
 
 // Open edit modal with project data (assume project data is camelCase)
 const editProject = (project) => {
+  console.log('Editing project:', project); // Debug log
+  
+  // Reset the form before populating with new data
+  Object.assign(editingProject, {
+    id: '',
+    clientId: null,
+    estimate: null,
+    type: 'assessment',
+    status: 'pending',
+    scheduledDate: ''
+  });
+  
+  // Now populate with project data
   Object.assign(editingProject, {
     id: project.id,
-    clientId: project.clientId || (project.client ? project.client.id : ''), // Handle client object or just ID
-    estimate: project.estimate || null, // Assume estimate object is passed or null
+    // For the clientId field, we need to pass the complete client object
+    // The ClientSelector component expects a full client object, not just an ID
+    clientId: project.client || null,
+    estimate: project.estimate || null,
     type: project.type || 'assessment',
     status: project.status || 'pending',
     scheduledDate: project.scheduledDate ? new Date(project.scheduledDate).toISOString().split('T')[0] : ''
   });
+  
+  console.log('Editing project form data:', editingProject); // Debug log
   showEditProjectModal.value = true;
 };
 
