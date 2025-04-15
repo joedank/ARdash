@@ -57,6 +57,16 @@ class ProjectService {
           model: EstimateItem,
           as: 'items'
         }]
+      }, {
+        // Include related assessment if this is an active job
+        model: Project,
+        as: 'assessment',
+        required: false
+      }, {
+        // Include converted job if this is an assessment
+        model: Project,
+        as: 'convertedJob',
+        required: false
       }],
       // order: [
       //   ['scheduled_date', 'DESC'],

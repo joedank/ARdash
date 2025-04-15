@@ -31,6 +31,8 @@ const getAll = async (req, res, next) => {
       includeConverted: req.query.includeConverted === 'true'
     };
     
+    logger.info(`Getting projects with filters: ${JSON.stringify(filters)}`);
+    
     const projects = await projectService.getAllProjects(filters);
     return res.json(success(projects, 'Projects retrieved successfully'));
   } catch (err) {

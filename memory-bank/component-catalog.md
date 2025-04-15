@@ -55,13 +55,30 @@
   - ClientSettings
   - ProjectSettings
 
-- **BaseBadge**  
-  Purpose:  
-  Used in:  
+- **BaseBadge**
+  Purpose:
+  A versatile badge component for displaying status indicators, tags, and counts. Supports multiple color variants, sizes, and optional icons/counts. Features include:
+  - Color variants: gray, red, yellow, green, blue, indigo, purple, pink
+  - Size variants: sm, md, lg
+  - Optional count numbers and dot indicators
+  - Dark mode compatibility
+  - Slot support for custom content and icons
+  
+  Used in:
+  - ProjectCard.vue (project status indicators)
+  - UserManagement.vue (user role badges)
+  - ClientTableResponsive.vue (client type indicators)
+  - ProjectTableResponsive.vue (project type/status badges)
+  - UserTableResponsive.vue (user role badges)
+  - ClientSettings.vue (client status/primary address indicators)
+  - UserSettings.vue (user role/status indicators)
+  - ProjectSettings.vue (project status indicators)
 
-- **BaseMap**  
-  Purpose:  
-  Used in:  
+- **BaseMap**
+  Purpose:
+  An interactive map component for displaying geographical data (currently using placeholder text as Leaflet integration is temporarily disabled). Supports center coordinates, zoom level, markers with popups, and custom tile layers.
+  Used in:
+  Not currently used in any components/views (as of 2025-04-15)
 
 - **BaseSkeletonLoader**  
   Purpose:  
