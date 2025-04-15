@@ -1,3 +1,132 @@
+### Vue Component Tag Structure Pattern
+
+- **Problem**: Improper component tag structure can cause rendering issues and unexpected behavior in Vue templates
+- **Solution**: Implement consistent component tag structure following Vue best practices
+
+```html
+<!-- For components with children, use opening and closing tags -->
+<ParentComponent
+  prop1="value1"
+  :prop2="dynamicValue"
+  @event="handleEvent"
+>
+  <ChildComponent />
+</ParentComponent>
+
+<!-- For components without children, use self-closing tags -->
+<StandaloneComponent
+  prop1="value1"
+  :prop2="dynamicValue"
+  @event="handleEvent"
+/>
+```
+
+- **Key Aspects**:
+  - Always place attributes inside the opening tag, never after the closing tag
+  - Use self-closing tags (`<Component />`) for components without children
+  - Use opening and closing tags (`<Component></Component>`) for components with children
+  - Never place HTML comments inside attribute areas (`<!-- comment -->` should be on separate lines)
+  - Use proper indentation to improve readability
+  - Ensure all required props are provided to prevent Vue console warnings
+
+### Form State Reset Pattern
+
+- **Problem**: Form state can become contaminated with data from previous edits, especially with complex nested objects
+- **Solution**: Implement a two-step form reset and population process:
+
+```javascript
+// Two-step form reset and population process
+const editItem = (item) => {
+  // Step 1: Reset form to default values
+  Object.assign(editingItem, {
+    id: '',
+    name: '',
+    relatedObject: null,
+    // Other default values
+  });
+  
+  // Step 2: Populate with item data
+  Object.assign(editingItem, {
+    id: item.id,
+    name: item.name,
+    relatedObject: item.relatedObject || null,
+    // Other values with fallbacks
+  });
+  
+  // Open modal or proceed with editing
+  showEditModal.value = true;
+};
+```
+
+- **Key Aspects**:
+  - Reset form state to default values before populating with new data
+  - Use `Object.assign()` for efficient object property updates
+  - Provide fallbacks for potentially undefined values
+  - Consider the complete object structure expected by form components
+  - Use console logging during development to verify object structures
+
+### Enhanced Deletion Pattern with Dependency Checking
+
+- **Problem**: Project deletion can fail when circular references exist (e.g., assessment → job and job → assessment)
+- **Solution**: Implement a two-phase deletion process with dependency checking and options:
+
+```javascript
+// 1. Dependency checking before deletion
+async getProjectDependencies(projectId) {
+  // Check for related assessments/jobs, photos, inspections, estimates
+  return {
+    hasRelatedJob: !!relatedJob,
+    relatedJob,
+    hasRelatedAssessment: !!relatedAssessment,
+    relatedAssessment,
+    inspectionsCount,
+    photosCount,
+    estimatesCount,
+    hasDependencies: /* boolean summary */
+  };
+}
+
+// 2. Reference-safe deletion that breaks circular dependencies
+async deleteProject(projectId) {
+  // Within transaction:
+  // 1. If assessment with converted job, update job: assessment_id = null
+  // 2. If job with assessment reference, update assessment: converted_to_job_id = null
+  // 3. Delete photos, inspections, etc. 
+  // 4. Delete project
+}
+
+// 3. Optional complete reference deletion (cascade-like behavior)
+async deleteProjectWithReferences(projectId) {
+  // Delete both sides of relationships and all connected entities
+}
+```
+
+- **UI Implementation**: Modal with dependency details and deletion options
+  ```html
+  <!-- Show detailed dependency impact -->
+  <div v-if="projectDependencies.hasDependencies" class="rounded-lg border p-3">
+    <h4>Deletion Impact</h4>
+    <div class="text-sm">{{ detailedDeleteMessage }}</div>
+  </div>
+  
+  <!-- Deletion options as radio buttons -->
+  <div class="flex items-start space-x-2">
+    <input type="radio" v-model="deletionOption" value="break" />
+    <label>Break references only</label>
+  </div>
+  <div class="flex items-start space-x-2">
+    <input type="radio" v-model="deletionOption" value="all" />
+    <label>Delete everything</label>
+  </div>
+  ```
+
+- **Key Aspects**:
+  - Explicit display of deletion impact before confirmation
+  - User control over deletion strategy
+  - Proper transaction management for data integrity
+  - Breaking circular references to prevent database constraint issues
+  - Consistent user experience across the application
+
 ### Additional Work Integration Pattern
 
 - **Problem**: Construction projects often require additional work beyond the original estimate line items, but there's no structured way to track this

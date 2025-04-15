@@ -27,7 +27,8 @@ const getAll = async (req, res, next) => {
   try {
     const filters = {
       type: req.query.type,
-      status: req.query.status
+      status: req.query.status,
+      includeConverted: req.query.includeConverted === 'true'
     };
     
     const projects = await projectService.getAllProjects(filters);

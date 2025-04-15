@@ -1,5 +1,69 @@
 # Progress Log
 
+[2025-04-15 23:45] - **Fixed Vue Component Tag Syntax and Client Display in Edit Forms**
+
+**Issues Identified and Fixed:**
+1. Vue component syntax errors in ProjectSettings.vue:
+   - Several form components were using incorrect tag syntax with attributes outside the opening tags
+   - HTML comments inside attribute areas were causing visible text in the UI
+   - `inputId` required prop was missing from BaseFormGroup component
+2. Client name not displaying in project edit form:
+   - ClientSelector component was expecting a complete client object but receiving just an ID
+   - Data structure mismatch between the form value and component expectation
+
+**Solution Implemented:**
+1. Fixed Vue component tags:
+   - Properly structured self-closing tags for components without children
+   - Ensured attributes are inside the opening tags
+   - Removed HTML comments from attribute areas
+2. Fixed client display in edit form:
+   - Added form reset before populating with new project data
+   - Ensured full client object is passed to the ClientSelector component
+   - Added better error handling and debug logging
+
+**Key Learnings:**
+- Vue component syntax requires careful attention to tag structure and attribute placement
+- Component data expectations must be clearly understood - ClientSelector expects a full client object, not just an ID
+- Form reset before populating with new data helps prevent state contamination
+- Debugging with console logs at input and output points helps identify object structure mismatches
+
+---
+
+[2025-04-15 23:30] - **Fixed Project Deletion with Enhanced Dependency Management**
+
+**Issues Identified and Fixed:**
+1. Project deletion was failing with transaction errors when circular references existed:
+   - Particularly when trying to delete an assessment that was converted to a job
+   - `current transaction is aborted, commands ignored until end of transaction block` errors occurred
+   - Circular references between project records prevented proper deletion
+
+2. Implemented a comprehensive solution:
+   - Added dependency checking API endpoint (`GET /projects/:id/dependencies`)
+   - Improved the `deleteProject` method to handle circular references safely
+   - Created a new `deleteProjectWithReferences` method for optional cascading deletion
+   - Built an enhanced UI that shows deletion impact and provides options
+
+**Solution Implemented:**
+1. Backend changes:
+   - Modified transaction handling in `projectService.js` to break circular references before deletion
+   - Added `getProjectDependencies()` method to analyze project relationships
+   - Created a helper method `_deleteProjectPhotosAndInspections()` for code reuse
+   - Enhanced controller to support dependency checking and deletion options
+
+2. Frontend changes:
+   - Updated `standardized-projects.service.js` with new methods
+   - Enhanced delete confirmation modal in `ProjectSettings.vue`
+   - Added detailed dependency display with formatted information
+   - Implemented deletion options with radio buttons
+
+**Key Learnings:**
+- Transaction management is critical when dealing with circular references
+- Breaking references before deletion prevents constraint violations
+- Giving users control over deletion strategy improves experience and prevents data loss
+- The bidirectional nature of project references (assessment ↔ job) serves important UX needs but requires special deletion handling
+
+---
+
 [2025-04-15 00:45] - **Fixed Docker Containerization and PDF Generation Issues**
 
 **Issues Identified and Fixed:**

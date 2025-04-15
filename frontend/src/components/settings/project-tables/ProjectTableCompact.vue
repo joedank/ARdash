@@ -28,12 +28,25 @@
         <div class="p-4">
           <div class="flex justify-between items-start mb-2">
             <h4 class="font-medium text-gray-900 dark:text-white truncate">{{ getClientName(project.client) }}</h4>
-            <BaseBadge
-              :variant="project.type === 'assessment' ? 'red' : 'green'"
-              size="sm"
-            >
-              {{ formatProjectType(project.type) }}
-            </BaseBadge>
+            <div class="flex items-center">
+              <BaseBadge
+                :variant="project.type === 'assessment' ? 'red' : 'green'"
+                size="sm"
+              >
+                {{ formatProjectType(project.type) }}
+              </BaseBadge>
+              
+              <!-- Conversion Indicator -->
+              <span 
+                v-if="project.convertedJob || project.assessment" 
+                class="ml-1 inline-flex items-center" 
+                title="This project has been converted"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-blue-500">
+                  <path fill-rule="evenodd" d="M2 10a.75.75 0 01.75-.75h12.59l-2.1-1.95a.75.75 0 111.02-1.1l3.5 3.25a.75.75 0 010 1.1l-3.5 3.25a.75.75 0 11-1.02-1.1l2.1-1.95H2.75A.75.75 0 012 10z" clip-rule="evenodd" />
+                </svg>
+              </span>
+            </div>
           </div>
 
           <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">

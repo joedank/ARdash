@@ -286,6 +286,39 @@ class StandardizedProjectsService extends BaseService {
     }
   }
 
+  /**
+   * Check project dependencies before deletion
+   * @param {string} id - Project ID
+   * @returns {Promise<Object>} Standardized response with dependency information
+   */
+  async checkDependencies(id) {
+    try {
+      const response = await this.api.get(`${this.resourceUrl}/${id}/dependencies`);
+      return this.standardizeResponse(response);
+    } catch (error) {
+      console.error(`Check dependencies error for project ID ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete project with option to delete references
+   * @param {string} id - Project ID
+   * @param {boolean} deleteReferences - Whether to delete all references or just break them
+   * @returns {Promise<Object>} Standardized response
+   */
+  async deleteProject(id, deleteReferences = false) {
+    try {
+      // Add query parameter to control deletion behavior
+      const url = `${this.resourceUrl}/${id}${deleteReferences ? '?deleteReferences=true' : ''}`;
+      const response = await this.api.delete(url);
+      return this.standardizeResponse(response);
+    } catch (error) {
+      console.error(`Delete project error for ID ${id}:`, error);
+      throw error;
+    }
+  }
+
 }
 
 const standardizedProjectsService = new StandardizedProjectsService();

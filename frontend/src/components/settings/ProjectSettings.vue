@@ -29,6 +29,20 @@
         />
       </div>
 
+      <div class="flex items-center space-x-4 w-full md:w-auto">
+        <div class="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="showConverted"
+            v-model="showConvertedProjects"
+            class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-blue-600"
+          />
+          <label for="showConverted" class="text-sm text-gray-700 dark:text-gray-300">
+            Show converted assessments
+          </label>
+        </div>
+      </div>
+
       <div class="flex items-center space-x-2 w-full md:w-auto">
         <BaseSelect
           v-model="filterType"
@@ -318,6 +332,7 @@ const filterType = ref('all');
 const filterStatus = ref('all');
 const viewMode = ref('table'); // 'table' or 'grid'
 const columnsDisplay = ref('default'); // 'default', 'compact', 'full'
+const showConvertedProjects = ref(false); // Toggle for showing converted assessments
 
 // Pagination
 const currentPage = ref(1);
@@ -488,7 +503,10 @@ const getClientName = (client) => {
 const loadProjects = async () => {
   loading.value = true;
   try {
-    const params = {};
+    const params = {
+      includeConverted: showConvertedProjects.value
+    };
+    
     if (filterType.value !== 'all') params.type = filterType.value;
     if (filterStatus.value !== 'all') params.status = filterStatus.value;
 
@@ -753,6 +771,11 @@ function resetFilters() {
 onMounted(() => {
   // Set initial value for totalItems to prevent undefined during initial render
   totalItems.value = 0;
+  loadProjects();
+});
+
+// Watch for showConvertedProjects changes to reload projects
+watch(showConvertedProjects, () => {
   loadProjects();
 });
 

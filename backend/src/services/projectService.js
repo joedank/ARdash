@@ -12,6 +12,9 @@ class ProjectService {
   /**
    * Get all projects with optional filters
    * @param {Object} filters - Filter parameters
+   * @param {string} filters.type - Filter by project type
+   * @param {string} filters.status - Filter by project status
+   * @param {boolean} filters.includeConverted - Whether to include converted assessments
    * @returns {Promise<Array>} List of projects
    */
   async getAllProjects(filters = {}) {
@@ -25,6 +28,11 @@ class ProjectService {
     // Apply status filter if specified
     if (filters.status && filters.status !== 'all') {
       where.status = filters.status;
+    }
+
+    // Filter out converted assessments unless explicitly requested
+    if (filters.includeConverted !== true) {
+      where.converted_to_job_id = null;
     }
 
     return await Project.findAll({

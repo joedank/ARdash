@@ -1,4 +1,154 @@
-## Project Intelligence Rules
+### Vue Component Tag Structure Pattern
+
+- **Problem:** Improper component tag syntax can cause rendering issues and unexpected behavior
+- **Pattern:** Follow Vue.js tag structure conventions consistently
+- **Example Issue:** Form components showing raw attribute text in UI and missing required props
+- **Solution:** Structure tags appropriately based on whether they have children:
+  ```html
+  <!-- For components with children -->
+  <BaseFormGroup
+    label="Field Label"
+    input-id="field-id"
+    helper-text="Help text"
+  >
+    <BaseInput
+      id="field-id"
+      v-model="formData.fieldValue"
+      type="text"
+    />
+  </BaseFormGroup>
+
+  <!-- For components without children -->
+  <ClientSelector
+    id="client-selector"
+    v-model="formData.client"
+    label="Client"
+    :required="true"
+  />
+  ```
+- **Key Learning:**
+  - Use self-closing tags for components without children
+  - Use opening/closing tags for components with children
+  - Always place attributes inside the opening tag
+  - Never place HTML comments inside tag attribute areas
+  - Ensure required props are always provided
+
+### Form Data Reset Pattern
+
+- **Problem:** Form state can become contaminated with data from previous edits
+- **Pattern:** Implement a two-step form reset and population process
+- **Example Issue:** Client name not displaying in project edit modal
+- **Solution:** Reset the form before populating it with new data:
+  ```javascript
+  const editItem = (item) => {
+    // Step 1: Reset form to default values
+    Object.assign(editingItem, {
+      id: '',
+      relatedObject: null,
+      // Other default values
+    });
+    
+    // Step 2: Populate with item data
+    Object.assign(editingItem, {
+      id: item.id,
+      relatedObject: item.relatedObject || null,
+      // Other values with fallbacks
+    });
+    
+    showEditModal.value = true;
+  };
+  ```
+- **Key Learning:**
+  - Always reset forms before populating with new data
+  - Pass complete objects to components when they expect them
+  - Use console logs to debug object structure issues
+  - Consider component expectations when structuring data
+
+### Project Intelligence Rules
+
+### Database Transaction Management Pattern
+
+- **Problem:** Complex operations involving multiple related entities can fail halfway through, leaving the database in an inconsistent state
+- **Pattern:** Use transactions with careful error handling and rollback capability
+- **Example Issue:** Project deletion failing with "current transaction is aborted" error when circular references exist
+- **Solution:** Break circular references within the same transaction before attempting deletion:
+  ```javascript
+  // Start transaction for the entire operation
+  const transaction = await sequelize.transaction();
+  
+  try {
+    // 1. Find the project with related records
+    const project = await Project.findByPk(projectId, { transaction });
+    
+    // 2. Break circular references first
+    if (project.converted_to_job_id) {
+      await Project.update(
+        { assessment_id: null }, // Break the backlink
+        { 
+          where: { id: project.converted_to_job_id },
+          transaction // Use same transaction
+        }
+      );
+    }
+    
+    // 3. Perform the delete operations
+    await project.destroy({ transaction });
+    
+    // 4. Commit only if everything succeeded
+    await transaction.commit();
+    return true;
+  } catch (error) {
+    // 5. Roll back the entire operation if anything fails
+    await transaction.rollback();
+    throw error;
+  }
+  ```
+- **Key Learning:**
+  - Always use transactions for multi-step database operations
+  - Identify and handle circular references within the transaction
+  - Proper rollback is essential for data integrity
+  - Breaking circular references is safer than attempting cascading deletes
+  - For particularly complex operations, give users control over strategy
+
+### User Confirmation for Complex Operations Pattern
+
+- **Problem:** Complex operations with potentially unexpected consequences can confuse or frustrate users
+- **Pattern:** Implement detailed confirmation dialogs that show impact and provide options
+- **Example Issue:** Deleting a project might affect related entities in ways the user doesn't expect
+- **Solution:** First check dependencies, then show detailed impact information with options:
+  ```javascript
+  // Frontend component template
+  <div class="confirmation-dialog">
+    <!-- Show detailed impact information -->
+    <div v-if="dependencies.hasDependencies" class="impact-section">
+      <h3>This action will affect:</h3>
+      <ul>
+        <li v-if="dependencies.hasRelatedJob">Connected job project</li>
+        <li v-if="dependencies.photosCount > 0">
+          {{ dependencies.photosCount }} photos
+        </li>
+      </ul>
+    </div>
+    
+    <!-- Provide options when applicable -->
+    <div v-if="dependencies.hasDependencies" class="options-section">
+      <div class="option">
+        <input type="radio" v-model="strategy" value="safe" id="safe" />
+        <label for="safe">Preserve related data</label>
+      </div>
+      <div class="option">
+        <input type="radio" v-model="strategy" value="complete" id="complete" />
+        <label for="complete">Delete everything</label>
+      </div>
+    </div>
+  </div>
+  ```
+- **Key Learning:**
+  - Check dependencies before showing confirmation
+  - Show specific counts and relationships that will be affected
+  - Provide options when different strategies exist
+  - Preselect the safest option as default
+  - Use clear, specific language about consequences
 
 ### Data Normalization Field Reference Pattern
 
