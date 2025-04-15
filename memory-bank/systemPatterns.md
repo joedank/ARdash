@@ -19,6 +19,83 @@ router.get('/current-active', authenticate, controller.getCurrentActiveJob);
   - Service methods handle empty results appropriately
   - Frontend services properly handle both success and error responses
 
+### Project Status Management Pattern
+
+- **Problem**: Project workflow lacks clarity between assessment phase and active work without proper state representation
+- **Pattern**: Implement comprehensive status tracking with automated state transitions
+- **Solution**: Add 'upcoming' status and automated transitions based on scheduled dates
+
+```javascript
+// 1. Status-based project filtering in service layer
+async getUpcomingProjects(limit = 5) {
+  try {
+    const projects = await Project.findAll({
+      where: {
+        status: 'upcoming',
+        type: 'active' // Only active jobs
+      },
+      // Include relationships and sorting...
+    });
+    return projects;
+  } catch (error) {
+    logger.error('Error getting upcoming projects:', error);
+    throw error;
+  }
+}
+
+// 2. Automatic status determination based on scheduled date
+let initialStatus = 'pending';
+if (type === 'active') {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Set to start of day
+  
+  if (scheduled_date) {
+    const scheduledDate = new Date(scheduled_date);
+    scheduledDate.setHours(0, 0, 0, 0); // Set to start of day
+    
+    if (scheduledDate > today) {
+      initialStatus = 'upcoming';
+    } else {
+      initialStatus = 'in_progress';
+    }
+  }
+}
+
+// 3. Automated transition through CRON endpoint
+async updateUpcomingProjects() {
+  try {
+    // Find upcoming projects with scheduled date that is today or earlier
+    const upcomingProjects = await Project.findAll({
+      where: {
+        status: 'upcoming',
+        scheduled_date: {
+          [Op.lte]: formattedDate // Less than or equal to today
+        }
+      }
+    });
+    
+    // Update the projects to in_progress
+    for (const project of upcomingProjects) {
+      await project.update({ status: 'in_progress' });
+      logger.info(`Updated project ${project.id} from upcoming to in_progress`);
+    }
+    
+    return { updatedCount, projectIds };
+  } catch (error) {
+    logger.error('Error updating upcoming projects:', error);
+    throw error;
+  }
+}
+```
+
+- **Key Aspects**:
+  - Status values (`pending`, `upcoming`, `in_progress`, `completed`) reflect actual business workflow
+  - Automatic status assignment based on scheduled date during creation
+  - CRON-triggered API endpoint to automatically transition projects when their date arrives
+  - Clear visual representation in the UI with distinct styling for each status
+  - Dashboard sections organized by project status for improved workflow clarity
+  - Improved user experience with minimal schema changes (just adding an enum value)
+
 ### Data-Driven Conditional Display Pattern
 
 - **Problem**: Project management shows duplicate entries for related projects (assessment and converted job) cluttering the UI

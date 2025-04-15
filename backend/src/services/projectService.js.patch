@@ -1,0 +1,44 @@
+
+/**
+ * Get rejected assessment projects
+ * @param {number} limit - Maximum number of projects to return
+ * @returns {Promise<Array>} Rejected assessment projects
+ */
+async getRejectedProjects(limit = 5) {
+  try {
+    const projects = await Project.findAll({
+      where: {
+        type: 'assessment',
+        status: 'rejected'
+      },
+      include: [{
+        model: Client,
+        as: 'client',
+        attributes: ['id', 'display_name', 'company', 'email', 'phone'],
+        include: [{
+          model: ClientAddress,
+          as: 'addresses'
+        }]
+      }, {
+        model: ClientAddress,
+        as: 'address',
+        required: false
+      }],
+      order: [
+        ['updated_at', 'DESC'] // Most recently rejected first
+      ],
+      limit
+    });
+    
+    // Return empty array if no projects found
+    if (!projects || projects.length === 0) {
+      logger.info('No rejected assessment projects found');
+      return [];
+    }
+    
+    return projects;
+  } catch (error) {
+    logger.error('Error getting rejected assessment projects:', error);
+    throw error;
+  }
+},

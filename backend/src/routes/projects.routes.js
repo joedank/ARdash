@@ -60,6 +60,14 @@ router.get('/assessments', authenticate, controller.getAssessmentProjects);
 router.get('/recently-completed', authenticate, controller.getRecentlyCompletedProjects);
 
 /**
+ * @route   POST /api/projects/update-upcoming
+ * @desc    Update status of upcoming projects when their scheduled date arrives
+ * @access  Private
+ * @note    This route doesn't require UUID validation as it has no parameters
+ */
+router.post('/update-upcoming', authenticate, controller.updateUpcomingProjects);
+
+/**
  * @route   GET /api/projects/:id
  * @desc    Get project details
  * @access  Private
@@ -140,5 +148,12 @@ router.post('/:id/convert-to-job', authenticate, validateUuid('id'), controller.
  * @access  Private
  */
 router.put('/:id/additional-work', authenticate, validateUuid('id'), controller.updateAdditionalWork);
+
+/**
+ * @route   POST /api/projects/:id/reject
+ * @desc    Reject an assessment project
+ * @access  Private
+ */
+router.post('/:id/reject', authenticate, validateUuid('id'), controller.rejectAssessment);
 
 module.exports = router;

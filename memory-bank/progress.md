@@ -1,3 +1,46 @@
+[2025-04-22 15:45] - **Implemented 'Upcoming' Project Status and Automatic Transitions**
+
+**Issues Identified and Fixed:**
+1. Project workflow lacked clarity between assessment phase and active in-progress work:
+   - No clear way to indicate jobs scheduled for future dates
+   - ProjectsView.vue had 'Upcoming Jobs' section but no data source to populate it
+   - Dashboard showed future jobs as 'in_progress' causing confusion
+
+2. Root cause identified in project state management:
+   - Only three status values (`pending`, `in_progress`, `completed`) were insufficient
+   - Projects needed a fourth state between assessment approval and active work
+   - No automated mechanism to transition projects from upcoming to in-progress when scheduled date arrived
+
+**Solution Implemented:**
+1. Added 'upcoming' status to `enum_projects_status` in PostgreSQL:
+   ```sql
+   ALTER TYPE enum_projects_status ADD VALUE 'upcoming';
+   ```
+
+2. Updated frontend components to support the new status:
+   - Modified `ProjectSettings.vue` to include 'upcoming' status in dropdowns and filters
+   - Updated status formatting logic and visual styling
+   - Enhanced the dashboard experience with properly populated Upcoming Jobs section
+
+3. Modified backend service implementations:
+   - Updated `projectService.getUpcomingProjects()` to use status value instead of date-based logic
+   - Adjusted `createProject()` to automatically set 'upcoming' status for future-dated projects
+   - Updated `convertAssessmentToJob()` to set appropriate status based on scheduled date
+   - Added new `updateUpcomingProjects()` method to automatically transition projects
+
+4. Created automation for state transitions:
+   - Implemented a CRON-compatible script (`update-upcoming-projects.js`)
+   - Set up API endpoint (`/api/projects/update-upcoming`)
+   - Created crontab template for daily execution
+
+**Key Learnings:**
+- Project states should match the actual business workflow rather than technical distinctions
+- Automatic state transitions reduce manual work and prevent projects from getting "stuck" in the wrong state
+- Even small database schema changes (adding an enum value) can significantly improve UX when implemented thoughtfully
+- CRON automation can effectively handle time-based state changes without manual intervention
+
+---
+
 [2025-04-17 10:30] - **Fixed UUID Validation in Project Dashboard Routes**
 
 **Issues Identified and Fixed:**

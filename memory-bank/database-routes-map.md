@@ -214,6 +214,23 @@ This document provides a comprehensive overview of the database structure and AP
   - Many-to-One with `project_types`
 - **Notes**: Defines subtypes for each project type
 
+#### Projects Status Transitions
+Projects use the following status values, defined as an enum type in PostgreSQL:
+- **Enum**: `enum_projects_status`
+- **Values**: `pending`, `upcoming`, `in_progress`, `completed`
+- **Transition Logic**:
+  - New assessment projects start with `pending` status
+  - New active projects are determined by scheduled date: 
+    - Future dates → `upcoming`
+    - Current or past dates → `in_progress`
+  - Projects converted from assessments inherit the same date-based logic
+  - Automatic transition: `upcoming` → `in_progress` when scheduled date arrives
+  - Manual transition: `in_progress` → `completed` when work is finished
+- **Associated API Endpoints**: 
+  - `GET /api/projects/upcoming` - Gets all upcoming projects
+  - `POST /api/projects/update-upcoming` - Updates projects from upcoming to in_progress
+- **Automation**: Daily CRON job to update status for projects whose scheduled date has arrived
+
 #### Project Type Questionnaires
 - **Table**: `project_type_questionnaires`
 - **Primary Key**: `id` (UUID)

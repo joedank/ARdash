@@ -55,6 +55,88 @@ class StandardizedProjectsService extends BaseService {
       throw error;
     }
   }
+  
+  /**
+   * Get the current active job
+   * @returns {Promise<Object>} Standardized response with current active job
+   */
+  async getCurrentActiveJob() {
+    try {
+      const response = await this.api.get(`${this.resourceUrl}/current-active`);
+      return this.standardizeResponse(response);
+    } catch (error) {
+      console.error('Get current active job error:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get upcoming projects
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Object>} Standardized response with upcoming projects
+   */
+  async getUpcomingProjects(limit = 5) {
+    try {
+      const response = await this.api.get(`${this.resourceUrl}/upcoming`, {
+        params: { limit }
+      });
+      return this.standardizeResponse(response);
+    } catch (error) {
+      console.error('Get upcoming projects error:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get assessment projects
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Object>} Standardized response with assessment projects
+   */
+  async getAssessmentProjects(limit = 10) {
+    try {
+      const response = await this.api.get(`${this.resourceUrl}/assessments`, {
+        params: { limit }
+      });
+      return this.standardizeResponse(response);
+    } catch (error) {
+      console.error('Get assessment projects error:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get recently completed projects
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Object>} Standardized response with recently completed projects
+   */
+  async getRecentlyCompletedProjects(limit = 5) {
+    try {
+      const response = await this.api.get(`${this.resourceUrl}/recently-completed`, {
+        params: { limit }
+      });
+      return this.standardizeResponse(response);
+    } catch (error) {
+      console.error('Get recently completed projects error:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get rejected assessment projects
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Object>} Standardized response with rejected assessment projects
+   */
+  async getRejectedProjects(limit = 5) {
+    try {
+      const response = await this.api.get(`${this.resourceUrl}/rejected`, {
+        params: { limit }
+      });
+      return this.standardizeResponse(response);
+    } catch (error) {
+      console.error('Get rejected assessment projects error:', error);
+      throw error;
+    }
+  }
 
   /**
    * Get all projects with optional filters
@@ -319,6 +401,23 @@ class StandardizedProjectsService extends BaseService {
     }
   }
 
+  /**
+   * Reject an assessment project
+   * @param {string} id - Project ID (assessment)
+   * @param {string} rejectionReason - Optional reason for rejection
+   * @returns {Promise<Object>} Standardized response with rejected project
+   */
+  async rejectAssessment(id, rejectionReason = null) {
+    try {
+      const response = await this.api.post(`${this.resourceUrl}/${id}/reject`, {
+        rejectionReason
+      });
+      return this.standardizeResponse(response);
+    } catch (error) {
+      console.error(`Reject assessment error for ID ${id}:`, error);
+      throw error;
+    }
+  }
 }
 
 const standardizedProjectsService = new StandardizedProjectsService();

@@ -371,6 +371,41 @@ const getRecentlyCompletedProjects = async (req, res, next) => {
   }
 };
 
+/**
+ * Update upcoming projects to in_progress when their scheduled date arrives
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const updateUpcomingProjects = async (req, res, next) => {
+  try {
+    const result = await projectService.updateUpcomingProjects();
+    return res.json(success(result, 'Upcoming projects updated successfully'));
+  } catch (err) {
+    logger.error('Error updating upcoming projects:', err);
+    next(err);
+  }
+};
+
+/**
+ * Reject an assessment project
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const rejectAssessment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rejectionReason } = req.body;
+    
+    const project = await projectService.rejectAssessment(id, rejectionReason);
+    return res.json(success(project, 'Assessment project rejected successfully'));
+  } catch (err) {
+    logger.error(`Error rejecting assessment ${req.params.id}:`, err);
+    next(err);
+  }
+};
+
 module.exports = {
   photoUpload,
   getAll,
@@ -390,5 +425,7 @@ module.exports = {
   getCurrentActiveJob,
   getUpcomingProjects,
   getAssessmentProjects,
-  getRecentlyCompletedProjects
+  getRecentlyCompletedProjects,
+  updateUpcomingProjects,
+  rejectAssessment
 };

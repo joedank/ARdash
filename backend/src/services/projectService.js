@@ -1,4 +1,46 @@
-'use strict';
+  /**
+   * Get rejected assessment projects
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Array>} Rejected assessment projects
+   */
+  async getRejectedProjects(limit = 5) {
+    try {
+      const projects = await Project.findAll({
+        where: {
+          type: 'assessment',
+          status: 'rejected'
+        },
+        include: [{
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'display_name', 'company', 'email', 'phone'],
+          include: [{
+            model: ClientAddress,
+            as: 'addresses'
+          }]
+        }, {
+          model: ClientAddress,
+          as: 'address',
+          required: false
+        }],
+        order: [
+          ['updated_at', 'DESC'] // Most recently rejected first
+        ],
+        limit
+      });
+      
+      // Return empty array if no projects found
+      if (!projects || projects.length === 0) {
+        logger.info('No rejected assessment projects found');
+        return [];
+      }
+      
+      return projects;
+    } catch (error) {
+      logger.error('Error getting rejected assessment projects:', error);
+      throw error;
+    }
+  },'use strict';
 
 const { Project, ProjectInspection, ProjectPhoto, Client, ClientAddress, Estimate, EstimateItem, sequelize } = require('../models');
 const { ValidationError } = require('../utils/errors');
@@ -81,7 +123,7 @@ class ProjectService {
    * @returns {Promise<Object>} Created project
    */
   async createProject(data) {
-    const { client_id, estimate_id, address_id, scope, scheduled_date, type = 'assessment', status = 'pending' } = data;
+    const { client_id, estimate_id, address_id, scope, scheduled_date, type = 'assessment', status } = data;
 
     // Validate client exists
     const client = await Client.findByPk(client_id, {
@@ -124,6 +166,28 @@ class ProjectService {
       }
     }
 
+    // Determine appropriate status based on project type and scheduled date
+    let initialStatus = status;
+    if (!initialStatus) {
+      initialStatus = 'pending';
+      
+      if (type === 'active') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Set to start of day
+        
+        if (scheduled_date) {
+          const scheduledDate = new Date(scheduled_date);
+          scheduledDate.setHours(0, 0, 0, 0); // Set to start of day
+          
+          if (scheduledDate > today) {
+            initialStatus = 'upcoming';
+          } else {
+            initialStatus = 'in_progress';
+          }
+        }
+      }
+    }
+
     return await Project.create({
       client_id,
       estimate_id,
@@ -131,7 +195,7 @@ class ProjectService {
       scope,
       scheduled_date,
       type: type || (estimate_id ? 'active' : 'assessment'),
-      status: status || 'pending'
+      status: initialStatus
     });
   }
 
@@ -888,16 +952,29 @@ class ProjectService {
       if (!estimate) {
         throw new ValidationError('Estimate not found');
       }
+      
+      // Determine status based on scheduled date
+      let initialStatus = 'in_progress';
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of day
+      
+      // Use job's scheduled date or default to today
+      const scheduledDate = assessmentProject.scheduled_date ? new Date(assessmentProject.scheduled_date) : new Date();
+      scheduledDate.setHours(0, 0, 0, 0); // Set to start of day
+      
+      if (scheduledDate > today) {
+        initialStatus = 'upcoming';
+      }
 
       // Create a new job project linked to the assessment
       const jobProject = await Project.create({
         client_id: assessmentProject.client_id,
         address_id: assessmentProject.address_id,
         type: 'active',
-        status: 'in_progress',
+        status: initialStatus,
         assessment_id: assessmentId, // Important: Link to the original assessment
         estimate_id: estimateId,
-        scheduled_date: new Date(),
+        scheduled_date: scheduledDate,
         scope: assessmentProject.scope
       }, { transaction });
 
@@ -1016,26 +1093,15 @@ class ProjectService {
   }
   
   /**
-   * Get upcoming projects (scheduled for future dates)
+   * Get upcoming projects (with 'upcoming' status)
    * @param {number} limit - Maximum number of projects to return
    * @returns {Promise<Array>} Upcoming projects
    */
   async getUpcomingProjects(limit = 5) {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to start of day
-      
-      // Format as YYYY-MM-DD string for DATEONLY comparison
-      const formattedDate = today.toISOString().split('T')[0];
-      
       const projects = await Project.findAll({
         where: {
-          scheduled_date: {
-            [Op.gt]: formattedDate // Greater than today
-          },
-          status: {
-            [Op.ne]: 'completed' // Not completed
-          },
+          status: 'upcoming',
           type: 'active' // Only active jobs
         },
         include: [{
@@ -1165,6 +1231,92 @@ class ProjectService {
       return projects;
     } catch (error) {
       logger.error('Error getting recently completed projects:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Update upcoming projects to in_progress when their scheduled date arrives
+   * This method is designed to be called by a daily CRON job
+   * @returns {Promise<Object>} Results with count of updated projects
+   */
+  async updateUpcomingProjects() {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of day
+      
+      // Format as YYYY-MM-DD string for DATEONLY comparison
+      const formattedDate = today.toISOString().split('T')[0];
+      
+      // Find upcoming projects with scheduled date that is today or earlier
+      const upcomingProjects = await Project.findAll({
+        where: {
+          status: 'upcoming',
+          scheduled_date: {
+            [Op.lte]: formattedDate // Less than or equal to today
+          }
+        }
+      });
+      
+      logger.info(`Found ${upcomingProjects.length} upcoming projects to update`);
+      
+      // Update the projects to in_progress
+      let updatedCount = 0;
+      const projectIds = [];
+      
+      for (const project of upcomingProjects) {
+        await project.update({ status: 'in_progress' });
+        updatedCount++;
+        projectIds.push(project.id);
+        logger.info(`Updated project ${project.id} from upcoming to in_progress`);
+      }
+      
+      return {
+        updatedCount,
+        projectIds
+      };
+    } catch (error) {
+      logger.error('Error updating upcoming projects:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reject an assessment project
+   * @param {string} projectId - Project ID
+   * @param {string} rejectionReason - Optional reason for rejection
+   * @returns {Promise<Object>} Updated project
+   */
+  async rejectAssessment(projectId, rejectionReason = null) {
+    try {
+      const project = await Project.findByPk(projectId);
+      if (!project) {
+        throw new ValidationError('Project not found');
+      }
+
+      if (project.type !== 'assessment') {
+        throw new ValidationError('Only assessment projects can be rejected');
+      }
+
+      if (project.converted_to_job_id) {
+        throw new ValidationError('Cannot reject an assessment that has already been converted to a job');
+      }
+
+      // Update status and add rejection reason if provided
+      const updateData = { status: 'rejected' };
+      if (rejectionReason) {
+        updateData.scope = project.scope 
+          ? `${project.scope}\n\nRejection Reason: ${rejectionReason}`
+          : `Rejection Reason: ${rejectionReason}`;
+      }
+
+      await project.update(updateData);
+      logger.info(`Assessment project ${projectId} marked as rejected`);
+      
+      // Return updated project with details
+      return await this.getProjectWithDetails(projectId);
+    } catch (error) {
+      logger.error(`Error rejecting assessment project ${projectId}:`, error);
       throw error;
     }
   }

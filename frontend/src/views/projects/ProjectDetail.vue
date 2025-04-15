@@ -243,6 +243,14 @@
       <BaseLoader />
     </div>
 
+    <!-- Reject Assessment Modal -->
+    <RejectAssessmentModal
+      :show="showRejectModal"
+      :project-id="project?.id"
+      @close="showRejectModal = false"
+      @rejected="handleRejection"
+    />
+
     <!-- Action Bar -->
     <div
     class="static bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 flex justify-between z-10 mt-6"
@@ -258,8 +266,18 @@
     </BaseButton>
     <div class="flex-1"></div>
 
-    <!-- Conversion button inline with other actions -->
-    <div v-if="project?.type === 'assessment' && project?.status !== 'completed'" class="mr-2">
+    <!-- Assessment action buttons -->
+    <div v-if="project?.type === 'assessment' && project?.status !== 'completed' && project?.status !== 'rejected'" class="flex space-x-2 mr-2">
+      <!-- Reject Assessment button -->
+      <BaseButton
+        variant="danger"
+        size="sm"
+        @click="showRejectModal = true"
+      >
+        Reject
+      </BaseButton>
+      
+      <!-- Convert to Job button -->
       <ConvertToJobButton
         :project="project"
         @conversion-complete="handleConversionComplete"
@@ -291,12 +309,14 @@ import PreviousStateCard from '@/components/projects/PreviousStateCard.vue';
 import ConvertToJobButton from '@/components/projects/ConvertToJobButton.vue';
 import EstimateItemPhotos from '@/components/projects/EstimateItemPhotos.vue';
 import projectsService from '@/services/projects.service';
+import standardizedProjectsService from '@/services/standardized-projects.service';
 import BaseBadge from '@/components/data-display/BaseBadge.vue';
 import BaseTextarea from '@/components/form/BaseTextarea.vue';
 import BaseIcon from '@/components/base/BaseIcon.vue';
 import BaseButton from '@/components/base/BaseButton.vue';
 import BaseLoader from '@/components/feedback/BaseLoader.vue';
 import BaseAlert from '@/components/feedback/BaseAlert.vue';
+import RejectAssessmentModal from '@/components/projects/RejectAssessmentModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -306,6 +326,7 @@ const project = ref(null);
 const assessmentData = ref(null);
 const selectedStateView = ref('active'); // Default to active view for active projects
 const showReceiptUpload = ref(false); // Control receipt upload modal
+const showRejectModal = ref(false); // Control reject assessment modal
 const localPhotos = ref([]); // Added local photos reference
 
 // Form data for assessment
@@ -859,6 +880,27 @@ const handlePhotoDeleted = async (photoId) => {
 const handleConversionComplete = (newJobId) => {
   // Redirect to the new job
   router.push(`/projects/${newJobId}`);
+};
+
+// Handle assessment rejection
+const handleRejection = async (rejectedProject) => {
+  // Show success message
+  alertMessage.value = 'Assessment has been rejected';
+  alertVariant.value = 'success';
+  showAlert.value = true;
+
+  // Auto-hide alert after 3 seconds
+  setTimeout(() => {
+    showAlert.value = false;
+  }, 3000);
+
+  // Update local project data with the rejected project
+  if (rejectedProject) {
+    project.value = rejectedProject;
+  } else {
+    // If rejected project wasn't returned, refresh the data
+    await refreshProject();
+  }
 };
 
 // Handle receipt upload

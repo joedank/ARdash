@@ -40,6 +40,8 @@ For construction professionals using the system:
 - **Data Consistency**: Measurements and project details preserved throughout the workflow
 - **Mobile Usability**: Responsive design that works well on tablets and phones in the field
 - **Client Management**: Easy tracking of client information and project history
+- **Workflow Focus**: Clear visual emphasis on the current active job to match small company workflow
+- **Project Pipeline Visibility**: Organized view of assessments, upcoming jobs, and completed work
 
 For clients receiving services:
 

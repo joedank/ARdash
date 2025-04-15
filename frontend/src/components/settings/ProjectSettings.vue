@@ -375,6 +375,7 @@ const typeOptions = [
 
 const statusOptions = [
   { value: 'pending', label: 'Pending' },
+  { value: 'upcoming', label: 'Upcoming' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' }
 ];
@@ -389,6 +390,7 @@ const filterTypeOptions = [
 const filterStatusOptions = [
   { value: 'all', label: 'All Statuses' },
   { value: 'pending', label: 'Pending' },
+  { value: 'upcoming', label: 'Upcoming' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' }
 ];
@@ -397,6 +399,7 @@ const filterStatusOptions = [
 const formatStatus = (status) => {
   switch (status) {
     case 'pending': return 'Pending';
+    case 'upcoming': return 'Upcoming';
     case 'in_progress': return 'In Progress';
     case 'completed': return 'Completed';
     default: return status;
@@ -407,6 +410,7 @@ const formatStatus = (status) => {
 const getStatusVariant = (status) => {
   switch (status) {
     case 'pending': return 'warning';
+    case 'upcoming': return 'primary';
     case 'in_progress': return 'info';
     case 'completed': return 'success';
     default: return 'default';

@@ -1,6 +1,8 @@
-# Active Context: UUID Validation, Project Dashboard, and Data Structure Standardization
+# Active Context: UUID Validation, Project Dashboard, Project States, and Data Structure Standardization
 
 ## Current Focus
+- Implementing 'upcoming' project status for improved workflow visibility
+- Automating project state transitions based on scheduled dates
 - Fixing UUID validation issues in API endpoints that don't require path parameters
 - Optimizing project dashboard for single active job workflow with proper error handling
 - Improving error handling in service layer to prevent cascading failures

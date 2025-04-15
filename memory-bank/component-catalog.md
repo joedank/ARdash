@@ -1,4 +1,4 @@
-# Component Catalog
+/# Component Catalog
 
 ## Base Components
 - **BaseButton**
@@ -80,80 +80,223 @@
   Used in:
   Not currently used in any components/views (as of 2025-04-15)
 
-- **BaseSkeletonLoader**  
-  Purpose:  
-  Used in:  
+- **BaseSkeletonLoader**
+  Purpose: Displays placeholder previews of content before it finishes loading. Supports various shapes (text, image, card, table, avatar, button) with configurable dimensions and animations. Used to improve perceived performance during data fetching.
+  Used in:
+    - Admin/UserManagement.vue (table loading state)
+    - Settings/ClientTableResponsive.vue (table loading state)
 
-- **BaseTagChip**  
-  Purpose:  
-  Used in:  
+- **BaseTagChip**
+  Purpose:
+  A small piece of information component used for categorization or labeling. Supports different colors, sizes, optional icons, and a removable state. Features include:
+    - Color variants: gray, blue, green, yellow, red, purple
+    - Size variants: sm, md
+    - Optional icon integration
+    - Removable state with remove event
+    - Dark mode support
+    - Slot support for custom content
+  
+  Used in:
+  Not currently used in production (as of 2025-04-15)
 
-- **BaseTimeline**  
-  Purpose:  
-  Used in:  
+- **Base*(Timeline)***
+  Purpose:
+  A timeline component for displaying a sequence of events or milestones. Supports both vertical and horizontal layouts with customizable markers (dot, number, icon) and descriptions. Features include:
+    - Alternating content position option
+    - Slots for customizing content, markers, and connectors
+    - Dark mode support
+    - Responsive design
+  
+  Used in:
+  Not currently used in production (as of 2025-04-15)
 
-- **BaseAvatar**  
-  Purpose:  
-  Used in:  
+- **BaseAvatar**
+  Purpose:
+  Displays user avatars with image URLs or initials as fallback. Supports multiple sizes (xs, sm, md, lg, xl), shapes (circle, rounded), and status indicators (online, offline, away, busy). Includes dark mode support and emits error events when image loading fails.
+  
+  Used in:
+  - UserManagementView.vue (user list and detail views)
+  - UserManagement.vue (admin interface)
+  - UserTableCompact.vue (compact user listings)
+  - UserSettings.vue (user profile and settings)
 
 ## Form Components
-- **BaseInput**  
-  Purpose:  
-  Used in:  
+- **BaseInput**
+  Purpose:
+  A customizable input field component with support for different types (text, email, password, number, etc.), validation states (success, error, warning), icons (left/right), and helper text. Fully supports dark mode styling and v-model integration. Features include:
+    - Configurable input types
+    - Validation state styling
+    - Icon integration (left/right)
+    - Helper/error text display
+    - Dark mode support
+    - Required/disabled states
+    - Full-width (block) option
+  
+  Used in:
+  - AssessmentContent.vue (project assessments)
+  - UserManagement.vue (admin interface)
+  - RegisterView.vue (user registration)
+  - UserManagementView.vue (user management)
+  - LoginView.vue (authentication)
+  - AccountSettings.vue (user settings)
+  - SystemSettings.vue (system configuration)
+  - UserSettings.vue (user profile)
+  - ProjectSettings.vue (project configuration)
+  - ClientSettings.vue (client management)
 
-- **BaseSelect**  
-  Purpose:  
-  Used in:  
+- **BaseSelect**
+  Purpose:
+  A customizable select/dropdown component with search functionality, grouped options, and single/multiple selection support. Features include:
+    - Dark mode compatibility
+    - Keyboard navigation
+    - Accessibility attributes (ARIA)
+    - Search filtering
+    - Option grouping
+    - Customizable placeholder text
+    - Slot-based option rendering
+    - Disabled state handling
+    - Custom label/value keys
+    - Blur/click outside handling
+  
+  Used in:
+  - Settings views (SecuritySettings.vue, AppearanceSettings.vue, AccountSettings.vue, SystemSettings.vue)
+  - Administration (UserManagementView.vue, UserManagement.vue)
+  - Project components (AssessmentContent.vue)
+  - Settings components (ClientTableResponsive.vue, ProjectTableResponsive.vue, UserTableResponsive.vue)
+  - Client/User/Project settings (ClientSettings.vue, UserSettings.vue, ProjectSettings.vue)
 
-- **BaseCheckboxRadio**  
-  Purpose:  
-  Used in:  
+- **BaseCheckboxRadio**
+  Purpose:
+  A versatile component for rendering single checkboxes, groups of checkboxes, or radio button groups. Supports custom styling, indeterminate state for checkboxes, and disabled states. Integrates with v-model for easy form handling. Features include:
+    - Configurable input types (checkbox/radio)
+    - Support for single/multiple selection via v-model
+    - Indeterminate state handling for checkboxes
+    - Customizable styling with dark mode support
+    - Label slots for custom content
+    - Disabled state handling
+    - Full accessibility support
+  
+  Used in:
+  Currently unused in production (as of 2025-04-15)
 
-- **BaseDateTimePicker**  
-  Purpose:  
-  Used in:  
+- **BaseDateTimePicker**
+  Purpose:
+  A comprehensive date/time picker component with single date, date range, and date+time selection modes. Features include:
+    - Dark mode support
+    - Form integration via BaseFormGroup
+    - Validation and error handling
+    - Custom styling matching project design system
+    - Time selection integration
+    - Range selection support
+    - Accessibility attributes
+  
+  Used in:
+  - Project management components (date selection)
+  - User management (account expiration dates)
+  - Client management (contract dates)
+  - Settings views (date-related configurations)
 
-- **BaseFileUpload**  
-  Purpose:  
-  Used in:  
+- **BaseFileUpload**
+  Purpose:
+  A file upload component with drag & drop support, file previews (especially images), upload progress simulation, and file validation (type, size). Supports multiple file selection and customizable via slots. Features include:
+    - Drag & drop interface with visual feedback
+    - Image preview generation
+    - File type validation (MIME types)
+    - File size validation
+    - Multiple file support with max files limit
+    - Customizable dropzone content via slots
+    - Progress indicators during upload
+    - Dark mode support
+    - Accessible file input
+  
+  Used in:
+  Currently no usage found in production (component available but not actively used)
 
-- **BaseFormGroup**  
-  Purpose:  
-  Used in:  
+- **BaseFormGroup**
+  Purpose:
+  A wrapper component for form fields that standardizes the layout of labels, helper text, and error messages. Ensures consistent spacing and accessibility for form elements. Used to group inputs with their associated metadata.
 
-- **BaseRangeSlider**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - User registration (RegisterView.vue)
+  - Appearance settings (AppearanceSettings.vue)
+  - Account settings (AccountSettings.vue)
+  - System settings (SystemSettings.vue)
+  - User management (UserManagementView.vue)
+  - Other forms throughout the application
 
-- **BaseTextarea**  
-  Purpose:  
-  Used in:  
 
-- **BaseToggleSwitch**  
-  Purpose:  
-  Used in:  
+- **BaseRangeSlider**
+  Purpose:
+  A customizable range slider for selecting a numeric value or a range of values. Supports min/max, step increments, single or dual-thumb (range), and accessibility features. Used for settings that require numeric input within a range.
+
+  Used in:
+  - Appearance settings (AppearanceSettings.vue)
+
+
+- **BaseTextarea**
+  Purpose:
+  A flexible textarea component for multi-line text input. Supports validation states, helper text, required/disabled states, and dark mode. Integrates with v-model for reactive forms.
+
+  Used in:
+  - Project detail (ProjectDetail.vue)
+  - Assessment content (AssessmentContent.vue)
+  - Active job content (ActiveJobContent.vue)
+  - Photo upload section (PhotoUploadSection.vue)
+
+
+- **BaseToggleSwitch**
+  Purpose:
+  A toggle switch component for boolean input. Supports v-model, disabled state, and custom labeling. Used for enabling/disabling features and settings.
+
+  Used in:
+  - Home view (HomeView.vue)
+  - User management (UserManagementView.vue, UserManagement.vue)
+  - Security settings (SecuritySettings.vue)
+  - System settings (SystemSettings.vue)
+  - Notifications settings (NotificationsSettings.vue)
+  - Client/User/Project settings (ClientSettings.vue, UserSettings.vue, ClientTableResponsive.vue, UserTableResponsive.vue, etc.)
+
 
 ## Navigation
-- **BaseBreadcrumb**  
-  Purpose:  
-  Used in:  
+- **BaseBreadcrumb**
+  Purpose:
+  Displays a navigation trail showing the user's location within the app hierarchy. Supports custom separators, accessibility, and slot customization for items and separators.
 
-- **BaseDropdownMenu**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - (Usage not explicitly found; likely available for navigation in multi-level views)
 
-- **BasePagination**  
-  Purpose:  
-  Used in:  
 
-- **BaseTabs**  
-  Purpose:  
-  Used in:  
+- **BaseDropdownMenu**
+  Purpose:
+  A dropdown menu component supporting nested menus, icons, dividers, and keyboard navigation. Can be triggered by click or hover. Highly customizable for various menu and action lists.
+
+  Used in:
+  - (Usage not explicitly found; available for general dropdown menu needs)
+
+
+- **BasePagination**
+  Purpose:
+  A pagination component for navigating paginated data sets. Displays page numbers, previous/next/first controls, and item ranges. Supports dark mode and accessibility.
+
+  Used in:
+  - User management (UserManagementView.vue, UserManagement.vue)
+  - Invoicing (EstimatesList.vue, InvoicesList.vue)
+  - Client/project/user table responsive and compact views (ClientTableResponsive.vue, ProjectTableResponsive.vue, UserTableResponsive.vue, etc.)
+
+
+- **BaseTabs**
+  Purpose:
+  A flexible tab navigation component supporting horizontal/vertical orientation, icons, keyboard navigation, and ARIA accessibility. Allows custom tab content via slots.
+
+  Used in:
+  - (Usage not explicitly found; available for tabbed interfaces throughout the app)
+
 
 - **MainNavigation**  
   Purpose:  
   Used in:  
 
+{{ ... }}
 ## Overlays
 - **BaseDrawer**  
   Purpose:  

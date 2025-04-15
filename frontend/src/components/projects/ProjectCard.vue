@@ -106,6 +106,8 @@ const statusVariant = computed(() => {
     case 'pending': return 'warning';
     case 'in_progress': return 'info';
     case 'completed': return 'success';
+    case 'rejected': return 'danger';
+    case 'upcoming': return 'primary';
     case 'on_hold': return 'error';
     default: return 'default';
   }
