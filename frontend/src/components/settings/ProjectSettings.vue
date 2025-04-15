@@ -206,10 +206,59 @@
         <p class="text-gray-700 dark:text-gray-300">
           Are you sure you want to delete this project?
         </p>
-        <p v-if="projectHasRelationships" class="mt-2 text-amber-600 dark:text-amber-400">
-          <strong>Note:</strong> This project has associated inspections or photos. Deleting it will also remove all related inspections and photos.
-        </p>
-        <p class="text-sm text-red-600 dark:text-red-400 mt-2">
+        
+        <!-- Detailed Dependencies Information -->
+        <div v-if="projectDependencies && projectDependencies.hasDependencies" class="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <h4 class="font-medium text-amber-800 dark:text-amber-400 mb-2">Deletion Impact</h4>
+          <div class="text-amber-700 dark:text-amber-300 whitespace-pre-line text-sm">
+            {{ detailedDeleteMessage }}
+          </div>
+        </div>
+        
+        <!-- Deletion Options -->
+        <div v-if="projectDependencies && projectDependencies.hasDependencies" class="mt-5 space-y-3">
+          <h4 class="font-medium text-gray-800 dark:text-gray-200">Deletion Options</h4>
+          
+          <div class="flex items-start space-x-2">
+            <input
+              type="radio"
+              id="option-break-references"
+              v-model="deletionOption"
+              value="break"
+              class="mt-1"
+            />
+            <div>
+              <label for="option-break-references" class="font-medium text-gray-700 dark:text-gray-300">
+                Break references only
+              </label>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Disconnects this project from related data without deleting other records.
+                Related assessments, jobs, and estimates will remain in the system.
+              </p>
+            </div>
+          </div>
+          
+          <div class="flex items-start space-x-2">
+            <input
+              type="radio"
+              id="option-delete-all"
+              v-model="deletionOption"
+              value="all"
+              class="mt-1"
+            />
+            <div>
+              <label for="option-delete-all" class="font-medium text-gray-700 dark:text-gray-300">
+                Delete everything
+              </label>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <span class="text-red-600 dark:text-red-400 font-medium">Warning:</span> This will delete this project AND all related records,
+                including linked assessments, jobs, estimates, photos, and inspections.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <p class="text-sm text-red-600 dark:text-red-400 mt-4 font-medium">
           This action cannot be undone.
         </p>
       </div>
@@ -285,9 +334,10 @@ const sortConfig = ref({ key: 'client', order: 'asc' });
 // const showCreateProjectModal = ref(false); // Removed
 const showEditProjectModal = ref(false);
 const showDeleteModal = ref(false);
-const projectHasRelationships = ref(false);
-
-// Form data (using camelCase)
+const projectToDelete = ref(null);
+const projectDependencies = ref(null);
+const detailedDeleteMessage = ref('');
+const deletionOption = ref('break'); // Default to just breaking references
 // const newProject = reactive({ // Removed
 //   clientId: null,
 //   estimate: null, // Store the whole estimate object if needed, or just estimateId
@@ -519,13 +569,52 @@ const updateProject = async () => {
 };
 
 // Open delete confirmation modal
-const confirmDelete = (project) => {
+const confirmDelete = async (project) => {
   projectToDelete.value = project;
-  // Check if project has associated inspections or photos (assuming camelCase)
-  projectHasRelationships.value =
-    (project.inspections && project.inspections.length > 0) || // Corrected operator
-    (project.photos && project.photos.length > 0); // Corrected operator
   showDeleteModal.value = true;
+  deletionOption.value = 'break'; // Reset to default option
+  
+  try {
+    // Check for dependencies before showing confirmation
+    const dependencyResponse = await projectsService.checkDependencies(project.id);
+    
+    if (dependencyResponse.success && dependencyResponse.data) {
+      const deps = dependencyResponse.data;
+      projectDependencies.value = deps;
+      
+      // Build detailed confirmation message
+      if (deps.hasDependencies) {
+        let message = 'Warning: This project has related data that will be affected by deletion:\n\n';
+        
+        if (deps.hasRelatedJob) {
+          message += `• This assessment is linked to an active job${deps.relatedJob?.client?.displayName ? ' for ' + deps.relatedJob.client.displayName : ''}.\n`;
+        }
+        
+        if (deps.hasRelatedAssessment) {
+          message += `• This job is linked to an assessment${deps.relatedAssessment?.client?.displayName ? ' for ' + deps.relatedAssessment.client.displayName : ''}.\n`;
+        }
+        
+        if (deps.inspectionsCount > 0) {
+          message += `• ${deps.inspectionsCount} inspection${deps.inspectionsCount > 1 ? 's' : ''} will be permanently deleted.\n`;
+        }
+        
+        if (deps.photosCount > 0) {
+          message += `• ${deps.photosCount} photo${deps.photosCount > 1 ? 's' : ''} will be permanently deleted.\n`;
+        }
+        
+        if (deps.estimatesCount > 0) {
+          message += `• ${deps.estimatesCount} estimate${deps.estimatesCount > 1 ? 's' : ''} will remain but lose their connection to this project.\n`;
+        }
+        
+        detailedDeleteMessage.value = message;
+      } else {
+        detailedDeleteMessage.value = '';
+      }
+    }
+  } catch (err) {
+    handleError(err, 'Error checking project dependencies.');
+    detailedDeleteMessage.value = 'Could not check dependencies. Use caution when deleting.';
+  }
 };
 
 // Delete project
@@ -533,7 +622,10 @@ const deleteProject = async () => {
   if (!projectToDelete.value) return;
   submitting.value = true;
   try {
-    const response = await projectsService.delete(projectToDelete.value.id); // Use BaseService delete
+    // Use appropriate deletion option based on user selection
+    const deleteReferences = deletionOption.value === 'all';
+    
+    const response = await projectsService.deleteProject(projectToDelete.value.id, deleteReferences);
 
     if (response.success) {
       showDeleteModal.value = false;

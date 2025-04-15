@@ -103,6 +103,22 @@ const update = async (req, res, next) => {
 };
 
 /**
+ * Check project dependencies before deletion
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const checkProjectDependencies = async (req, res, next) => {
+  try {
+    const dependencies = await projectService.getProjectDependencies(req.params.id);
+    return res.json(success(dependencies, 'Project dependencies retrieved successfully'));
+  } catch (err) {
+    logger.error(`Error checking project dependencies ${req.params.id}:`, err);
+    next(err);
+  }
+};
+
+/**
  * Delete a project
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -110,7 +126,14 @@ const update = async (req, res, next) => {
  */
 const deleteProject = async (req, res, next) => {
   try {
-    await projectService.deleteProject(req.params.id);
+    const { deleteReferences } = req.query; // Get deletion type from query
+    
+    if (deleteReferences === 'true') {
+      await projectService.deleteProjectWithReferences(req.params.id);
+    } else {
+      await projectService.deleteProject(req.params.id); // Existing method
+    }
+    
     return res.json(success(null, 'Project deleted successfully'));
   } catch (err) {
     logger.error(`Error deleting project ${req.params.id}:`, err);
@@ -288,5 +311,6 @@ module.exports = {
   deletePhoto,
   convertToEstimate,
   convertToJob,
-  updateAdditionalWork
+  updateAdditionalWork,
+  checkProjectDependencies
 };

@@ -42,6 +42,13 @@ router.get('/:id', authenticate, validateUuid('id'), controller.get);
 router.put('/:id', authenticate, validateUuid('id'), controller.update);
 
 /**
+ * @route   GET /api/projects/:id/dependencies
+ * @desc    Check project dependencies before deletion
+ * @access  Private
+ */
+router.get('/:id/dependencies', authenticate, validateUuid('id'), controller.checkProjectDependencies);
+
+/**
  * @route   DELETE /api/projects/:id
  * @desc    Delete project
  * @access  Private
