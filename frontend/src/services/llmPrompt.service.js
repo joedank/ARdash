@@ -9,7 +9,7 @@ class LLMPromptService {
    * @returns {Promise} - Promise with all prompts
    */
   async getAllPrompts() {
-    return apiService.get('/llm-prompts');
+    return apiService.get('/api/llm-prompts');
   }
 
   /**
@@ -18,7 +18,7 @@ class LLMPromptService {
    * @returns {Promise} - Promise with prompt details
    */
   async getPromptById(id) {
-    return apiService.get(`/llm-prompts/${id}`);
+    return apiService.get(`/api/llm-prompts/${id}`);
   }
 
   /**
@@ -27,7 +27,7 @@ class LLMPromptService {
    * @returns {Promise} - Promise with prompt details
    */
   async getPromptByName(name) {
-    return apiService.get(`/llm-prompts/name/${name}`);
+    return apiService.get(`/api/llm-prompts/name/${name}`);
   }
 
   /**
@@ -37,7 +37,7 @@ class LLMPromptService {
    * @returns {Promise} - Promise with update result
    */
   async updatePrompt(id, data) {
-    return apiService.put(`/llm-prompts/${id}`, data);
+    return apiService.put(`/api/llm-prompts/${id}`, data);
   }
 }
 

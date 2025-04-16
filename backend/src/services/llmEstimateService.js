@@ -23,6 +23,90 @@ class LLMEstimateService {
   }
 
   /**
+   * Validates that aggressiveness is a number between 0 and 1 (inclusive)
+   * @param {number} value
+   * @returns {number}
+   * @throws {Error} if value is not valid
+   */
+  _validateAggressiveness(value) {
+    if (typeof value !== 'number' || isNaN(value) || value < 0 || value > 1) {
+      throw new Error('Aggressiveness must be a number between 0 and 1');
+    }
+    return value;
+  }
+
+  /**
+   * Validates that mode is a non-empty string and matches allowed values
+   * @param {string} mode
+   * @returns {string}
+   * @throws {Error} if mode is not valid
+   */
+  _validateMode(mode) {
+    const allowedModes = ['replace-focused', 'repair-focused', 'full'];
+    if (typeof mode !== 'string' || !allowedModes.includes(mode)) {
+      throw new Error(`Mode must be one of: ${allowedModes.join(', ')}`);
+    }
+    return mode;
+  }
+
+  /**
+   * Builds the LLM prompt string using assessment markdown, aggressiveness, and mode
+   * @param {string} markdown - The formatted assessment markdown
+   * @param {number} aggressiveness - Aggressiveness value (0-1)
+   * @param {string} mode - Mode for estimate ('replace-focused', 'repair-focused', 'full')
+   * @returns {string} - The constructed prompt
+   */
+  _buildPrompt(markdown, aggressiveness, mode) {
+    return `# Estimation Request\nMode: ${mode}\nAggressiveness: ${aggressiveness}\n\n## Assessment\n${markdown}`;
+  }
+
+  /**
+   * Calculates the temperature value for the LLM based on aggressiveness (0-1)
+   * @param {number} aggressiveness
+   * @returns {number} temperature (0.2 to 1.0)
+   */
+  _calculateTemperature(aggressiveness) {
+    // Map aggressiveness (0-1) to temperature (0.2-1.0)
+    // Low aggressiveness = conservative (0.2), high = more creative (1.0)
+    const minTemp = 0.2;
+    const maxTemp = 1.0;
+    if (typeof aggressiveness !== 'number' || isNaN(aggressiveness)) return minTemp;
+    return Math.min(maxTemp, Math.max(minTemp, minTemp + (maxTemp - minTemp) * aggressiveness));
+  }
+
+  /**
+   * Extracts an array of line items from a string (tries to parse JSON)
+   * @param {string} responseText
+   * @returns {Array} Array of line items or []
+   */
+  _extractLineItems(responseText) {
+    if (!responseText || typeof responseText !== 'string') return [];
+    // Try to extract JSON array from markdown code block
+    const jsonBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    let jsonContent = responseText;
+    if (jsonBlockMatch && jsonBlockMatch[1]) {
+      jsonContent = jsonBlockMatch[1].trim();
+    }
+    try {
+      const parsed = JSON.parse(jsonContent);
+      return Array.isArray(parsed) ? parsed : (parsed.line_items || []);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /**
+   * Post-processes the array of line items (normalization, defaults, etc.)
+   * @param {Array} items
+   * @returns {Array} processed items
+   */
+  _postProcessItems(items) {
+    if (!Array.isArray(items)) return [];
+    // Example: add normalization or default values if needed
+    return items.map(item => ({ ...item }));
+  }
+
+  /**
    * Retrieves a prompt from the database or cache
    * @param {string} name - The name of the prompt to retrieve
    * @returns {Promise<string>} - The prompt text
@@ -268,6 +352,62 @@ Format: Return a JSON object matching the service catalog schema.`
   }
 
   /**
+   * Analyzes the project scope using LLM to extract repair types, measurements, and clarifying questions.
+   * @param {Object} params - Parameters object
+   * @param {string} params.scope - The scope/description to analyze
+   * @returns {Promise<Object>} - Analysis result
+   */
+  async analyzeScope(params = {}) {
+    try {
+      const { scope } = params;
+      if (!scope || typeof scope !== 'string') {
+        throw new Error('Scope description is required');
+      }
+
+      // Use the same prompt as initialAnalysis
+      const prompt = this._getDefaultPrompt('initialAnalysis') + `\n${scope}`;
+      const llmResponse = await this.deepSeekService.generateChatCompletion([
+        {
+          role: "system",
+          content: "You are a professional construction estimator. Analyze the project scope and respond with a JSON object."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ], 'deepseek-chat', false, {
+        temperature: 0.3, // More deterministic for analysis
+        max_tokens: 512
+      });
+      let content = llmResponse?.choices?.[0]?.message?.content || '';
+      if (!content) {
+        throw new Error('No response from LLM');
+      }
+      // Try to parse as JSON
+      let analysis;
+      try {
+        analysis = JSON.parse(content);
+      } catch (err) {
+        // Try to extract JSON from code block
+        const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (match && match[1]) {
+          try {
+            analysis = JSON.parse(match[1].trim());
+          } catch (e) {
+            throw new Error('Failed to parse LLM response as JSON');
+          }
+        } else {
+          throw new Error('Failed to parse LLM response as JSON');
+        }
+      }
+      return { success: true, data: analysis };
+    } catch (error) {
+      logger.error('Error in analyzeScope:', error);
+      return { success: false, message: error.message };
+    }
+  }
+
+  /**
    * Generates estimate items from assessment using LLM.
    * @param {Object} params - Parameters object
    * @param {string} params.projectId - Project ID to generate estimate for
@@ -277,6 +417,7 @@ Format: Return a JSON object matching the service catalog schema.`
    * @returns {Object} Response containing estimate line items and optional debug info
    */
   async generateEstimateFromAssessment(params = {}) {
+
     try {
       // Extract parameters
       const { projectId, assessment: assessmentData, mode, aggressiveness } = params;

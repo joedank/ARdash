@@ -103,20 +103,27 @@ const loadAssessmentData = async () => {
   error.value = null;
 
   try {
+    // Log the assessment ID we're using
+    console.log(`EstimateFromAssessment: Loading assessment data for ID: ${props.assessmentId}`);
+
     // Use standardized service for better error handling and data conversion
     const response = await standardizedEstimatesService.getAssessmentData(props.assessmentId);
 
+    // Log the full response for debugging
+    console.log('EstimateFromAssessment: Assessment data response:', response);
+
     if (response.success && response.data) {
       assessment.value = response.data;
-      console.log('Assessment data loaded in component:', assessment.value);
+      console.log('EstimateFromAssessment: Assessment data loaded in component:', assessment.value);
       toast.success('Assessment data loaded successfully');
     } else {
       error.value = response.message || 'Failed to load assessment data';
+      console.error('EstimateFromAssessment: Failed to load assessment data:', error.value);
       toast.error(error.value);
       emit('error', error.value);
     }
   } catch (err) {
-    console.error('Error loading assessment data:', err);
+    console.error('EstimateFromAssessment: Error loading assessment data:', err);
     error.value = err.response?.data?.message || err.message || 'Failed to load assessment data';
     toast.error(error.value);
     emit('error', error.value);
@@ -140,44 +147,83 @@ const generateEstimate = async () => {
   try {
     toast.info('Generating estimate from assessment data...');
 
-    // Ensure the assessment object has the project ID
+    // Create a new object with all required properties to ensure proper data structure
     const assessmentWithProjectId = { ...assessment.value };
 
-    // If assessment doesn't have a project ID, add it from props
-    if (!assessmentWithProjectId.projectId && props.assessmentId) {
+    // Explicitly set projectId at the root level
+    if (props.assessmentId) {
       assessmentWithProjectId.projectId = props.assessmentId;
-      console.log('Added projectId to assessment object:', props.assessmentId);
+      console.log('Set explicit projectId at root level:', props.assessmentId);
     }
 
-    // If assessment doesn't have a project object, create one with the ID
-    if (!assessmentWithProjectId.project && props.assessmentId) {
-      assessmentWithProjectId.project = { id: props.assessmentId };
-      console.log('Added project object with id to assessment:', props.assessmentId);
+    // Ensure project object exists with the correct ID
+    if (props.assessmentId) {
+      assessmentWithProjectId.project = assessmentWithProjectId.project || {};
+      assessmentWithProjectId.project.id = props.assessmentId;
+      // Also include project_id property for backward compatibility
+      assessmentWithProjectId.project.project_id = props.assessmentId;
+      console.log('Set project object with both id and project_id:', props.assessmentId);
     }
+
+    // Include standalone projectId parameter in the payload
+    const payload = {
+      projectId: props.assessmentId,
+      assessment: assessmentWithProjectId,
+      options: {
+        aggressiveness: llmSettings.value.aggressiveness,
+        mode: llmSettings.value.mode,
+        debug: false
+      }
+    };
+
+    console.log('Complete payload for estimate generation:', JSON.stringify(payload, null, 2));
 
     // Log the assessment data being sent
     console.log('Sending assessment data for estimate generation:', JSON.stringify(assessmentWithProjectId, null, 2));
 
     // Use standardized service for better error handling and data conversion
-    const result = await standardizedEstimatesService.generateFromAssessment(assessmentWithProjectId, {
-      aggressiveness: llmSettings.value.aggressiveness,
-      mode: llmSettings.value.mode,
-      debug: false
-    });
+    // Send the complete payload
+    console.log('Calling standardizedEstimatesService.generateFromAssessment with payload');
+    const result = await standardizedEstimatesService.generateFromAssessment(payload);
+
+    // Log the full result for debugging
+    console.log('Result from generateFromAssessment:', JSON.stringify(result, null, 2));
 
     if (result.success && result.data) {
       console.log('Generated estimate data:', result.data);
 
-      // Format the response into the structure we need
-      estimateItems.value = result.data.map(item => ({
-        description: item.description,
-        quantity: item.quantity,
-        unit: item.unit,
-        unitPrice: item.unitPrice || item.unit_price,
-        total: item.total,
-        sourceType: item.sourceType || item.source_type,
-        sourceId: item.sourceId || item.source_id
-      }));
+      // Check if result.data is an array
+      if (!Array.isArray(result.data)) {
+        console.warn('Expected result.data to be an array, got:', typeof result.data);
+        // Try to handle non-array data
+        const dataArray = Array.isArray(result.data) ? result.data :
+                         (result.data.items ? result.data.items :
+                         (result.data.data && Array.isArray(result.data.data) ? result.data.data : []));
+
+        console.log('Converted data to array:', dataArray);
+
+        // Format the response into the structure we need
+        estimateItems.value = dataArray.map(item => ({
+          description: item.description || item.item || '',
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: Number(item.unitPrice || item.unit_price || item.rate || item.unitCost || 0),
+          total: Number(item.total || item.cost || item.totalCost || 0),
+          sourceType: item.sourceType || item.source_type,
+          sourceId: item.sourceId || item.source_id
+        }));
+      } else {
+        // Format the response into the structure we need
+        estimateItems.value = result.data.map(item => ({
+          description: item.description || item.item || '',
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: Number(item.unitPrice || item.unit_price || item.rate || item.unitCost || 0),
+          total: Number(item.total || item.cost || item.totalCost || 0),
+          sourceType: item.sourceType || item.source_type,
+          sourceId: item.sourceId || item.source_id
+        }));
+      }
 
       // Build source map from the results
       if (result.sourceMap) {
@@ -194,6 +240,7 @@ const generateEstimate = async () => {
       emit('update', { estimateItems: estimateItems.value, sourceMap: sourceMap.value });
     } else {
       error.value = result.message || 'Failed to generate estimate from assessment data';
+      console.error('Failed to generate estimate:', error.value);
       toast.error(error.value);
       emit('error', error.value);
     }

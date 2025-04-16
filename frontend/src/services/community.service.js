@@ -18,7 +18,7 @@ class CommunityService {
       // Debug the filters being sent to the API
       console.log('Fetching communities with filters:', snakeCaseFilters);
 
-      const response = await apiClient.get('/communities', { params: snakeCaseFilters });
+      const response = await apiClient.get('/api/communities', { params: snakeCaseFilters });
 
       // Debug the response from the API
       console.log('Communities API response:', response);
@@ -40,7 +40,7 @@ class CommunityService {
   async getCommunityById(id) {
     try {
       console.log(`Fetching community with ID: ${id}`);
-      const response = await apiClient.get(`/communities/${id}`);
+      const response = await apiClient.get(`/api/communities/${id}`);
 
       // Debug the raw API response to see its structure
       console.log('Raw API response:', response);
@@ -80,7 +80,7 @@ class CommunityService {
       // Convert data to snake_case for API
       const snakeCaseData = toSnakeCase(communityData);
 
-      const response = await apiClient.post('/communities', snakeCaseData);
+      const response = await apiClient.post('/api/communities', snakeCaseData);
       return toCamelCase(response.data.data);
     } catch (error) {
       console.error('Error creating community:', error);
@@ -100,7 +100,7 @@ class CommunityService {
       const snakeCaseData = toSnakeCase(communityData);
 
       console.log(`Updating community ${id} with data:`, snakeCaseData);
-      const response = await apiClient.put(`/communities/${id}`, snakeCaseData);
+      const response = await apiClient.put(`/api/communities/${id}`, snakeCaseData);
 
       // Debug the raw API response
       console.log('Update community API response:', response);
@@ -139,7 +139,7 @@ class CommunityService {
    */
   async deleteCommunity(id) {
     try {
-      const response = await apiClient.delete(`/communities/${id}`);
+      const response = await apiClient.delete(`/api/communities/${id}`);
       return response.data.success;
     } catch (error) {
       console.error(`Error deleting community ${id}:`, error);
@@ -154,7 +154,7 @@ class CommunityService {
    */
   async searchCommunities(query) {
     try {
-      const response = await apiClient.get('/communities/search', { params: { q: query } });
+      const response = await apiClient.get('/api/communities/search', { params: { q: query } });
       return toCamelCase(response.data.data);
     } catch (error) {
       console.error(`Error searching communities with query "${query}":`, error);
@@ -170,7 +170,7 @@ class CommunityService {
    */
   async setActiveStatus(id, isActive) {
     try {
-      const response = await apiClient.put(`/communities/${id}/active-status`, { isActive });
+      const response = await apiClient.put(`/api/communities/${id}/active-status`, { isActive });
       return toCamelCase(response.data.data);
     } catch (error) {
       console.error(`Error setting active status for community ${id}:`, error);
@@ -187,7 +187,7 @@ class CommunityService {
   async selectAdType(communityId, adTypeId) {
     try {
       console.log(`Selecting ad type ${adTypeId} for community ${communityId}`);
-      const response = await apiClient.put(`/communities/${communityId}/select-ad-type`, { adTypeId });
+      const response = await apiClient.put(`/api/communities/${communityId}/select-ad-type`, { adTypeId });
 
       // Debug the raw API response
       console.log('Select ad type API response:', response);
@@ -227,7 +227,7 @@ class CommunityService {
   async getAdTypes(communityId) {
     try {
       console.log(`Fetching ad types for community ID: ${communityId}`);
-      const response = await apiClient.get(`/communities/${communityId}/ad-types`);
+      const response = await apiClient.get(`/api/communities/${communityId}/ad-types`);
 
       // Debug the raw API response to see its structure
       console.log('Raw ad types API response:', response);
@@ -265,7 +265,7 @@ class CommunityService {
    */
   async getAdTypeById(id) {
     try {
-      const response = await apiClient.get(`/communities/ad-types/${id}`);
+      const response = await apiClient.get(`/api/communities/ad-types/${id}`);
       return toCamelCase(response.data.data);
     } catch (error) {
       console.error(`Error fetching ad type ${id}:`, error);
@@ -285,7 +285,7 @@ class CommunityService {
       const snakeCaseData = toSnakeCase(adTypeData);
 
       console.log(`Creating ad type for community ${communityId} with data:`, snakeCaseData);
-      const response = await apiClient.post(`/communities/${communityId}/ad-types`, snakeCaseData);
+      const response = await apiClient.post(`/api/communities/${communityId}/ad-types`, snakeCaseData);
 
       // Debug the raw API response
       console.log('Create ad type API response:', response);
@@ -329,7 +329,7 @@ class CommunityService {
       const snakeCaseData = toSnakeCase(adTypeData);
 
       console.log(`Updating ad type ${id} with data:`, snakeCaseData);
-      const response = await apiClient.put(`/communities/ad-types/${id}`, snakeCaseData);
+      const response = await apiClient.put(`/api/communities/ad-types/${id}`, snakeCaseData);
 
       // Debug the raw API response
       console.log('Update ad type API response:', response);
@@ -368,7 +368,7 @@ class CommunityService {
    */
   async deleteAdType(id) {
     try {
-      const response = await apiClient.delete(`/communities/ad-types/${id}`);
+      const response = await apiClient.delete(`/api/communities/ad-types/${id}`);
       return response.data.success;
     } catch (error) {
       console.error(`Error deleting ad type ${id}:`, error);

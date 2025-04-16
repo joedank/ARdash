@@ -8,7 +8,7 @@ import { standardizeResponse as apiStandardizeResponse, standardizeRequest as ap
  */
 class StandardizedProjectsService extends BaseService {
   constructor() {
-    super('/projects');
+    super('/api/projects');
     this.api = api; // Explicitly set the API reference
   }
 
@@ -19,21 +19,21 @@ class StandardizedProjectsService extends BaseService {
    */
   standardizeResponse(response) {
     if (!response) return { success: false, message: 'No response received', data: null };
-    
+
     // Handle different response formats
     if (response.data && (response.success !== undefined || response.data.success !== undefined)) {
       // Response already has success property
       const success = response.success !== undefined ? response.success : response.data.success;
       const message = response.message || response.data.message || '';
       const data = response.data?.data || response.data;
-      
+
       return {
         success,
         message,
         data: apiStandardizeResponse(data) // Use imported function
       };
     }
-    
+
     // Simple response format
     return {
       success: true,
@@ -55,7 +55,7 @@ class StandardizedProjectsService extends BaseService {
       throw error;
     }
   }
-  
+
   /**
    * Get the current active job
    * @returns {Promise<Object>} Standardized response with current active job
@@ -69,7 +69,7 @@ class StandardizedProjectsService extends BaseService {
       throw error;
     }
   }
-  
+
   /**
    * Get upcoming projects
    * @param {number} limit - Maximum number of projects to return
@@ -86,7 +86,7 @@ class StandardizedProjectsService extends BaseService {
       throw error;
     }
   }
-  
+
   /**
    * Get assessment projects
    * @param {number} limit - Maximum number of projects to return
@@ -103,7 +103,7 @@ class StandardizedProjectsService extends BaseService {
       throw error;
     }
   }
-  
+
   /**
    * Get recently completed projects
    * @param {number} limit - Maximum number of projects to return
@@ -120,7 +120,7 @@ class StandardizedProjectsService extends BaseService {
       throw error;
     }
   }
-  
+
   /**
    * Get rejected assessment projects
    * @param {number} limit - Maximum number of projects to return
@@ -265,10 +265,10 @@ class StandardizedProjectsService extends BaseService {
     try {
       const formData = new FormData();
       formData.append('photo', file);
-      
+
       // Convert camelCase keys to snake_case for API
       const standardizedData = apiStandardizeRequest(data); // Use imported function
-      
+
       Object.entries(standardizedData).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
           formData.append(key, value);
@@ -286,7 +286,7 @@ class StandardizedProjectsService extends BaseService {
         },
         signal // Pass the AbortController signal to axios
       });
-      
+
       return this.standardizeResponse(response);
     } catch (error) {
       console.error('Photo upload error details:', {
@@ -338,10 +338,10 @@ class StandardizedProjectsService extends BaseService {
    */
   async convertToJob(id, estimateId) {
     try {
-      const response = await this.api.post(`${this.resourceUrl}/${id}/convert-to-job`, { 
-        estimate_id: estimateId 
+      const response = await this.api.post(`${this.resourceUrl}/${id}/convert-to-job`, {
+        estimate_id: estimateId
       });
-      
+
       return this.standardizeResponse(response);
     } catch (error) {
       console.error(`Convert to job error for project ID ${id}:`, error);
@@ -357,10 +357,10 @@ class StandardizedProjectsService extends BaseService {
    */
   async updateAdditionalWork(id, notes) {
     try {
-      const response = await this.api.put(`${this.resourceUrl}/${id}/additional-work`, { 
-        additional_work: notes 
+      const response = await this.api.put(`${this.resourceUrl}/${id}/additional-work`, {
+        additional_work: notes
       });
-      
+
       return this.standardizeResponse(response);
     } catch (error) {
       console.error(`Update additional work error for project ID ${id}:`, error);

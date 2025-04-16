@@ -421,7 +421,7 @@ const analyzeEstimateScope = async (req, res) => {
 
     // Call the LLM service to analyze the scope
     const analysisResult = await llmEstimateService.analyzeScope({
-      description,
+      scope: description, // Make sure we use 'scope' here as expected by the method
       assessmentData,
       mode,
       aggressiveness

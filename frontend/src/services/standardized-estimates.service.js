@@ -9,7 +9,7 @@ class EstimateService extends BaseService {
    * Create a new EstimateService instance
    */
   constructor() {
-    super('/estimates');
+    super('/api/estimates');
   }
 
   /**
@@ -219,35 +219,59 @@ class EstimateService extends BaseService {
       if (!projectId || projectId === 'undefined' || projectId === 'null') {
         throw new Error(`Invalid project ID provided: ${projectId}`);
       }
-      
+
       console.log(`Fetching assessment data for project ID: ${projectId}`);
-      
+
+      // Flag to track attempt success
+      let primarySucceeded = false;
+      let fallbackSucceeded = false;
+      let response = null;
+      let error = null;
+
+      // Try primary endpoint first - explicitly include /api prefix for production
       try {
-        // First try the new endpoint (preferred path)
-        // The apiService already prepends '/api', so we only need the path after that
-        console.log(`Trying primary endpoint: /estimates/llm/assessment/${projectId}`);
-        const response = await apiService.get(`/estimates/llm/assessment/${projectId}`);
+        // Explicitly include /api prefix to ensure correct routing
+        const primaryEndpoint = `/api/estimates/llm/assessment/${projectId}`;
+        console.log(`Trying primary endpoint: ${primaryEndpoint}`);
+
+        response = await apiService.get(primaryEndpoint);
+        primarySucceeded = true;
         console.log('Successfully fetched data from primary endpoint');
-        return response;
       } catch (primaryError) {
-        // If the primary endpoint fails, try the legacy endpoint
-        console.warn(`Primary endpoint failed with error:`, primaryError);
-        console.log(`Trying fallback endpoint: /assessment/for-project/${projectId}`);
-        
+        console.warn(`Primary endpoint failed:`, primaryError);
+        error = primaryError;
+      }
+
+      // If primary failed, try the legacy endpoint
+      if (!primarySucceeded) {
         try {
-          const fallbackResponse = await apiService.get(`/assessment/for-project/${projectId}`);
+          // For the legacy endpoint, explicitly include /api prefix
+          const fallbackEndpoint = `/api/assessment/for-project/${projectId}`;
+          console.log(`Trying fallback endpoint: ${fallbackEndpoint}`);
+
+          response = await apiService.get(fallbackEndpoint);
+          fallbackSucceeded = true;
           console.log('Successfully fetched data from fallback endpoint');
-          return fallbackResponse;
         } catch (fallbackError) {
-          // If both endpoints fail, throw the original error
-          console.error(`Both endpoints failed. Primary error:`, primaryError);
-          console.error(`Fallback error:`, fallbackError);
-          throw primaryError; // Throw the primary error as it's the preferred path
+          console.error(`All endpoints failed. Cannot fetch assessment data.`);
+          error = fallbackError;
         }
       }
+
+      // If all attempts failed, throw the last error
+      if (!primarySucceeded && !fallbackSucceeded) {
+        throw error || new Error('Failed to fetch assessment data from any endpoint');
+      }
+
+      // Process and return the response
+      return this.standardizeResponse(response);
     } catch (error) {
       console.error(`Error in getAssessmentData for project ${projectId}:`, error);
-      return this._handleError(error);
+      return {
+        success: false,
+        message: error.message || 'Failed to fetch assessment data',
+        data: null
+      };
     }
   }
 
@@ -313,91 +337,156 @@ class EstimateService extends BaseService {
 
   /**
    * Generate estimate directly from assessment data with enhanced parameters.
-   * @param {Object} assessment - Assessment data object
-   * @param {Object} options - Options object with aggressiveness and mode parameters
-   * @param {number} options.aggressiveness - Value between 0-1 controlling estimation aggressiveness (default: 0.6)
-   * @param {string} options.mode - Estimation approach mode (default: 'replace-focused')
-   * @param {boolean} options.debug - Include debug information in response (default: false)
+   * @param {Object} payload - Assessment payload which may include both projectId and assessment
+   * @param {string} payload.projectId - The explicit project ID for the assessment
+   * @param {Object} payload.assessment - The assessment data object
+   * @param {Object} payload.options - Options for generation (aggressiveness, mode, etc.)
+   * @param {Object} options - (Optional) Legacy options object for backward compatibility
    * @returns {Promise} Response data with estimate line items and source map
    */
-  async generateFromAssessment(assessment, options = {}) {
+  async generateFromAssessment(payload, options = {}) {
     try {
-      console.log('Assessment data received in generateFromAssessment:', JSON.stringify(assessment, null, 2));
+      console.log('Payload received in generateFromAssessment:', JSON.stringify(payload, null, 2));
 
-      // Extract project ID from assessment object
-      let projectId = null;
+      // Handle both new payload format and legacy format
+      let finalPayload;
 
-      // Try to find project ID in different possible locations
-      if (assessment) {
-        // Direct project ID
-        if (assessment.projectId) {
-          projectId = assessment.projectId;
-          console.log('Found projectId directly on assessment object:', projectId);
+      // Check if this is the new payload format (object with projectId, assessment, and options)
+      if (payload && payload.projectId && payload.assessment) {
+        console.log('Using new payload format with explicit projectId');
+        finalPayload = payload;
+      }
+      // Legacy format: assessment object passed directly with separate options
+      else {
+        console.log('Using legacy payload format, extracting projectId from assessment');
+        const assessment = payload; // In legacy format, payload is the assessment object
+
+        // Extract project ID from assessment object using the same logic as before
+        let projectId = null;
+
+        // Try to find project ID in different possible locations
+        if (assessment) {
+          // Direct project ID
+          if (assessment.projectId) {
+            projectId = assessment.projectId;
+            console.log('Found projectId directly on assessment object:', projectId);
+          }
+          // Project ID in project object
+          else if (assessment.project && assessment.project.id) {
+            projectId = assessment.project.id;
+            console.log('Found projectId in assessment.project.id:', projectId);
+          }
+          // Project ID in project object with snake_case
+          else if (assessment.project && assessment.project.project_id) {
+            projectId = assessment.project.project_id;
+            console.log('Found projectId in assessment.project.project_id:', projectId);
+          }
+          // ID directly on assessment object (if assessment itself is a project)
+          else if (assessment.id) {
+            projectId = assessment.id;
+            console.log('Using assessment.id as projectId:', projectId);
+          }
+          // Try to find project ID in client object
+          else if (assessment.client && assessment.client.projectId) {
+            projectId = assessment.client.projectId;
+            console.log('Found projectId in assessment.client.projectId:', projectId);
+          }
+          // Try to find project ID in client object with snake_case
+          else if (assessment.client && assessment.client.project_id) {
+            projectId = assessment.client.project_id;
+            console.log('Found projectId in assessment.client.project_id:', projectId);
+          }
+          // Try to find project ID in assessmentId
+          else if (assessment.assessmentId) {
+            projectId = assessment.assessmentId;
+            console.log('Using assessment.assessmentId as projectId:', projectId);
+          }
         }
-        // Project ID in project object
-        else if (assessment.project && assessment.project.id) {
-          projectId = assessment.project.id;
-          console.log('Found projectId in assessment.project.id:', projectId);
+
+        // If still no project ID, try to extract it from the URL
+        if (!projectId) {
+          const currentUrl = window.location.href;
+          const urlMatch = currentUrl.match(/\/projects\/([0-9a-f-]+)/);
+          if (urlMatch && urlMatch[1]) {
+            projectId = urlMatch[1];
+            console.log('Extracted projectId from URL:', projectId);
+          }
         }
-        // Project ID in project object with snake_case
-        else if (assessment.project && assessment.project.project_id) {
-          projectId = assessment.project.project_id;
-          console.log('Found projectId in assessment.project.project_id:', projectId);
+
+        if (!projectId) {
+          console.error('No project ID found in assessment data', assessment);
+          throw new Error('Project ID is required but not found in assessment data');
         }
-        // ID directly on assessment object (if assessment itself is a project)
-        else if (assessment.id) {
-          projectId = assessment.id;
-          console.log('Using assessment.id as projectId:', projectId);
+
+        // Validate projectId before constructing the payload
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!projectId || typeof projectId !== 'string' || !uuidRegex.test(projectId)) {
+          // Use toast if available, otherwise fallback to alert/console
+          if (typeof window !== 'undefined' && window.$toast) {
+            window.$toast.error(`Invalid or missing project ID: ${projectId || '(none)'}. Please select a valid project before generating an estimate.`);
+          } else if (typeof window !== 'undefined' && window.Vue && window.Vue.$toast) {
+            window.Vue.$toast.error(`Invalid or missing project ID: ${projectId || '(none)'}. Please select a valid project before generating an estimate.`);
+          } else if (typeof alert !== 'undefined') {
+            alert(`Invalid or missing project ID: ${projectId || '(none)'}. Please select a valid project before generating an estimate.`);
+          } else {
+            console.error(`Invalid or missing project ID: ${projectId || '(none)'}. Please select a valid project before generating an estimate.`);
+          }
+          throw new Error(`Invalid or missing project ID: ${projectId || '(none)'}. Please select a valid project before generating an estimate.`);
         }
-        // Try to find project ID in client object
-        else if (assessment.client && assessment.client.projectId) {
-          projectId = assessment.client.projectId;
-          console.log('Found projectId in assessment.client.projectId:', projectId);
-        }
-        // Try to find project ID in client object with snake_case
-        else if (assessment.client && assessment.client.project_id) {
-          projectId = assessment.client.project_id;
-          console.log('Found projectId in assessment.client.project_id:', projectId);
-        }
-        // Try to find project ID in assessmentId
-        else if (assessment.assessmentId) {
-          projectId = assessment.assessmentId;
-          console.log('Using assessment.assessmentId as projectId:', projectId);
-        }
+        // Construct the payload in the expected format
+        finalPayload = {
+          projectId, // Include the extracted project ID
+          assessment, // Still include the full assessment for backward compatibility
+          options: {
+            aggressiveness: options.aggressiveness !== undefined ? options.aggressiveness : 0.6,
+            mode: options.mode || 'replace-focused',
+            debug: options.debug === true,
+            includeBidirectionalLinks: true // Always include source mapping for bidirectional linking
+          }
+        };
       }
 
-      // If still no project ID, try to extract it from the URL
-      if (!projectId) {
-        const currentUrl = window.location.href;
-        const urlMatch = currentUrl.match(/\/projects\/([0-9a-f-]+)/);
-        if (urlMatch && urlMatch[1]) {
-          projectId = urlMatch[1];
-          console.log('Extracted projectId from URL:', projectId);
-        }
+      // Ensure options are always properly set
+      if (!finalPayload.options) {
+        finalPayload.options = {
+          aggressiveness: 0.6,
+          mode: 'replace-focused',
+          debug: false,
+          includeBidirectionalLinks: true
+        };
       }
 
-      if (!projectId) {
-        console.error('No project ID found in assessment data', assessment);
-        throw new Error('Project ID is required but not found in assessment data');
-      }
+      // Explicitly include /api prefix to ensure correct routing
+      const endpoint = `/api/estimates/llm/generate`;
 
-      const payload = {
-        projectId, // Include the extracted project ID
-        assessment, // Still include the full assessment for backward compatibility
-        options: {
-          aggressiveness: options.aggressiveness !== undefined ? options.aggressiveness : 0.6,
-          mode: options.mode || 'replace-focused',
-          debug: options.debug === true,
-          includeBidirectionalLinks: true // Always include source mapping for bidirectional linking
-        }
+      // Log the final endpoint being called
+      console.log('Sending estimate generation payload to endpoint:', endpoint);
+
+      // Ensure the payload is properly formatted for the backend
+      const formattedPayload = {
+        projectId: finalPayload.projectId,
+        assessment: finalPayload.assessment,
+        options: finalPayload.options
       };
 
-      console.log('Sending estimate generation payload with project ID:', projectId);
-      console.log('Full payload structure:', JSON.stringify(payload, null, 2));
-      return await apiService.post(`${this.resourceUrl}/llm/generate`, payload);
+      // Log the formatted payload for debugging
+      console.log('Formatted payload for backend:', JSON.stringify(formattedPayload, null, 2));
+
+      // Make the API call with the properly formatted payload
+      const response = await apiService.post(endpoint, formattedPayload);
+
+      // Log the response for debugging
+      console.log('Response from estimate generation:', response);
+
+      // Return the standardized response
+      return this.standardizeResponse(response);
     } catch (error) {
       console.error('Error in generateFromAssessment:', error);
-      this._handleError(error);
+      return {
+        success: false,
+        message: error.message || 'Failed to generate estimate from assessment',
+        data: []
+      };
     }
   }
 

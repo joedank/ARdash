@@ -169,13 +169,28 @@ const props = defineProps({
 const emit = defineEmits(['updateItem', 'highlightSource']);
 
 // Clone the items for internal state
-const localItems = ref(JSON.parse(JSON.stringify(props.items)));
+const localItems = ref([]);
+
+// Watch for changes to items prop and ensure unitPrice and total are numbers
+watch(() => props.items, (newItems) => {
+  if (Array.isArray(newItems)) {
+    localItems.value = newItems.map(item => ({
+      ...item,
+      unitPrice: Number(item.unitPrice) || 0,
+      total: Number(item.total) || 0,
+    }));
+  }
+}, { immediate: true });
 
 // Watch for changes from parent
 watch(() => props.items, (newItems) => {
   // Only update if the arrays are different
   if (JSON.stringify(localItems.value) !== JSON.stringify(newItems)) {
-    localItems.value = JSON.parse(JSON.stringify(newItems));
+    localItems.value = newItems.map(item => ({
+      ...item,
+      unitPrice: Number(item.unitPrice) || 0,
+      total: Number(item.total) || 0,
+    }));
   }
 }, { deep: true });
 

@@ -4,16 +4,14 @@ This document captures the current work focus, recent changes, active decisions,
 
 ## Current Focus
 
-### Primary Tasks
+- Fixing bugs in estimate generation, especially missing/undefined functions (e.g., analyzeScope)
+- Ensuring the UI displays all relevant estimate data correctly (unit prices, totals, etc.)
+- Making sure both new and legacy estimate workflows are compatible
 
-- Fixing assessment to estimate conversion workflow to properly pass project ID
-- Implementing communities module for managing mobile home community newsletter advertisements
-- Fixing WebSocket connection security issues when accessing the application over HTTPS
-- Enhancing UI with tooltips for better user experience and cleaner interfaces
-- Fixing component prop validation issues to prevent console warnings
-- Implementing dashboard view for rejected assessments to improve business analytics
+## Recent Changes
 
-### Secondary Tasks
+- Implemented `analyzeScope` in `llmEstimateService.js`
+- Refactored frontend mapping and data handling for estimates
 
 - Enhancing project workflow with complete status lifecycle including rejected assessments
 - Improving assessment workflow with clearer status transition options and reason tracking

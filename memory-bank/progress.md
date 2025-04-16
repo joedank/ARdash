@@ -1092,6 +1092,21 @@
 
 ---
 
+## What Works
+- Most estimate UI bugs fixed
+- Mapping for unitPrice/total is robust
+- `analyzeScope` implemented in backend
+
+## What's Left
+- Syntax errors remain in `llmEstimateService.js`
+- Some legacy code cleanup needed
+
+## Next Steps
+- Fix syntax errors
+- Test new UI for estimates
+- Confirm compatibility with legacy workflows
+
+---
 
 [2025-04-14 02:46] - **Fixed Estimate Item Photos Component Functionality**
 

@@ -143,6 +143,13 @@ if (filters.includeConverted !== true) {
 - **Pattern**: Structure dashboard to highlight the current active job while providing context about the project pipeline
 - **Solution**: Create specialized API endpoints with focused queries and a UI hierarchy that matches the company's workflow
 
+- **System Architecture**:
+  - Service-oriented backend (Node.js/Express)
+  - Vue.js frontend with modular components for estimates
+  - Defensive programming for numeric fields (unitPrice, total, etc.)
+  - Mapping backend property names (unitCost/totalCost) to frontend fields for compatibility
+  - Use of LLM-based services (llmEstimateService, deepSeekService) for estimate analysis and generation
+
 ```javascript
 // Backend service - Get the current active job (most recently updated)
 async getCurrentActiveJob() {

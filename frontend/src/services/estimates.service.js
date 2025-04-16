@@ -13,18 +13,18 @@ class EstimatesService {
    */
   async listEstimates(filters = {}, page = 0, limit = 10) {
     const queryParams = new URLSearchParams();
-    
+
     // Add filters to query params
     if (filters.status) queryParams.append('status', filters.status);
     if (filters.clientId) queryParams.append('clientId', filters.clientId);
     if (filters.dateFrom) queryParams.append('dateFrom', filters.dateFrom);
     if (filters.dateTo) queryParams.append('dateTo', filters.dateTo);
-    
+
     // Add pagination
     queryParams.append('page', page);
     queryParams.append('limit', limit);
-    
-    return apiService.get(`/estimates?${queryParams.toString()}`);
+
+    return apiService.get(`/api/estimates?${queryParams.toString()}`);
   }
 
   /**
@@ -33,7 +33,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created estimate
    */
   async createEstimate(estimateData) {
-    return apiService.post('/estimates', estimateData);
+    return apiService.post('/api/estimates', estimateData);
   }
 
   /**
@@ -42,7 +42,7 @@ class EstimatesService {
    * @returns {Promise} Response data with estimate details
    */
   async getEstimate(id) {
-    return apiService.get(`/estimates/${id}`);
+    return apiService.get(`/api/estimates/${id}`);
   }
 
   /**
@@ -52,7 +52,7 @@ class EstimatesService {
    * @returns {Promise} Response data with updated estimate
    */
   async updateEstimate(id, estimateData) {
-    return apiService.put(`/estimates/${id}`, estimateData);
+    return apiService.put(`/api/estimates/${id}`, estimateData);
   }
 
   /**
@@ -61,7 +61,7 @@ class EstimatesService {
    * @returns {Promise} Response data
    */
   async deleteEstimate(id) {
-    return apiService.delete(`/estimates/${id}`);
+    return apiService.delete(`/api/estimates/${id}`);
   }
 
   /**
@@ -70,7 +70,7 @@ class EstimatesService {
    * @returns {Promise} Response data with updated estimate
    */
   async markEstimateAsSent(id) {
-    return apiService.post(`/estimates/${id}/mark-sent`);
+    return apiService.post(`/api/estimates/${id}/mark-sent`);
   }
 
   /**
@@ -79,7 +79,7 @@ class EstimatesService {
    * @returns {Promise} Response data with updated estimate
    */
   async markEstimateAsAccepted(id) {
-    return apiService.post(`/estimates/${id}/mark-accepted`);
+    return apiService.post(`/api/estimates/${id}/mark-accepted`);
   }
 
   /**
@@ -88,7 +88,7 @@ class EstimatesService {
    * @returns {Promise} Response data with updated estimate
    */
   async markEstimateAsRejected(id) {
-    return apiService.post(`/estimates/${id}/mark-rejected`);
+    return apiService.post(`/api/estimates/${id}/mark-rejected`);
   }
 
   /**
@@ -97,7 +97,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created invoice
    */
   async convertToInvoice(id) {
-    return apiService.post(`/estimates/${id}/convert`);
+    return apiService.post(`/api/estimates/${id}/convert`);
   }
 
   /**
@@ -106,7 +106,7 @@ class EstimatesService {
    * @returns {Promise} PDF file as blob
    */
   async generatePdf(id) {
-    return apiService.get(`/estimates/${id}/pdf`, { responseType: 'blob' });
+    return apiService.get(`/api/estimates/${id}/pdf`, { responseType: 'blob' });
   }
 
   /**
@@ -116,11 +116,11 @@ class EstimatesService {
    */
   async getEstimatePdf(estimateId) {
     try {
-      const response = await apiService.get(`/estimates/${estimateId}/pdf`, { 
+      const response = await apiService.get(`/api/estimates/${estimateId}/pdf`, {
         responseType: 'blob',
         validateStatus: status => status === 200 // Only treat 200 as success
       });
-      
+
       // Verify that we got a PDF
       if (response instanceof Blob && response.type === 'application/pdf') {
         return response;
@@ -129,7 +129,7 @@ class EstimatesService {
         if (response instanceof Blob) {
           // Try to convert blob to text to see the error message
           const text = await response.text();
-          throw new Error(`Received non-PDF response: ${text || 'Unknown error'}`); 
+          throw new Error(`Received non-PDF response: ${text || 'Unknown error'}`);
         }
         throw new Error('Invalid response format when retrieving PDF');
       }
@@ -144,7 +144,7 @@ class EstimatesService {
    * @returns {Promise} Response data with { estimateNumber: '...' }
    */
   async getNextEstimateNumber() {
-    return apiService.get('/estimates/next-number');
+    return apiService.get('/api/estimates/next-number');
   }
 
   /**
@@ -154,7 +154,7 @@ class EstimatesService {
    */
   async analyzeScope(payload) {
     const TIMEOUT_MS = 60000; // 60 seconds
-    
+
     try {
       // Ensure payload is structured correctly
       const dataToSend = {
@@ -167,12 +167,12 @@ class EstimatesService {
       // Create an abort controller for timeout handling
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      
-      const response = await apiService.post('/estimates/llm/analyze', dataToSend, {
+
+      const response = await apiService.post('/api/estimates/llm/analyze', dataToSend, {
         signal: controller.signal,
         timeout: TIMEOUT_MS
       });
-      
+
       clearTimeout(timeoutId);
       return response;
     } catch (error) {
@@ -187,14 +187,14 @@ class EstimatesService {
       throw error;
     }
   }
-  
+
   /**
    * Get assessment data for a project
    * @param {string} projectId - Project ID to get assessment data for
    * @returns {Promise} Response data with assessment information
    */
   async getAssessmentData(projectId) {
-    return apiService.get(`/estimates/llm/assessment/${projectId}`);
+    return apiService.get(`/api/estimates/llm/assessment/${projectId}`);
   }
 
   /**
@@ -210,7 +210,7 @@ class EstimatesService {
       originalDescription: payload.originalDescription || '',
       analysisResult: payload.analysisResult || {} // Send back the original analysis for context
     };
-    return apiService.post('/estimates/llm/clarify', dataToSend);
+    return apiService.post('/api/estimates/llm/clarify', dataToSend);
   }
 
   /**
@@ -219,7 +219,7 @@ class EstimatesService {
    * @returns {Promise} Response data with matched products.
    */
   async matchProductsToLineItems(lineItems) {
-    return apiService.post('/estimates/llm/match-products', { lineItems });
+    return apiService.post('/api/estimates/llm/match-products', { lineItems });
   }
 
   /**
@@ -228,7 +228,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created products.
    */
   async createProductsFromLineItems(newProducts) {
-    return apiService.post('/estimates/llm/create-products', { newProducts });
+    return apiService.post('/api/estimates/llm/create-products', { newProducts });
   }
 
   /**
@@ -237,7 +237,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created estimate.
    */
   async finalizeEstimateFromMatches(finalData) {
-    return apiService.post('/estimates/llm/finalize', finalData);
+    return apiService.post('/api/estimates/llm/finalize', finalData);
   }
 
   /**
@@ -259,8 +259,8 @@ class EstimatesService {
         includeBidirectionalLinks: true // Always include source mapping for bidirectional linking
       }
     };
-    
-    return apiService.post('/estimates/llm/generate', payload);
+
+    return apiService.post('/api/estimates/llm/generate', payload);
   }
 
   /**
@@ -269,7 +269,7 @@ class EstimatesService {
    * @returns {Promise} Response data with parsed line items
    */
   async processExternalLlmResponse(payload) {
-    return apiService.post('/estimates/llm/process-external', payload);
+    return apiService.post('/api/estimates/llm/process-external', payload);
   }
 
   /**
@@ -278,7 +278,7 @@ class EstimatesService {
    * @returns {Promise} Response data with source map
    */
   async getEstimateSourceMap(estimateId) {
-    return apiService.get(`/estimates/${estimateId}/source-map`);
+    return apiService.get(`/api/estimates/${estimateId}/source-map`);
   }
 
   /**
@@ -287,7 +287,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created estimate
    */
   async saveEstimateWithSourceMap(estimateData) {
-    return apiService.post('/estimates/with-source-map', estimateData);
+    return apiService.post('/api/estimates/with-source-map', estimateData);
   }
 }
 

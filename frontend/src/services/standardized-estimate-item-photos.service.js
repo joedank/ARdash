@@ -17,21 +17,21 @@ const estimateItemPhotosService = {
     try {
       // Validate UUID
       if (!isValidUuid(estimateItemId)) {
-        return { 
-          success: false, 
-          message: 'Invalid estimate item ID format' 
+        return {
+          success: false,
+          message: 'Invalid estimate item ID format'
         };
       }
 
       // Create form data for multipart upload
       const formData = new FormData();
       formData.append('photo', photoFile);
-      
+
       // Add metadata
       if (metadata.photoType) {
         formData.append('photoType', metadata.photoType);
       }
-      
+
       if (metadata.notes) {
         formData.append('notes', metadata.notes);
       }
@@ -62,9 +62,9 @@ const estimateItemPhotosService = {
     try {
       // Validate UUID
       if (!isValidUuid(estimateItemId)) {
-        return { 
-          success: false, 
-          message: 'Invalid estimate item ID format' 
+        return {
+          success: false,
+          message: 'Invalid estimate item ID format'
         };
       }
 
@@ -86,9 +86,9 @@ const estimateItemPhotosService = {
     try {
       // Validate UUIDs
       if (!isValidUuid(estimateItemId) || !isValidUuid(photoId)) {
-        return { 
-          success: false, 
-          message: 'Invalid ID format' 
+        return {
+          success: false,
+          message: 'Invalid ID format'
         };
       }
 
@@ -111,9 +111,9 @@ const estimateItemPhotosService = {
     try {
       // Validate UUIDs
       if (!isValidUuid(estimateItemId) || !isValidUuid(photoId)) {
-        return { 
-          success: false, 
-          message: 'Invalid ID format' 
+        return {
+          success: false,
+          message: 'Invalid ID format'
         };
       }
 
@@ -142,9 +142,9 @@ const estimateItemPhotosService = {
     try {
       // Validate UUIDs
       if (!isValidUuid(estimateItemId) || !isValidUuid(photoId)) {
-        return { 
-          success: false, 
-          message: 'Invalid ID format' 
+        return {
+          success: false,
+          message: 'Invalid ID format'
         };
       }
 
@@ -165,15 +165,15 @@ const estimateItemPhotosService = {
     try {
       // Validate UUID
       if (!isValidUuid(estimateId)) {
-        return { 
-          success: false, 
-          message: 'Invalid estimate ID format' 
+        return {
+          success: false,
+          message: 'Invalid estimate ID format'
         };
       }
 
       // Make API request
       // Removed leading /api as it's handled by the base URL in api.service.js
-      const response = await api.get(`/estimates/${estimateId}/photos`);
+      const response = await api.get(`/api/estimates/${estimateId}/photos`);
       return apiAdapter.standardizeResponse(response);
     } catch (error) {
       // Re-throw the error to be handled by the interceptor or calling component

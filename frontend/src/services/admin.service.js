@@ -2,14 +2,14 @@ import api from './api.service';
 
 class AdminService {
   async getUsers(params) {
-    return await api.get('/admin/users', { params });
+    return await api.get('/api/admin/users', { params });
   }
 
   async createUser(data) {
     console.log('AdminService.createUser called with data:', data);
     try {
       // Make sure we're hitting the correct endpoint
-      const response = await api.post('/admin/users', data);
+      const response = await api.post('/api/admin/users', data);
       console.log('AdminService.createUser response:', response);
       return response;
     } catch (error) {
@@ -26,11 +26,11 @@ class AdminService {
   }
 
   async updateUser(id, data) {
-    return await api.put(`/admin/users/${id}`, data);
+    return await api.put(`/api/admin/users/${id}`, data);
   }
 
   async deleteUser(id) {
-    return await api.delete(`/admin/users/${id}`);
+    return await api.delete(`/api/admin/users/${id}`);
   }
 }
 

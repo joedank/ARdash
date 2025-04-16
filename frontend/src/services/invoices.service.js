@@ -13,18 +13,18 @@ class InvoicesService {
    */
   async listInvoices(filters = {}, page = 0, limit = 10) {
     const queryParams = new URLSearchParams();
-    
+
     // Add filters to query params
     if (filters.status) queryParams.append('status', filters.status);
     if (filters.clientId) queryParams.append('clientId', filters.clientId);
     if (filters.dateFrom) queryParams.append('dateFrom', filters.dateFrom);
     if (filters.dateTo) queryParams.append('dateTo', filters.dateTo);
-    
+
     // Add pagination
     queryParams.append('page', page);
     queryParams.append('limit', limit);
-    
-    return apiService.get(`/invoices?${queryParams.toString()}`);
+
+    return apiService.get(`/api/invoices?${queryParams.toString()}`);
   }
 
   /**
@@ -34,7 +34,7 @@ class InvoicesService {
    */
   async createInvoice(invoiceData) {
     console.log('In invoices.service.js - Creating invoice with data:', invoiceData);
-    return apiService.post('/invoices', invoiceData);
+    return apiService.post('/api/invoices', invoiceData);
   }
 
   /**
@@ -43,7 +43,7 @@ class InvoicesService {
    * @returns {Promise} Response data with invoice details
    */
   async getInvoice(id) {
-    return apiService.get(`/invoices/${id}`);
+    return apiService.get(`/api/invoices/${id}`);
   }
 
   /**
@@ -53,7 +53,7 @@ class InvoicesService {
    * @returns {Promise} Response data with updated invoice
    */
   async updateInvoice(id, invoiceData) {
-    return apiService.put(`/invoices/${id}`, invoiceData);
+    return apiService.put(`/api/invoices/${id}`, invoiceData);
   }
 
   /**
@@ -62,7 +62,7 @@ class InvoicesService {
    * @returns {Promise} Response data
    */
   async deleteInvoice(id) {
-    return apiService.delete(`/invoices/${id}`);
+    return apiService.delete(`/api/invoices/${id}`);
   }
 
   /**
@@ -71,7 +71,7 @@ class InvoicesService {
    * @returns {Promise} Response data with updated invoice
    */
   async markInvoiceAsSent(id) {
-    return apiService.post(`/invoices/${id}/mark-sent`);
+    return apiService.post(`/api/invoices/${id}/mark-sent`);
   }
 
   /**
@@ -80,7 +80,7 @@ class InvoicesService {
    * @returns {Promise} Response data with updated invoice
    */
   async markInvoiceAsViewed(id) {
-    return apiService.post(`/invoices/${id}/mark-viewed`);
+    return apiService.post(`/api/invoices/${id}/mark-viewed`);
   }
 
   /**
@@ -90,7 +90,7 @@ class InvoicesService {
    * @returns {Promise} Response data with updated invoice
    */
   async addPayment(id, paymentData) {
-    return apiService.post(`/invoices/${id}/payments`, paymentData);
+    return apiService.post(`/api/invoices/${id}/payments`, paymentData);
   }
 
   /**
@@ -100,11 +100,11 @@ class InvoicesService {
    */
   async getInvoicePdf(invoiceId) {
     try {
-      const response = await apiService.get(`/invoices/${invoiceId}/pdf`, { 
+      const response = await apiService.get(`/api/invoices/${invoiceId}/pdf`, {
         responseType: 'blob',
         validateStatus: status => status === 200 // Only treat 200 as success
       });
-      
+
       // Verify that we got a PDF
       if (response instanceof Blob && response.type === 'application/pdf') {
         return response;
@@ -113,7 +113,7 @@ class InvoicesService {
         if (response instanceof Blob) {
           // Try to convert blob to text to see the error message
           const text = await response.text();
-          throw new Error(`Received non-PDF response: ${text || 'Unknown error'}`); 
+          throw new Error(`Received non-PDF response: ${text || 'Unknown error'}`);
         }
         throw new Error('Invalid response format when retrieving PDF');
       }
@@ -128,7 +128,7 @@ class InvoicesService {
    * @returns {Promise} Response data with next invoice number
    */
   async getNextInvoiceNumber() {
-    return apiService.get('/invoices/next-number');
+    return apiService.get('/api/invoices/next-number');
   }
 }
 

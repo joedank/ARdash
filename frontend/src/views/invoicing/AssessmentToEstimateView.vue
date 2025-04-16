@@ -233,8 +233,14 @@ const selectProject = async (project) => {
   loadingMessage.value = 'Loading assessment data...';
 
   try {
+    // Log the project ID we're using
+    console.log(`Fetching assessment data for project with ID: ${project.id}`);
+
     // Use standardized service for better error handling and data conversion
     const response = await standardizedEstimatesService.getAssessmentData(project.id);
+
+    // Log the full response for debugging
+    console.log('Assessment data response:', response);
 
     if (response.success && response.data) {
       // Data is already converted to camelCase by the standardized service
@@ -254,6 +260,7 @@ const selectProject = async (project) => {
       toast.success('Assessment data loaded successfully');
     } else {
       error.value = response.message || 'Failed to load assessment data';
+      console.error('Failed to load assessment data:', error.value);
       toast.error(error.value);
     }
   } catch (err) {

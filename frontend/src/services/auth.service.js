@@ -11,7 +11,7 @@ class AuthService {
    */
   async register(userData) {
     try {
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post('/api/auth/register', userData);
       if (response.success) {
         this.setToken(response.data.token);
       }
@@ -28,7 +28,7 @@ class AuthService {
    */
   async login(credentials) {
     try {
-      const response = await api.post('/auth/login', credentials);
+      const response = await api.post('/api/auth/login', credentials);
       if (response.success) {
         this.setToken(response.data.token);
       }
@@ -44,7 +44,7 @@ class AuthService {
    */
   async logout() {
     try {
-      const response = await api.post('/auth/logout');
+      const response = await api.post('/api/auth/logout');
       this.clearToken();
       return response;
     } catch (error) {
@@ -59,7 +59,7 @@ class AuthService {
    */
   async getProfile() {
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get('/api/auth/me');
       return response;
     } catch (error) {
       throw this.handleError(error);
@@ -72,7 +72,7 @@ class AuthService {
    */
   async refreshToken() {
     try {
-      const response = await api.post('/auth/refresh-token');
+      const response = await api.post('/api/auth/refresh-token');
       if (response.success) {
         this.setToken(response.data.token);
       }
@@ -132,7 +132,7 @@ class AuthService {
         data: error.response.data
       };
     }
-    
+
     // Otherwise, return a generic error
     return {
       message: error.message || 'An unexpected error occurred',

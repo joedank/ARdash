@@ -2,7 +2,7 @@
 
 ## Why This Project Exists
 
-This project exists to streamline the construction management process, particularly focusing on the workflow from initial property assessment to estimate generation and project management. By digitizing and automating key aspects of construction management, we aim to reduce manual effort, improve accuracy, and enhance client communication.
+This project exists to streamline the construction management process, particularly focusing on the workflow from initial property assessment to estimate generation and project management. This product solves the problem of inconsistent estimates and workflow fragmentation in construction management. It unifies estimate logic and user experience, making it possible for both new and legacy estimate generation pages to work with the same backend and frontend code. A core goal is to ensure all estimate features use shared code and data structures for maintainability and reliability. By digitizing and automating key aspects of construction management, we aim to reduce manual effort, improve accuracy, and enhance client communication.
 
 ## Problems It Solves
 

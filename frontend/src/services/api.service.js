@@ -9,8 +9,9 @@ console.log('Using development mode:', isDevelopment);
 
 // Create an axios instance
 const apiService = axios.create({
-  // When accessed via job.806040.xyz, use relative URL; otherwise use localhost
-  baseURL: isDevelopment ? 'http://localhost:3000/api' : '/api',
+  // When accessed via job.806040.xyz, use empty baseURL
+  // For development, use the full localhost URL with /api
+  baseURL: isDevelopment ? 'http://localhost:3000' : '',
   timeout: 360000, // 6 minutes timeout for LLM calls
   withCredentials: true, // Important for cookies/authentication across domains
   headers: {
@@ -32,11 +33,16 @@ apiService.interceptors.request.use(
       config.headers['Content-Type'] = 'application/json';
     }
     
-    // Fix potential double /api prefix in URLs
-    if (config.url && config.url.startsWith('/api/')) {
-      console.warn('Detected URL with /api prefix, which might cause double prefixing:', config.url);
-      config.url = config.url.replace(/^\/api\//, '/');
-      console.log('Normalized URL to:', config.url);
+    // Log the URL before any processing
+    if (config.url) {
+      // Add debug logging to see exactly what's being sent
+      console.log('[apiService request] Before processing:', config.method?.toUpperCase(), config.url);
+      
+      // No need to modify URLs that already have the /api prefix
+      // All service methods have been updated to include the /api prefix
+      
+      // Log the final URL that will be sent
+      console.log('[apiService request] After processing:', config.method?.toUpperCase(), config.url);
     }
     
     return config;

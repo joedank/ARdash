@@ -1,7 +1,7 @@
 # Project Brief: Construction Management Web Application
 
 ## Overview
-This project aims to develop a comprehensive construction management web application using Vue.js 3 for the frontend and Node.js/Express with Sequelize ORM for the backend, connected to a PostgreSQL database. The application facilitates the entire workflow from initial property assessment to estimate generation, project management, and invoicing.
+This project is a construction management web application. The primary focus is on robust, accurate estimate generation for construction and repair projects, seamless UI/UX for estimate workflows, and ensuring compatibility across both new and legacy estimate generation interfaces. All estimate-related backend services and frontend components must be compatible, reliable, and free of critical bugs.
 
 ## Core Requirements
 1. Assessment-to-estimate workflow with AI-assisted conversion

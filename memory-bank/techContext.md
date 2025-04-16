@@ -140,3 +140,12 @@ Dependencies are managed through package.json files in both frontend and backend
 - **Backup Strategy**: Creating database backups before and after migration
 - **Column Renaming**: Handling column name changes to match model definitions
 - **Post-Migration Verification**: Testing API endpoints to ensure proper functionality
+
+## Tech Context
+
+- Node.js backend (Express)
+- Vue.js frontend
+- LLM integration (DeepSeek/OpenAI)
+- Sequelize ORM for database
+- PDF generation for estimates
+- Standard RESTful API patterns
