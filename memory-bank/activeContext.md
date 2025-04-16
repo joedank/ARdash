@@ -6,11 +6,12 @@ This document captures the current work focus, recent changes, active decisions,
 
 ### Primary Tasks
 
+- Fixing assessment to estimate conversion workflow to properly pass project ID
 - Implementing communities module for managing mobile home community newsletter advertisements
 - Fixing WebSocket connection security issues when accessing the application over HTTPS
 - Enhancing UI with tooltips for better user experience and cleaner interfaces
 - Fixing component prop validation issues to prevent console warnings
-- Fixing assessment data display issues in the assessment-to-estimate conversion workflow
+- Implementing dashboard view for rejected assessments to improve business analytics
 
 ### Secondary Tasks
 
@@ -22,6 +23,14 @@ This document captures the current work focus, recent changes, active decisions,
 - Optimizing project dashboard for single active job workflow with proper error handling
 
 ## Recent Achievements
+
+### Fixed Assessment Data Display in Estimate Conversion
+
+- Fixed assessment data not displaying after selection in the assessment-to-estimate conversion workflow
+- Corrected API endpoint URL in standardized-estimates.service.js to use the proper endpoint
+- Enhanced frontend components to handle both formattedMarkdown and formattedData properties
+- Added computed property normalizedAssessment to ensure consistent data structure
+- Improved error handling and debugging for assessment data loading
 
 ### WebSocket Security Implementation
 
@@ -67,3 +76,5 @@ This document captures the current work focus, recent changes, active decisions,
 - Implement dashboard view for rejected assessments
 - Automate project state transitions based on scheduled dates
 - Fix remaining UUID validation issues in API endpoints
+- Implement comprehensive error handling for missing or malformed inspection data
+- Add validation to ensure all required data is present before allowing estimate creation

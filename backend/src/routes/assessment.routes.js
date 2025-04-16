@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const assessmentController = require('../controllers/assessmentController');
+const estimatesController = require('../controllers/estimates.controller'); // Add estimates controller
 const authMiddleware = require('../middleware/auth.middleware');
 const uuidValidator = require('../middleware/uuidValidator');
 
@@ -10,14 +11,18 @@ const uuidValidator = require('../middleware/uuidValidator');
 router.use(authMiddleware.authenticate);
 
 /**
- * @route GET /api/assessment/for-estimate/:estimateId
- * @description Get assessment data for an estimate
+ * @route GET /api/assessment/for-project/:projectId
+ * @description Get assessment data for a project (legacy route)
  * @access Private
  */
 router.get(
-  '/for-estimate/:estimateId',
-  uuidValidator.validateUuid('estimateId'),
-  assessmentController.getAssessmentForEstimate
+  '/for-project/:projectId',
+  uuidValidator.validateUuid('projectId'),
+  (req, res, next) => {
+    console.log('Legacy route accessed: /api/assessment/for-project/:projectId');
+    // Forward to the new endpoint in estimates controller
+    return estimatesController.getAssessmentData(req, res, next);
+  }
 );
 
 module.exports = router;

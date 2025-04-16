@@ -13,15 +13,15 @@ const assessmentController = {
    * @param {Object} res - Express response object
    * @param {Function} next - Express next middleware function
    */
-  async getAssessmentForEstimate(req, res, next) {
+  async getAssessmentForProject(req, res, next) {
     try {
-      const { estimateId } = req.params;
+      const { projectId } = req.params;
       
-      logger.info(`Fetching assessment data for estimate ${estimateId}`);
+      logger.info(`Fetching assessment data for project ${projectId}`);
       
-      // Get the project associated with this estimate
+      // Get the project directly
       const project = await Project.findOne({
-        where: { estimate_id: estimateId }
+        where: { id: projectId }
       });
       
       if (!project) {
@@ -45,7 +45,7 @@ const assessmentController = {
         message: 'Assessment data retrieved successfully',
         data: {
           project,
-          inspections
+          project_inspections: inspections
         }
       });
     } catch (error) {

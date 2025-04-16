@@ -31,6 +31,14 @@ apiService.interceptors.request.use(
     if (!config.headers['Content-Type']) {
       config.headers['Content-Type'] = 'application/json';
     }
+    
+    // Fix potential double /api prefix in URLs
+    if (config.url && config.url.startsWith('/api/')) {
+      console.warn('Detected URL with /api prefix, which might cause double prefixing:', config.url);
+      config.url = config.url.replace(/^\/api\//, '/');
+      console.log('Normalized URL to:', config.url);
+    }
+    
     return config;
   },
   error => {

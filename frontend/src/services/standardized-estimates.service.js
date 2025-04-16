@@ -11,7 +11,7 @@ class EstimateService extends BaseService {
   constructor() {
     super('/estimates');
   }
-  
+
   /**
    * List estimates with optional filters
    * @param {Object} filters - Query filters
@@ -21,19 +21,19 @@ class EstimateService extends BaseService {
    */
   async listEstimates(filters = {}, page = 0, limit = 10) {
     const queryParams = new URLSearchParams();
-    
+
     // Add filters to query params
     if (filters.status) queryParams.append('status', filters.status);
     if (filters.clientId) queryParams.append('clientId', filters.clientId);
     if (filters.dateFrom) queryParams.append('dateFrom', filters.dateFrom);
     if (filters.dateTo) queryParams.append('dateTo', filters.dateTo);
-    
+
     // Add pagination
     queryParams.append('page', page);
     queryParams.append('limit', limit);
-    
+
     console.log('Sending estimate pagination request:', { page, limit });
-    
+
     try {
       const response = await this.getAll(queryParams);
       console.log('Pagination response from backend:', response);
@@ -48,7 +48,7 @@ class EstimateService extends BaseService {
       if (!id || id === 'undefined' || id === 'null') {
         throw new Error(`Invalid ID provided: ${id}`);
       }
-      
+
       return await apiService.post(`${this.resourceUrl}/${id}/mark-sent`);
     } catch (error) {
       this._handleError(error);
@@ -65,7 +65,7 @@ class EstimateService extends BaseService {
       if (!id || id === 'undefined' || id === 'null') {
         throw new Error(`Invalid ID provided: ${id}`);
       }
-      
+
       return await apiService.post(`${this.resourceUrl}/${id}/mark-accepted`);
     } catch (error) {
       this._handleError(error);
@@ -82,7 +82,7 @@ class EstimateService extends BaseService {
       if (!id || id === 'undefined' || id === 'null') {
         throw new Error(`Invalid ID provided: ${id}`);
       }
-      
+
       return await apiService.post(`${this.resourceUrl}/${id}/mark-rejected`);
     } catch (error) {
       this._handleError(error);
@@ -99,7 +99,7 @@ class EstimateService extends BaseService {
       if (!id || id === 'undefined' || id === 'null') {
         throw new Error(`Invalid ID provided: ${id}`);
       }
-      
+
       return await apiService.post(`${this.resourceUrl}/${id}/convert`);
     } catch (error) {
       this._handleError(error);
@@ -116,7 +116,7 @@ class EstimateService extends BaseService {
       if (!id || id === 'undefined' || id === 'null') {
         throw new Error(`Invalid ID provided: ${id}`);
       }
-      
+
       return await apiService.get(`${this.resourceUrl}/${id}/pdf`, { responseType: 'blob' });
     } catch (error) {
       this._handleError(error);
@@ -133,12 +133,12 @@ class EstimateService extends BaseService {
       if (!estimateId || estimateId === 'undefined' || estimateId === 'null') {
         throw new Error(`Invalid ID provided: ${estimateId}`);
       }
-      
-      const response = await apiService.get(`${this.resourceUrl}/${estimateId}/pdf`, { 
+
+      const response = await apiService.get(`${this.resourceUrl}/${estimateId}/pdf`, {
         responseType: 'blob',
         validateStatus: status => status === 200 // Only treat 200 as success
       });
-      
+
       // Verify that we got a PDF
       if (response instanceof Blob && response.type === 'application/pdf') {
         return response;
@@ -147,7 +147,7 @@ class EstimateService extends BaseService {
         if (response instanceof Blob) {
           // Try to convert blob to text to see the error message
           const text = await response.text();
-          throw new Error(`Received non-PDF response: ${text || 'Unknown error'}`); 
+          throw new Error(`Received non-PDF response: ${text || 'Unknown error'}`);
         }
         throw new Error('Invalid response format when retrieving PDF');
       }
@@ -175,7 +175,7 @@ class EstimateService extends BaseService {
    */
   async analyzeScope(payload) {
     const TIMEOUT_MS = 60000; // 60 seconds
-    
+
     try {
       // Ensure payload is structured correctly
       const dataToSend = {
@@ -188,12 +188,12 @@ class EstimateService extends BaseService {
       // Create an abort controller for timeout handling
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      
+
       const response = await apiService.post(`${this.resourceUrl}/llm/analyze`, dataToSend, {
         signal: controller.signal,
         timeout: TIMEOUT_MS
       });
-      
+
       clearTimeout(timeoutId);
       return response;
     } catch (error) {
@@ -208,7 +208,7 @@ class EstimateService extends BaseService {
       this._handleError(error);
     }
   }
-  
+
   /**
    * Get assessment data for a project
    * @param {string} projectId - Project ID to get assessment data for
@@ -220,9 +220,34 @@ class EstimateService extends BaseService {
         throw new Error(`Invalid project ID provided: ${projectId}`);
       }
       
-      return await apiService.get(`${this.resourceUrl}/llm/assessment/${projectId}`);
+      console.log(`Fetching assessment data for project ID: ${projectId}`);
+      
+      try {
+        // First try the new endpoint (preferred path)
+        // The apiService already prepends '/api', so we only need the path after that
+        console.log(`Trying primary endpoint: /estimates/llm/assessment/${projectId}`);
+        const response = await apiService.get(`/estimates/llm/assessment/${projectId}`);
+        console.log('Successfully fetched data from primary endpoint');
+        return response;
+      } catch (primaryError) {
+        // If the primary endpoint fails, try the legacy endpoint
+        console.warn(`Primary endpoint failed with error:`, primaryError);
+        console.log(`Trying fallback endpoint: /assessment/for-project/${projectId}`);
+        
+        try {
+          const fallbackResponse = await apiService.get(`/assessment/for-project/${projectId}`);
+          console.log('Successfully fetched data from fallback endpoint');
+          return fallbackResponse;
+        } catch (fallbackError) {
+          // If both endpoints fail, throw the original error
+          console.error(`Both endpoints failed. Primary error:`, primaryError);
+          console.error(`Fallback error:`, fallbackError);
+          throw primaryError; // Throw the primary error as it's the preferred path
+        }
+      }
     } catch (error) {
-      this._handleError(error);
+      console.error(`Error in getAssessmentData for project ${projectId}:`, error);
+      return this._handleError(error);
     }
   }
 
@@ -240,7 +265,7 @@ class EstimateService extends BaseService {
         originalDescription: payload.originalDescription || '',
         analysisResult: payload.analysisResult || {} // Send back the original analysis for context
       };
-      
+
       return await apiService.post(`${this.resourceUrl}/llm/clarify`, dataToSend);
     } catch (error) {
       this._handleError(error);
@@ -297,8 +322,68 @@ class EstimateService extends BaseService {
    */
   async generateFromAssessment(assessment, options = {}) {
     try {
+      console.log('Assessment data received in generateFromAssessment:', JSON.stringify(assessment, null, 2));
+
+      // Extract project ID from assessment object
+      let projectId = null;
+
+      // Try to find project ID in different possible locations
+      if (assessment) {
+        // Direct project ID
+        if (assessment.projectId) {
+          projectId = assessment.projectId;
+          console.log('Found projectId directly on assessment object:', projectId);
+        }
+        // Project ID in project object
+        else if (assessment.project && assessment.project.id) {
+          projectId = assessment.project.id;
+          console.log('Found projectId in assessment.project.id:', projectId);
+        }
+        // Project ID in project object with snake_case
+        else if (assessment.project && assessment.project.project_id) {
+          projectId = assessment.project.project_id;
+          console.log('Found projectId in assessment.project.project_id:', projectId);
+        }
+        // ID directly on assessment object (if assessment itself is a project)
+        else if (assessment.id) {
+          projectId = assessment.id;
+          console.log('Using assessment.id as projectId:', projectId);
+        }
+        // Try to find project ID in client object
+        else if (assessment.client && assessment.client.projectId) {
+          projectId = assessment.client.projectId;
+          console.log('Found projectId in assessment.client.projectId:', projectId);
+        }
+        // Try to find project ID in client object with snake_case
+        else if (assessment.client && assessment.client.project_id) {
+          projectId = assessment.client.project_id;
+          console.log('Found projectId in assessment.client.project_id:', projectId);
+        }
+        // Try to find project ID in assessmentId
+        else if (assessment.assessmentId) {
+          projectId = assessment.assessmentId;
+          console.log('Using assessment.assessmentId as projectId:', projectId);
+        }
+      }
+
+      // If still no project ID, try to extract it from the URL
+      if (!projectId) {
+        const currentUrl = window.location.href;
+        const urlMatch = currentUrl.match(/\/projects\/([0-9a-f-]+)/);
+        if (urlMatch && urlMatch[1]) {
+          projectId = urlMatch[1];
+          console.log('Extracted projectId from URL:', projectId);
+        }
+      }
+
+      if (!projectId) {
+        console.error('No project ID found in assessment data', assessment);
+        throw new Error('Project ID is required but not found in assessment data');
+      }
+
       const payload = {
-        assessment,
+        projectId, // Include the extracted project ID
+        assessment, // Still include the full assessment for backward compatibility
         options: {
           aggressiveness: options.aggressiveness !== undefined ? options.aggressiveness : 0.6,
           mode: options.mode || 'replace-focused',
@@ -306,9 +391,12 @@ class EstimateService extends BaseService {
           includeBidirectionalLinks: true // Always include source mapping for bidirectional linking
         }
       };
-      
+
+      console.log('Sending estimate generation payload with project ID:', projectId);
+      console.log('Full payload structure:', JSON.stringify(payload, null, 2));
       return await apiService.post(`${this.resourceUrl}/llm/generate`, payload);
     } catch (error) {
+      console.error('Error in generateFromAssessment:', error);
       this._handleError(error);
     }
   }
@@ -336,7 +424,7 @@ class EstimateService extends BaseService {
       if (!estimateId || estimateId === 'undefined' || estimateId === 'null') {
         throw new Error(`Invalid estimate ID provided: ${estimateId}`);
       }
-      
+
       return await apiService.get(`${this.resourceUrl}/${estimateId}/source-map`);
     } catch (error) {
       this._handleError(error);

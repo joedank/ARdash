@@ -740,21 +740,84 @@ const createProductsFromLineItems = async (req, res) => {
  */
 const generateEstimateFromAssessment = async (req, res) => {
   try {
-    const { projectId, mode, aggressiveness } = req.body;
+    // Log the entire request body for debugging
+    logger.info('Received request body for estimate generation:', JSON.stringify(req.body, null, 2));
 
-    if (!projectId) {
-      return res.status(400).json(error('Project ID is required'));
+    // Extract data from request body
+    const { projectId, assessment, mode, aggressiveness, options } = req.body;
+
+    // Try to find project ID from different possible sources
+    let finalProjectId = projectId;
+
+    // If no direct projectId, try to extract from assessment object
+    if (!finalProjectId && assessment) {
+      logger.info('No direct projectId provided, trying to extract from assessment object');
+
+      // Try different possible locations for project ID
+      if (assessment.projectId) {
+        finalProjectId = assessment.projectId;
+        logger.info(`Extracted project ID from assessment.projectId: ${finalProjectId}`);
+      } else if (assessment.project && assessment.project.id) {
+        finalProjectId = assessment.project.id;
+        logger.info(`Extracted project ID from assessment.project.id: ${finalProjectId}`);
+      } else if (assessment.project && assessment.project.project_id) {
+        finalProjectId = assessment.project.project_id;
+        logger.info(`Extracted project ID from assessment.project.project_id: ${finalProjectId}`);
+      } else if (assessment.id) {
+        finalProjectId = assessment.id;
+        logger.info(`Using assessment.id as project ID: ${finalProjectId}`);
+      } else if (assessment.assessmentId) {
+        finalProjectId = assessment.assessmentId;
+        logger.info(`Using assessment.assessmentId as project ID: ${finalProjectId}`);
+      } else if (assessment.client && assessment.client.projectId) {
+        finalProjectId = assessment.client.projectId;
+        logger.info(`Extracted project ID from assessment.client.projectId: ${finalProjectId}`);
+      } else if (assessment.client && assessment.client.project_id) {
+        finalProjectId = assessment.client.project_id;
+        logger.info(`Extracted project ID from assessment.client.project_id: ${finalProjectId}`);
+      }
+
+      // Log assessment structure for debugging
+      logger.info('Assessment structure:', {
+        hasProject: !!assessment.project,
+        projectKeys: assessment.project ? Object.keys(assessment.project) : [],
+        hasId: !!assessment.id,
+        hasProjectId: !!assessment.projectId,
+        hasAssessmentId: !!assessment.assessmentId,
+        hasClient: !!assessment.client,
+        clientKeys: assessment.client ? Object.keys(assessment.client) : []
+      });
     }
 
-    logger.info(`Generating estimate directly from assessment project ID: ${projectId}`);
-    logger.info(`Options:`, { mode, aggressiveness });
+    // Final validation
+    if (!finalProjectId) {
+      logger.error('No project ID found in request', { body: req.body });
+      return res.status(400).json(error('Project ID is required. Could not find project ID in any of the expected locations.'));
+    }
 
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(finalProjectId)) {
+      logger.error(`Invalid project ID format: ${finalProjectId}`);
+      return res.status(400).json(error(`Invalid project ID format: ${finalProjectId}. Expected UUID format.`));
+    }
 
-    // Call the service function
+    // Extract options from either direct parameters or options object
+    const finalOptions = {
+      mode: options?.mode || mode,
+      aggressiveness: options?.aggressiveness !== undefined ? options.aggressiveness : aggressiveness
+    };
+
+    logger.info(`Generating estimate directly from assessment project ID: ${finalProjectId}`);
+    logger.info(`Options:`, finalOptions);
+
+    // Call the service function with the extracted project ID and options
     const result = await llmEstimateService.generateEstimateFromAssessment({
-      projectId,
-      mode,
-      aggressiveness
+      projectId: finalProjectId,
+      mode: finalOptions.mode,
+      aggressiveness: finalOptions.aggressiveness,
+      // Pass the full assessment object if available for additional context
+      assessment: assessment
     });
 
     if (result.success) {

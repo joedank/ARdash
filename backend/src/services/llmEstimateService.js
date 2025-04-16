@@ -269,18 +269,65 @@ Format: Return a JSON object matching the service catalog schema.`
 
   /**
    * Generates estimate items from assessment using LLM.
-   * @param {Object} assessment - Raw assessment object
-   * @param {Object} options - Optional controls { aggressiveness, mode }
+   * @param {Object} params - Parameters object
+   * @param {string} params.projectId - Project ID to generate estimate for
+   * @param {Object} params.assessment - Optional assessment data object
+   * @param {string} params.mode - Optional estimation mode
+   * @param {number} params.aggressiveness - Optional aggressiveness level
    * @returns {Object} Response containing estimate line items and optional debug info
    */
-  async generateEstimateFromAssessment(assessment, options = {}) {
+  async generateEstimateFromAssessment(params = {}) {
     try {
+      // Extract parameters
+      const { projectId, assessment: assessmentData, mode, aggressiveness } = params;
+
+      // Validate project ID
+      if (!projectId) {
+        throw new Error('Project ID is required');
+      }
+
+      logger.info(`Generating estimate for project ID: ${projectId}`);
+
       // Apply defaults and validation
       const validOptions = {
-        aggressiveness: this._validateAggressiveness(options.aggressiveness ?? 0.6),
-        mode: this._validateMode(options.mode ?? "replace-focused"),
-        debug: options.debug === true
+        aggressiveness: this._validateAggressiveness(aggressiveness ?? 0.6),
+        mode: this._validateMode(mode ?? "replace-focused"),
+        debug: params.debug === true
       };
+
+      // Determine assessment data source
+      let assessment = assessmentData;
+
+      // If no assessment data provided, try to fetch it using the project ID
+      if (!assessment || Object.keys(assessment).length === 0) {
+        logger.info(`No assessment data provided, fetching from project ID: ${projectId}`);
+        try {
+          // Import here to avoid circular dependency
+          const projectService = require('./projectService');
+          const project = await projectService.getProjectWithDetails(projectId);
+
+          if (!project) {
+            throw new Error(`Project not found with ID: ${projectId}`);
+          }
+
+          // Format the assessment data
+          assessment = {
+            id: project.id,
+            projectId: project.id,
+            scope: project.scope,
+            inspections: project.inspections || [],
+            photos: project.photos || [],
+            date: project.scheduled_date,
+            client: project.client,
+            address: project.address
+          };
+
+          logger.info(`Successfully fetched project data for ID: ${projectId}`);
+        } catch (fetchError) {
+          logger.error(`Error fetching project data: ${fetchError.message}`, { error: fetchError });
+          throw new Error(`Failed to fetch project data: ${fetchError.message}`);
+        }
+      }
 
       // Format assessment to markdown - reuse the formatter from Milestone 1
       let formattedMarkdown;

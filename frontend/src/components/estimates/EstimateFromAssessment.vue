@@ -81,7 +81,7 @@ onMounted(async () => {
   }
 
   // If assessment data is available, generate initial estimate
-  if (assessment.value && assessment.value.formattedMarkdown) {
+  if (assessment.value && (assessment.value.formattedMarkdown || assessment.value.formattedData)) {
     await generateEstimate();
   }
 });
@@ -140,8 +140,26 @@ const generateEstimate = async () => {
   try {
     toast.info('Generating estimate from assessment data...');
 
+    // Ensure the assessment object has the project ID
+    const assessmentWithProjectId = { ...assessment.value };
+
+    // If assessment doesn't have a project ID, add it from props
+    if (!assessmentWithProjectId.projectId && props.assessmentId) {
+      assessmentWithProjectId.projectId = props.assessmentId;
+      console.log('Added projectId to assessment object:', props.assessmentId);
+    }
+
+    // If assessment doesn't have a project object, create one with the ID
+    if (!assessmentWithProjectId.project && props.assessmentId) {
+      assessmentWithProjectId.project = { id: props.assessmentId };
+      console.log('Added project object with id to assessment:', props.assessmentId);
+    }
+
+    // Log the assessment data being sent
+    console.log('Sending assessment data for estimate generation:', JSON.stringify(assessmentWithProjectId, null, 2));
+
     // Use standardized service for better error handling and data conversion
-    const result = await standardizedEstimatesService.generateFromAssessment(assessment.value, {
+    const result = await standardizedEstimatesService.generateFromAssessment(assessmentWithProjectId, {
       aggressiveness: llmSettings.value.aggressiveness,
       mode: llmSettings.value.mode,
       debug: false

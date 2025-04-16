@@ -118,7 +118,7 @@
     </teleport>
 
     <!-- Loading state -->
-    <div v-if="isLoading && !assessment.formattedMarkdown" class="flex items-center justify-center h-64">
+    <div v-if="isLoading" class="flex items-center justify-center h-64">
       <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -127,7 +127,7 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="!assessment.formattedMarkdown" class="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
+    <div v-else-if="!assessment.formattedData && !assessment.formattedMarkdown" class="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
@@ -145,7 +145,7 @@
     <div v-else class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
       <EstimateFromAssessment
         :assessmentId="assessmentId"
-        :assessmentData="assessment"
+        :assessmentData="normalizedAssessment"
         @update="handleEstimateUpdate"
         @error="handleError"
       />
@@ -154,7 +154,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import EstimateFromAssessment from '@/components/estimates/EstimateFromAssessment.vue';
@@ -245,6 +245,11 @@ const selectProject = async (project) => {
 
       // Debug the assessment data
       console.log('Assessment data loaded:', assessment.value);
+
+      // If formattedData exists but formattedMarkdown doesn't, copy it over
+      if (assessment.value.formattedData && !assessment.value.formattedMarkdown) {
+        assessment.value.formattedMarkdown = assessment.value.formattedData;
+      }
 
       toast.success('Assessment data loaded successfully');
     } else {
@@ -355,6 +360,21 @@ const createEstimate = async () => {
     isLoading.value = false;
   }
 };
+
+// Computed properties
+const normalizedAssessment = computed(() => {
+  if (!assessment.value) return {};
+
+  // Create a copy of the assessment object
+  const normalized = { ...assessment.value };
+
+  // If formattedData exists but formattedMarkdown doesn't, add it
+  if (normalized.formattedData && !normalized.formattedMarkdown) {
+    normalized.formattedMarkdown = normalized.formattedData;
+  }
+
+  return normalized;
+});
 
 // Helper functions
 const formatDate = (dateString) => {

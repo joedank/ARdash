@@ -12,16 +12,17 @@
 1. **Property Naming Inconsistencies**: Some components still use mixed camelCase and snake_case in frontend templates
 2. **Controller Replacement**: Some updated controllers still need to be deployed
 3. **Entity ID Handling**: Some components may still rely on specific ID field names (id vs entityId)
-4. **Assessment Data Display Issue**: The assessment-to-estimate conversion workflow has an issue where assessment data is not displaying after selection
-   - The backend controller (`estimates.controller.js`) is looking for inspections with the alias `project.project_inspections` but the data is being returned with the alias `project.inspections`
-   - The JSON content in inspection records needs proper parsing to extract measurements, conditions, and materials
-   - Partial fix implemented by updating the `getAssessmentData` function to use the correct alias, but frontend components still need updates
+4. **Assessment Data Display Issue**: [FIXED] The assessment-to-estimate conversion workflow had an issue where assessment data was not displaying after selection
+   - Fixed incorrect API endpoint URL in `standardized-estimates.service.js` (changed from `/api/assessment/for-project/${projectId}` to `/estimates/llm/assessment/${projectId}`)
+   - Enhanced frontend components to handle both `formattedMarkdown` and `formattedData` properties
+   - Added computed property `normalizedAssessment` in `AssessmentToEstimateView.vue` to ensure consistent data structure
+   - Updated `AssessmentMarkdownPanel.vue` to use either property with a fallback mechanism
 
 ### Critical Next Steps
-1. Fix assessment data display issue in the assessment-to-estimate conversion workflow:
-   - Update frontend components to properly handle the assessment data
+1. Enhance assessment-to-estimate conversion workflow:
    - Add validation to ensure all required data is present before allowing estimate creation
    - Implement comprehensive error handling for missing or malformed inspection data
+   - Add unit tests to verify assessment data loading and display
 2. Continue implementing standardized services for remaining entities
 3. Ensure consistent property naming in all frontend components (use camelCase consistently)
 4. Deploy remaining updated controllers
