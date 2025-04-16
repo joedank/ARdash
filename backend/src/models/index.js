@@ -21,6 +21,8 @@ const LLMPromptModelDefinition = require('./llmPrompt');
 const SourceMapModelDefinition = require('./SourceMap');
 const EstimateItemPhotoModelDefinition = require('./estimateItemPhoto');
 const EstimateItemAdditionalWorkModelDefinition = require('./estimateItemAdditionalWork');
+const CommunityModelDefinition = require('./Community');
+const AdTypeModelDefinition = require('./AdType');
 
 // Initialize each model
 const User = UserModelDefinition(sequelize, Sequelize.DataTypes);
@@ -39,7 +41,9 @@ const ProjectPhoto = ProjectPhotoModelDefinition(sequelize, Sequelize.DataTypes)
 const LLMPrompt = LLMPromptModelDefinition(sequelize, Sequelize.DataTypes);
 const SourceMap = SourceMapModelDefinition(sequelize, Sequelize.DataTypes);
 const EstimateItemPhoto = EstimateItemPhotoModelDefinition(sequelize, Sequelize.DataTypes);
-const EstimateItemAdditionalWork = EstimateItemAdditionalWorkModelDefinition(sequelize, Sequelize.DataTypes); // Added initialization
+const EstimateItemAdditionalWork = EstimateItemAdditionalWorkModelDefinition(sequelize, Sequelize.DataTypes);
+const Community = CommunityModelDefinition(sequelize, Sequelize.DataTypes);
+const AdType = AdTypeModelDefinition(sequelize, Sequelize.DataTypes);
 
 // Store models in db object
 const db = {
@@ -59,7 +63,9 @@ const db = {
   LLMPrompt,
   SourceMap,
   EstimateItemPhoto,
-  EstimateItemAdditionalWork
+  EstimateItemAdditionalWork,
+  Community,
+  AdType
 };
 
 // Call associate method for each model

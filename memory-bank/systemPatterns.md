@@ -1,3 +1,7 @@
+# System Patterns: Construction Management Web Application
+
+## API and Data Patterns
+
 ### API Route Parameter Validation Pattern
 
 - **Problem**: Some API routes have UUID validation unnecessarily applied to non-parameter routes
@@ -21,80 +25,72 @@ router.get('/current-active', authenticate, controller.getCurrentActiveJob);
 
 ### Project Status Management Pattern
 
-- **Problem**: Project workflow lacks clarity between assessment phase and active work without proper state representation
-- **Pattern**: Implement comprehensive status tracking with automated state transitions
-- **Solution**: Add 'upcoming' status and automated transitions based on scheduled dates
+- **Problem**: Project workflow lacks clarity without proper state representation for all business outcomes
+- **Pattern**: Implement comprehensive status tracking with a complete workflow lifecycle
+- **Solution**: Implement a full set of status values that match business workflow including negative outcomes
 
 ```javascript
-// 1. Status-based project filtering in service layer
-async getUpcomingProjects(limit = 5) {
+// 1. Status-based filtering in service layer for rejected assessments
+async getRejectedProjects(limit = 5) {
   try {
     const projects = await Project.findAll({
       where: {
-        status: 'upcoming',
-        type: 'active' // Only active jobs
+        type: 'assessment',
+        status: 'rejected'
       },
       // Include relationships and sorting...
     });
     return projects;
   } catch (error) {
-    logger.error('Error getting upcoming projects:', error);
+    logger.error('Error getting rejected projects:', error);
     throw error;
   }
 }
 
-// 2. Automatic status determination based on scheduled date
-let initialStatus = 'pending';
-if (type === 'active') {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Set to start of day
-  
-  if (scheduled_date) {
-    const scheduledDate = new Date(scheduled_date);
-    scheduledDate.setHours(0, 0, 0, 0); // Set to start of day
-    
-    if (scheduledDate > today) {
-      initialStatus = 'upcoming';
-    } else {
-      initialStatus = 'in_progress';
-    }
-  }
-}
-
-// 3. Automated transition through CRON endpoint
-async updateUpcomingProjects() {
+// 2. Rejection handling with reason tracking
+async rejectAssessment(projectId, rejectionReason = null) {
   try {
-    // Find upcoming projects with scheduled date that is today or earlier
-    const upcomingProjects = await Project.findAll({
-      where: {
-        status: 'upcoming',
-        scheduled_date: {
-          [Op.lte]: formattedDate // Less than or equal to today
-        }
-      }
-    });
-    
-    // Update the projects to in_progress
-    for (const project of upcomingProjects) {
-      await project.update({ status: 'in_progress' });
-      logger.info(`Updated project ${project.id} from upcoming to in_progress`);
+    const project = await Project.findByPk(projectId);
+    if (!project) {
+      throw new ValidationError('Project not found');
     }
-    
-    return { updatedCount, projectIds };
+
+    if (project.type !== 'assessment') {
+      throw new ValidationError('Only assessment projects can be rejected');
+    }
+
+    // Update status and capture reason
+    const updateData = { status: 'rejected' };
+    if (rejectionReason) {
+      updateData.scope = project.scope
+        ? `${project.scope}\n\nRejection Reason: ${rejectionReason}`
+        : `Rejection Reason: ${rejectionReason}`;
+    }
+
+    await project.update(updateData);
+    return await this.getProjectWithDetails(projectId);
   } catch (error) {
-    logger.error('Error updating upcoming projects:', error);
+    logger.error(`Error rejecting assessment project ${projectId}:`, error);
     throw error;
   }
+}
+
+// 3. Validation to ensure status appropriateness by project type
+if (project.type === 'assessment' && !['in_progress', 'completed', 'rejected'].includes(status)) {
+  throw new ValidationError(`Invalid status '${status}' for assessment type projects`);
+} else if (project.type === 'active' && !['upcoming', 'in_progress', 'active', 'completed'].includes(status)) {
+  throw new ValidationError(`Invalid status '${status}' for active type projects`);
 }
 ```
 
 - **Key Aspects**:
-  - Status values (`pending`, `upcoming`, `in_progress`, `completed`) reflect actual business workflow
-  - Automatic status assignment based on scheduled date during creation
-  - CRON-triggered API endpoint to automatically transition projects when their date arrives
-  - Clear visual representation in the UI with distinct styling for each status
-  - Dashboard sections organized by project status for improved workflow clarity
-  - Improved user experience with minimal schema changes (just adding an enum value)
+  - Status values (`pending`, `upcoming`, `in_progress`, `completed`, `rejected`) reflect complete business workflow
+  - Project types have appropriate statuses (`rejected` only for assessments)
+  - Rejection reasons are captured for business intelligence
+  - Dashboard shows separate section for rejected assessments
+  - API endpoints provide filtered access to each status type
+  - Status validation ensures type-appropriate transitions
+  - Comprehensive workflow improves business analytics and planning
 
 ### Data-Driven Conditional Display Pattern
 
@@ -122,9 +118,9 @@ if (filters.includeConverted !== true) {
 </div>
 
 // Visual conversion indicator
-<span 
-  v-if="project.convertedJob || project.assessment" 
-  class="ml-1 inline-flex items-center" 
+<span
+  v-if="project.convertedJob || project.assessment"
+  class="ml-1 inline-flex items-center"
   title="This project has been converted"
 >
   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500">
@@ -160,13 +156,13 @@ async getCurrentActiveJob() {
       ['updated_at', 'DESC']
     ]
   });
-  
+
   return activeJob;
 }
 
 // Frontend - Highlight current job with visual emphasis
-<div 
-  v-if="currentActiveJob" 
+<div
+  v-if="currentActiveJob"
   class="border-2 border-blue-400 dark:border-blue-600 rounded-lg overflow-hidden shadow-md"
 >
   <ProjectCard
@@ -186,7 +182,7 @@ async getCurrentActiveJob() {
   - Contextual grouping of projects by workflow phase (assessment, upcoming, completed)
   - Independent loading states for each section to improve perceived performance
 
-### Data-Driven Conditional Display Pattern
+### Project Relationship Display Pattern
 
 - **Problem**: Project management shows duplicate entries for related projects (assessment and converted job) cluttering the UI
 - **Pattern**: Implement database-driven filtering with toggle option for additional visibility
@@ -212,9 +208,9 @@ if (filters.includeConverted !== true) {
 </div>
 
 // Visual conversion indicator
-<span 
-  v-if="project.convertedJob || project.assessment" 
-  class="ml-1 inline-flex items-center" 
+<span
+  v-if="project.convertedJob || project.assessment"
+  class="ml-1 inline-flex items-center"
   title="This project has been converted"
 >
   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500">
@@ -229,6 +225,7 @@ if (filters.includeConverted !== true) {
   - Conversion indicators with arrow icons provide visual cues about relationships
   - User toggle provides explicit control over view complexity
   - Reduces UI clutter while maintaining data integrity
+
 ### Vue Component Tag Structure Pattern
 
 - **Problem**: Improper component tag structure can cause rendering issues and unexpected behavior in Vue templates
@@ -275,7 +272,7 @@ const editItem = (item) => {
     relatedObject: null,
     // Other default values
   });
-  
+
   // Step 2: Populate with item data
   Object.assign(editingItem, {
     id: item.id,
@@ -283,7 +280,7 @@ const editItem = (item) => {
     relatedObject: item.relatedObject || null,
     // Other values with fallbacks
   });
-  
+
   // Open modal or proceed with editing
   showEditModal.value = true;
 };
@@ -322,7 +319,7 @@ async deleteProject(projectId) {
   // Within transaction:
   // 1. If assessment with converted job, update job: assessment_id = null
   // 2. If job with assessment reference, update assessment: converted_to_job_id = null
-  // 3. Delete photos, inspections, etc. 
+  // 3. Delete photos, inspections, etc.
   // 4. Delete project
 }
 
@@ -333,13 +330,14 @@ async deleteProjectWithReferences(projectId) {
 ```
 
 - **UI Implementation**: Modal with dependency details and deletion options
+
   ```html
   <!-- Show detailed dependency impact -->
   <div v-if="projectDependencies.hasDependencies" class="rounded-lg border p-3">
     <h4>Deletion Impact</h4>
     <div class="text-sm">{{ detailedDeleteMessage }}</div>
   </div>
-  
+
   <!-- Deletion options as radio buttons -->
   <div class="flex items-start space-x-2">
     <input type="radio" v-model="deletionOption" value="break" />
@@ -499,6 +497,68 @@ const pdfPath = await pdfService.generatePdf({
   - Include on-the-fly calculation as final fallback
   - Keep field adapter implementations consistent between frontend and backend
 
+### Database Migration Case Handling Pattern
+
+- **Problem**: After database migrations (e.g., SQLite to PostgreSQL), case conventions between frontend and backend can cause data display issues
+- **Pattern**: Implement robust case conversion with debugging and fallbacks
+- **Solution**: Use standardized service pattern with explicit case conversion and debugging
+
+```javascript
+// 1. Frontend service with explicit case conversion and debugging
+async getAllCommunities(filters = {}) {
+  try {
+    // Convert filters to snake_case for API
+    const snakeCaseFilters = toSnakeCase(filters);
+
+    // Debug the filters being sent to the API
+    console.log('Fetching communities with filters:', snakeCaseFilters);
+
+    const response = await apiClient.get('/communities', { params: snakeCaseFilters });
+
+    // Debug the response from the API
+    console.log('Communities API response:', response);
+
+    // Ensure we're properly converting snake_case to camelCase
+    const communities = toCamelCase(response.data);
+    return communities;
+  } catch (error) {
+    console.error('Error fetching communities:', error);
+    throw error;
+  }
+}
+
+// 2. Utility functions for case conversion
+export const toCamelCase = (obj) => {
+  if (obj === null || typeof obj !== 'object') return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => toCamelCase(item));
+  }
+
+  return Object.keys(obj).reduce((result, key) => {
+    // Skip conversion for keys that should remain unchanged
+    if (key === 'created_at' || key === 'updated_at' || key === 'deleted_at') {
+      result[key] = toCamelCase(obj[key]);
+      return result;
+    }
+
+    // Convert snake_case to camelCase
+    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    result[camelKey] = toCamelCase(obj[key]);
+    return result;
+  }, {});
+};
+```
+
+- **Key Aspects**:
+  - Add debugging logs at key points in the data flow to identify issues
+  - Ensure proper import paths for API services
+  - Use utility functions for consistent case conversion
+  - Handle both directions: frontend → backend (camelCase → snake_case) and backend → frontend (snake_case → camelCase)
+  - Verify data structure at each step of the process
+  - Restart services after making changes to ensure clean state
+  - Test with authenticated API requests to verify end-to-end flow
+
 ### Bidirectional Entity Relationship Pattern
 
 - **Problem**: Entities with two-way relationships (like projects and estimates) can become inconsistent if only one side is updated
@@ -545,6 +605,213 @@ async createEstimate(estimateData) {
   - Log relationship changes for debugging purposes
   - Implement proper error handling with rollback
   - Create database backups that maintain referential integrity
+
+### Component Prop Validation and v-model Binding Pattern
+
+- **Problem**: Vue components can generate console warnings and errors when props are not properly validated or when v-model binding is inconsistent
+- **Solution**: Implement robust prop validation with defaults and conditional rendering to prevent errors during loading states
+
+```javascript
+// 1. Make props optional with default values when they might be undefined during loading
+const props = defineProps({
+  projectId: {
+    type: String,
+    required: false, // Not required to prevent errors during loading
+    default: ''      // Default value to prevent undefined errors
+  },
+  show: {
+    type: Boolean,
+    required: true
+  }
+});
+
+// 2. Add validation in methods that use potentially undefined props
+const confirmReject = async () => {
+  // Validate projectId before proceeding
+  if (!props.projectId) {
+    handleError(new Error('Project ID is missing. Cannot reject assessment.'));
+    return;
+  }
+
+  // Continue with API call...
+};
+
+// 3. Use conditional rendering to prevent component from rendering during loading
+<template>
+  <RejectAssessmentModal
+    v-if="project && project.id" // Only render when data is available
+    :project-id="project.id"
+    :show="showRejectModal"
+    @close="showRejectModal = false"
+  />
+</template>
+
+// 4. Use correct v-model binding with model-value prop
+<BaseModal
+  :model-value="show"           // Use model-value instead of show
+  @update:model-value="$emit('close')" // Emit event for v-model binding
+  @close="onClose"
+  size="md"
+  :title="'Reject Assessment'"
+>
+  <!-- Modal content -->
+</BaseModal>
+```
+
+- **Key Aspects**:
+  - Make props optional with default values when they might be undefined during loading
+  - Add validation in methods that use potentially undefined props
+  - Use conditional rendering (`v-if`) to prevent components from rendering during loading
+  - Use correct v-model binding with `model-value` prop and `@update:model-value` event
+  - Ensure component documentation clearly states which props are required and which are optional
+  - Test components with both defined and undefined prop values to ensure robustness
+
+### Secure WebSocket Connection Pattern
+
+- **Problem**: When accessing the application over HTTPS, WebSocket connections fail with mixed content errors if they use insecure `ws://` protocol
+- **Pattern**: Configure Vite to use secure WebSockets when the application is accessed over HTTPS
+- **Solution**: Update Vite configuration to handle secure WebSocket connections
+
+```javascript
+// In vite.config.js
+export default defineConfig({
+  // ... other config
+  server: {
+    // ... other server config
+    hmr: {
+      // Enable HMR with host-based configuration
+      // This lets the browser determine the appropriate protocol
+      host: 'job.806040.xyz',
+      clientPort: 5173
+      // No explicit protocol setting - browser will use wss:// for HTTPS
+    }
+  }
+});
+```
+
+- **Key Aspects**:
+  - Avoid explicitly setting the WebSocket protocol and let the browser determine it based on the page protocol
+  - When the page is loaded over HTTPS, the browser will automatically use secure WebSockets (wss://)
+  - When the page is loaded over HTTP, the browser will use regular WebSockets (ws://)
+  - Configure `host` to match the domain name used for access
+  - This pattern ensures WebSocket connections work properly in both HTTP and HTTPS environments
+  - Prevents mixed content errors in modern browsers
+  - Works with Nginx Proxy Manager for SSL termination
+
+### Contextual Help Tooltip Pattern
+
+- **Problem**: Explanatory text on UI elements (especially buttons) can make interfaces cluttered and text-heavy
+- **Pattern**: Replace inline explanatory text with tooltips that appear only when needed
+- **Solution**: Use the BaseTooltip component to provide contextual help without cluttering the UI
+
+```html
+<!-- Before: Button with explanatory text -->
+<BaseButton
+  type="button"
+  :variant="primary"
+  :disabled="!isValid"
+>
+  Submit Form
+  <span v-if="!isValid" class="text-xs ml-1">
+    (requires all fields to be filled)
+  </span>
+</BaseButton>
+
+<!-- After: Button with tooltip -->
+<BaseTooltip
+  content="All fields must be filled"
+  position="top"
+  :disabled="isValid"
+>
+  <BaseButton
+    type="button"
+    :variant="primary"
+    :disabled="!isValid"
+  >
+    Submit Form
+  </BaseButton>
+</BaseTooltip>
+```
+
+- **Key Aspects**:
+  - Tooltips only appear when needed (typically on hover or focus)
+  - The `:disabled` prop on BaseTooltip controls when the tooltip should be shown
+  - Tooltip text should be concise and clear (e.g., "Ad type required" instead of "A community must have at least one selected ad type to be active")
+  - Tooltips can be positioned relative to the trigger element (top, bottom, left, right)
+  - This pattern creates cleaner UI while still providing necessary contextual information
+  - Follows modern UI design principles where help is available on demand rather than always visible
+
+### UI Component Animation Pattern
+
+- **Problem**: Static UI components lack visual feedback and feel less interactive
+- **Pattern**: Apply consistent animations to UI components for better user experience
+- **Solution**: Implement Vue transition components with CSS animations
+
+```html
+<!-- Card transition with fade and slide effects -->
+<transition name="fade" appear>
+  <BaseCard
+    variant="bordered"
+    class="overflow-hidden card-hover-effect"
+  >
+    <!-- Card content -->
+  </BaseCard>
+</transition>
+
+<!-- Table row transitions -->
+<transition-group name="row" tag="tbody" class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+  <tr
+    v-for="item in items"
+    :key="item.id"
+    class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
+  >
+    <!-- Row content -->
+  </tr>
+</transition-group>
+```
+
+```css
+/* CSS animations */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.row-enter-active,
+.row-leave-active {
+  transition: all 0.3s ease;
+}
+
+.row-enter-from,
+.row-leave-to {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+.card-hover-effect {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+```
+
+- **Key Aspects**:
+  - Use Vue's built-in transition components for smooth animations
+  - Apply consistent animation patterns across the application
+  - Combine fade and transform effects for more natural transitions
+  - Use hover effects to provide visual feedback for interactive elements
+  - Ensure animations are subtle and enhance rather than distract from the user experience
+  - Apply transitions to both initial appearance (with `appear` attribute) and dynamic updates
+  - Use transition-group for list items with unique keys
 
 ### Sequelize Include Alias and Frontend Data Access Pattern
 
@@ -601,13 +868,13 @@ async getCurrentActiveJob() {
       include: [...], // Relations
       order: [['updated_at', 'DESC']]
     });
-    
+
     // If no active job is found, return null without error
     if (!activeJob) {
       logger.info('No active job found');
       return null; // Explicit null return, not an error
     }
-    
+
     return activeJob;
   } catch (error) {
     logger.error('Error getting current active job:', error);
@@ -623,13 +890,13 @@ async getUpcomingProjects(limit = 5) {
       include: [...], // Relations
       limit
     });
-    
+
     // Return empty array if no projects found, not an error
     if (!projects || projects.length === 0) {
       logger.info('No upcoming projects found');
       return [];
     }
-    
+
     return projects;
   } catch (error) {
     logger.error('Error getting upcoming projects:', error);
@@ -645,6 +912,57 @@ async getUpcomingProjects(limit = 5) {
   - Add appropriate logging for both empty results and errors
   - Use try/catch blocks to handle unexpected errors
   - Frontend components handle null and empty array returns properly
+
+### Vue Component Data Initialization Pattern
+
+- **Problem**: Vue components can throw "Cannot read properties of undefined (reading 'length')" errors when accessing properties of data that hasn't been loaded yet
+- **Pattern**: Defensive data initialization with fallbacks and proper error handling
+- **Solution**: Initialize reactive data with appropriate default values and add fallback handling in data processing
+
+```javascript
+// 1. Initialize reactive data with appropriate default values
+const communities = ref([]); // Initialize as empty array, not undefined
+
+// 2. Add fallback handling when setting data from API responses
+const loadCommunities = async () => {
+  try {
+    const result = await communityService.getAllCommunities(filters);
+    // Ensure communities is always an array, even if API returns null/undefined
+    communities.value = result || [];
+  } catch (err) {
+    console.error('Failed to load communities:', err);
+    error.value = 'Failed to load communities. Please try again.';
+    // Reset to empty array on error to prevent undefined errors
+    communities.value = [];
+  }
+};
+
+// 3. Use optional chaining and nullish coalescing in computed properties
+const filteredCommunities = computed(() => {
+  return (communities.value || []).filter(c => {
+    return c?.name?.toLowerCase().includes(searchQuery.value.toLowerCase());
+  });
+});
+
+// 4. Defensive template rendering with v-if
+<div v-if="communities && communities.length > 0" class="communities-grid">
+  <!-- Render communities -->
+</div>
+<div v-else-if="!loading" class="empty-state">
+  <p>No communities found.</p>
+</div>
+```
+
+- **Key Aspects**:
+  - Initialize reactive data with appropriate default values (empty arrays for collections, objects with default properties)
+  - Add fallback handling when setting data from API responses using logical OR (`result || []` for arrays, `{...defaults, ...data}` for objects)
+  - Reset collections to empty arrays or objects to default values on error to prevent undefined errors
+  - Use optional chaining (`?.`) and nullish coalescing (`||`) in templates and computed properties
+  - Implement defensive template rendering with proper v-if conditions
+  - Check for both existence and length when rendering collections
+  - Use two-step form reset and population to prevent stale data issues
+  - Add validation in methods to check for required values before API calls
+  - Enhance utility methods like formatDate() and formatPhone() with robust error handling
 
 ### Entity ID Dual Property Pattern
 
@@ -668,63 +986,140 @@ return {
   - Document the dual property pattern in code comments for clarity
   - This approach supports the ongoing standardization effort while preventing errors during the transition
 
-### Standardized Service Pattern
+### Communities Module Pattern
 
-- **Problem**: Direct API calls with manual data conversion between frontend and backend lead to inconsistent field naming, error handling, and response formats.
-- **Solution**: Implement standardized service classes that handle data conversion, error handling, and API communication:
+- **Problem**: Mobile home communities need to manage newsletter advertisements with different sizes, costs, and term periods
+- **Pattern**: Implement a hierarchical data structure with Communities containing multiple AdTypes and a selected active type
+- **Solution**: Create models, services, and UI components that manage the relationship between communities and their advertisement types
 
 ```javascript
-// 1. Base service class with standardized methods
-class BaseService {
-  constructor(resourceUrl) {
-    this.resourceUrl = resourceUrl;
-    this.api = api;
+// 1. Community model with ad specialist contact info and selected ad type
+Community.init({
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  // Basic community info (address, city, etc.)
+  // Ad specialist contact information
+  ad_specialist_name: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'ad_specialist_name'
+  },
+  ad_specialist_email: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'ad_specialist_email'
+  },
+  ad_specialist_phone: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'ad_specialist_phone'
+  },
+  // Reference to the currently selected ad type
+  selected_ad_type_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'ad_types',
+      key: 'id'
+    },
+    field: 'selected_ad_type_id'
+  },
+  // Active status based on current advertising
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'is_active'
   }
+});
 
-  async create(data) {
+// 2. AdType model with dimensions, cost, and term periods
+AdType.init({
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  community_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'communities',
+      key: 'id'
+    },
+    field: 'community_id'
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  width: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    defaultValue: 0
+  },
+  height: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    defaultValue: 0
+  },
+  cost: {
+    type: DataTypes.DECIMAL(10, 1),
+    allowNull: true,
+    defaultValue: 0
+  },
+  // Contract dates and terms
+  start_date: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'start_date'
+  },
+  end_date: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'end_date'
+  },
+  deadline_date: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'deadline_date'
+  },
+  term_months: {
+    type: DataTypes.DECIMAL(3, 1),
+    allowNull: true,
+    field: 'term_months'
+  }
+});
+
+// 3. Frontend service with case conversion
+class CommunityService {
+  async getAllCommunities(filters = {}) {
     try {
-      const response = await this.api.post(
-        this.resourceUrl,
-        this.standardizeRequest(data) // Convert camelCase to snake_case
-      );
-      return this.standardizeResponse(response); // Convert snake_case to camelCase
+      const snakeCaseFilters = toSnakeCase(filters);
+      const response = await apiClient.get('/communities', { params: snakeCaseFilters });
+      return toCamelCase(response.data.data);
     } catch (error) {
-      this._handleError(error);
+      console.error('Error fetching communities:', error);
+      throw error;
     }
   }
 
-  // Other CRUD methods...
-
-  standardizeRequest(data) {
-    return apiStandardizeRequest(data); // Use imported function
-  }
-
-  standardizeResponse(response) {
-    // Standardize response format
-    return {
-      success: true,
-      message: 'Operation successful',
-      data: apiStandardizeResponse(response.data)
-    };
-  }
+  // Other methods for CRUD operations...
 }
-
-// 2. Entity-specific service implementation
-class EstimateService extends BaseService {
-  constructor() {
-    super('/estimates');
-  }
-
-  // Entity-specific methods...
-}
-
-export default new EstimateService();
 ```
 
 - **Key Aspects**:
-  - Centralized data conversion between camelCase (frontend) and snake_case (backend)
-  - Consistent error handling across all API calls
-  - Standardized response format with success flag, message, and normalized data
-  - Entity-specific services inherit from base service for consistent implementation
-  - Reduced code duplication and improved maintainability
-  - Proper handling of ID fields with support for both naming conventions
+  - Communities have basic information plus ad specialist contact details
+  - Each community can have multiple ad types with different dimensions and costs
+  - The selected_ad_type_id field points to the currently active advertisement
+  - Ad types track contract details like start date, end date, and deadline date
+  - The UI provides separate sections for community info, ad specialist contacts, and ad types
+  - Modal interfaces handle all CRUD operations with proper data validation
+  - Standardized services ensure proper case conversion between frontend and backend

@@ -1,9 +1,9 @@
 <!--
   BaseModal component
-  
+
   A customizable modal dialog component with header, body, and footer sections.
   Includes backdrop and focus trapping for accessibility. Fully supports dark mode.
-  
+
   @props {Boolean} modelValue - v-model for controlling modal visibility
   @props {String} title - Modal title
   @props {String} size - Modal size (sm, md, lg, xl, full)
@@ -12,15 +12,15 @@
   @props {Boolean} hideCloseButton - Whether to hide the close button in the header
   @props {Boolean} persistent - If true, clicking backdrop won't close modal
   @props {String} overlayClass - Additional class for the backdrop overlay
-  
+
   @slots default - Modal body content
   @slots header - Custom header content (overrides title prop)
   @slots footer - Custom footer content
-  
+
   @events update:modelValue - Emitted when modal visibility changes
   @events close - Emitted when modal closes
   @events open - Emitted when modal opens
-  
+
   @example
   <BaseModal v-model="showModal" title="Confirm Action">
     <p>Are you sure you want to proceed?</p>
@@ -31,7 +31,7 @@
       </div>
     </template>
   </BaseModal>
-  
+
   @example
   <BaseModal v-model="showModal" size="lg" persistent>
     <template #header>
@@ -55,7 +55,7 @@
       leave-to-class="opacity-0"
     >
       <!-- Backdrop -->
-      <div 
+      <div
         v-if="modelValue"
         :class="[
           'fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center overflow-y-auto',
@@ -74,7 +74,7 @@
           leave-from-class="transform scale-100 opacity-100"
           leave-to-class="transform scale-95 opacity-0"
         >
-          <div 
+          <div
             v-if="modelValue"
             ref="modalRef"
             :class="[
@@ -86,15 +86,15 @@
             tabindex="-1"
           >
             <!-- Modal Header -->
-            <div 
+            <div
               v-if="hasHeader"
               class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between"
             >
               <slot name="header">
                 <h3 class="font-medium text-gray-900 dark:text-white">{{ title }}</h3>
               </slot>
-              
-              <button 
+
+              <button
                 v-if="!hideCloseButton"
                 class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none ml-auto"
                 @click="close"
@@ -105,14 +105,14 @@
                 </svg>
               </button>
             </div>
-            
+
             <!-- Modal Body -->
             <div class="p-4">
               <slot></slot>
             </div>
-            
+
             <!-- Modal Footer -->
-            <div 
+            <div
               v-if="$slots.footer"
               class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
             >
@@ -160,7 +160,7 @@ const props = defineProps({
   },
   persistent: {
     type: Boolean,
-    default: false
+    default: true
   },
   overlayClass: {
     type: String,
@@ -205,26 +205,55 @@ const onBackdropClick = () => {
   if (props.closeOnBackdrop && !props.persistent) {
     close();
   } else if (props.persistent) {
-    // Add a little shake animation to indicate the modal is persistent
+    // Add a more noticeable shake animation to indicate the modal is persistent
     const modalElement = modalRef.value;
     if (modalElement) {
+      // Remove any existing shake animation
+      modalElement.classList.remove('shake');
+
+      // Force a reflow to restart the animation
+      void modalElement.offsetWidth;
+
+      // Add the shake animation
       modalElement.classList.add('shake');
+
+      // Remove the class after animation completes
       setTimeout(() => {
         modalElement.classList.remove('shake');
-      }, 300);
+      }, 600);
     }
   }
 };
 
 const onEsc = (event) => {
-  if (event.key === 'Escape' && props.closeOnEsc && !props.persistent && props.modelValue) {
-    close();
+  if (event.key === 'Escape' && props.modelValue) {
+    if (props.closeOnEsc && !props.persistent) {
+      close();
+    } else if (props.persistent) {
+      // Add the same shake animation as when clicking outside
+      const modalElement = modalRef.value;
+      if (modalElement) {
+        // Remove any existing shake animation
+        modalElement.classList.remove('shake');
+
+        // Force a reflow to restart the animation
+        void modalElement.offsetWidth;
+
+        // Add the shake animation
+        modalElement.classList.add('shake');
+
+        // Remove the class after animation completes
+        setTimeout(() => {
+          modalElement.classList.remove('shake');
+        }, 600);
+      }
+    }
   }
 };
 
 const getFocusableElements = () => {
   if (!modalRef.value) return [];
-  
+
   return Array.from(
     modalRef.value.querySelectorAll(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -234,13 +263,13 @@ const getFocusableElements = () => {
 
 const trapFocus = (event) => {
   if (!props.modelValue || !modalRef.value) return;
-  
+
   const focusables = focusableElements.value;
   if (focusables.length === 0) return;
-  
+
   const firstFocusable = focusables[0];
   const lastFocusable = focusables[focusables.length - 1];
-  
+
   if (event.key === 'Tab') {
     if (event.shiftKey && document.activeElement === firstFocusable) {
       event.preventDefault();
@@ -258,13 +287,13 @@ watch(() => props.modelValue, async (isOpen) => {
     emit('open');
     // Save previously focused element
     previouslyFocusedElement.value = document.activeElement;
-    
+
     // Wait for the DOM to update
     await nextTick();
-    
+
     // Get focusable elements
     focusableElements.value = getFocusableElements();
-    
+
     // Focus the first focusable element in the modal
     if (focusableElements.value.length > 0) {
       focusableElements.value[0].focus();
@@ -272,7 +301,7 @@ watch(() => props.modelValue, async (isOpen) => {
       // If no focusable element, focus the modal itself
       modalRef.value?.focus();
     }
-    
+
     // Add event listeners
     document.addEventListener('keydown', onEsc);
     document.addEventListener('keydown', trapFocus);
@@ -280,7 +309,7 @@ watch(() => props.modelValue, async (isOpen) => {
     // Remove event listeners
     document.removeEventListener('keydown', onEsc);
     document.removeEventListener('keydown', trapFocus);
-    
+
     // Restore focus to the previously focused element
     if (previouslyFocusedElement.value) {
       previouslyFocusedElement.value.focus();
@@ -297,13 +326,15 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .shake {
-  animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+  animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both;
 }
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  50% { transform: translateX(5px); }
-  75% { transform: translateX(-5px); }
+  10% { transform: translateX(-8px); }
+  30% { transform: translateX(8px); }
+  50% { transform: translateX(-5px); }
+  70% { transform: translateX(5px); }
+  90% { transform: translateX(-3px); }
 }
 </style>

@@ -243,10 +243,11 @@
       <BaseLoader />
     </div>
 
-    <!-- Reject Assessment Modal -->
+    <!-- Reject Assessment Modal - Only show when project data is loaded -->
     <RejectAssessmentModal
+      v-if="project && project.id"
       :show="showRejectModal"
-      :project-id="project?.id"
+      :project-id="project.id"
       @close="showRejectModal = false"
       @rejected="handleRejection"
     />
@@ -276,7 +277,7 @@
       >
         Reject
       </BaseButton>
-      
+
       <!-- Convert to Job button -->
       <ConvertToJobButton
         :project="project"

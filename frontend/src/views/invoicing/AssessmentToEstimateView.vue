@@ -64,8 +64,8 @@
                     <p class="text-gray-500 dark:text-gray-400">No assessment projects found.</p>
                   </div>
                   <div v-else class="max-h-60 overflow-y-auto">
-                    <div 
-                      v-for="project in availableProjects" 
+                    <div
+                      v-for="project in availableProjects"
                       :key="project.id"
                       @click="selectProject(project)"
                       class="mb-2 p-3 border border-gray-200 dark:border-gray-700 rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -83,7 +83,7 @@
                           </p>
                         </div>
                         <div>
-                          <span 
+                          <span
                             class="px-2 py-1 text-xs rounded-full"
                             :class="project.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'"
                           >
@@ -125,7 +125,7 @@
       </svg>
       <span class="ml-3 text-lg text-gray-700 dark:text-gray-300">{{ loadingMessage }}</span>
     </div>
-    
+
     <!-- Empty state -->
     <div v-else-if="!assessment.formattedMarkdown" class="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -140,7 +140,7 @@
         Load Assessment
       </button>
     </div>
-    
+
     <!-- Main content when assessment is loaded -->
     <div v-else class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
       <EstimateFromAssessment
@@ -159,7 +159,9 @@ import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import EstimateFromAssessment from '@/components/estimates/EstimateFromAssessment.vue';
 import estimateService from '@/services/estimates.service';
+import standardizedEstimatesService from '@/services/standardized-estimates.service';
 import projectsService from '@/services/projects.service';
+import { toCamelCase, toSnakeCase } from '@/utils/casing';
 
 const router = useRouter();
 const toast = useToast();
@@ -191,17 +193,23 @@ const loadAssessment = async () => {
  */
 const refreshProjects = async () => {
   isLoadingProjects.value = true;
-  
+
   try {
     const response = await projectsService.getAllProjects({ type: 'assessment' });
-    
+
     if (response.success && response.data) {
       // Convert projects to camelCase, filter, and sort
       const rawProjects = Array.isArray(response.data) ? response.data : [];
       availableProjects.value = rawProjects
-        .map(p => toCamelCase(p)) // Convert to camelCase
+        .map(p => {
+          // Ensure we're properly converting all nested properties
+          return toCamelCase(p);
+        }) // Convert to camelCase
         .filter(p => p.type === 'assessment')
         .sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate)); // Sort using camelCase
+
+      // Debug the projects data
+      console.log('Assessment projects loaded:', availableProjects.value);
     } else {
       toast.error(response.message || 'Failed to load assessment projects');
     }
@@ -219,19 +227,25 @@ const refreshProjects = async () => {
 const selectProject = async (project) => {
   assessmentId.value = project.id;
   showProjectModal.value = false;
-  
+
   // Load assessment data
   isLoading.value = true;
   loadingMessage.value = 'Loading assessment data...';
-  
+
   try {
-    const response = await estimateService.getAssessmentData(project.id);
-    
+    // Use standardized service for better error handling and data conversion
+    const response = await standardizedEstimatesService.getAssessmentData(project.id);
+
     if (response.success && response.data) {
-      // Convert assessment data to camelCase
-      assessment.value = toCamelCase(response.data);
-      // Store the selected project (already camelCased from refreshProjects)
+      // Data is already converted to camelCase by the standardized service
+      assessment.value = response.data;
+
+      // Add the project data to the assessment
       assessment.value.project = project;
+
+      // Debug the assessment data
+      console.log('Assessment data loaded:', assessment.value);
+
       toast.success('Assessment data loaded successfully');
     } else {
       error.value = response.message || 'Failed to load assessment data';
@@ -270,14 +284,14 @@ const createEstimate = async () => {
     toast.error('No estimate items generated');
     return;
   }
-  
+
   isLoading.value = true;
   loadingMessage.value = 'Creating estimate...';
-  
+
   try {
     // Find the client from the assessment
     let clientId = null;
-    
+
     // Check for different possible client ID fields in the project data
     if (assessment.value && assessment.value.project) {
       // Try client_id first (matches database column)
@@ -289,17 +303,17 @@ const createEstimate = async () => {
         clientId = assessment.value.project.client_fk_id;
       }
     }
-    
+
     // Debug the client ID
     console.log('Using client ID:', clientId);
     console.log('Project data:', assessment.value.project);
-    
+
     if (!clientId) {
       toast.error('No client ID found in the project data. Cannot create estimate.');
       isLoading.value = false;
       return;
     }
-    
+
     // Format data for the create estimate API
     const estimateData = {
       items: estimateItems.value.map(item => ({
@@ -315,16 +329,16 @@ const createEstimate = async () => {
       clientId: clientId,
       sourceProjectId: assessmentId.value
     };
-    
+
     // Convert payload to snake_case before sending
     const snakeCaseEstimateData = toSnakeCase(estimateData);
-    
+
     // Save the estimate
     const response = await estimateService.saveEstimateWithSourceMap(snakeCaseEstimateData);
-    
+
     if (response.success && response.data) {
       toast.success('Estimate created successfully');
-      
+
       // Navigate to the edit estimate page
       router.push({
         path: `/invoicing/estimate/${response.data.id}/edit`
@@ -345,14 +359,14 @@ const createEstimate = async () => {
 // Helper functions
 const formatDate = (dateString) => {
   if (!dateString) return 'Unknown Date';
-  
+
   const date = new Date(dateString);
   return date.toLocaleDateString();
 };
 
 const formatStatus = (status) => {
   if (!status) return 'Unknown';
-  
+
   // Convert snake_case to Title Case
   return status
     .split('_')

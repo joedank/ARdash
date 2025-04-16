@@ -15,6 +15,7 @@ const llmPromptRoutes = require('./llmPrompt.routes');
 const assessmentRoutes = require('./assessment.routes');
 const estimateItemPhotosRoutes = require('./estimateItemPhotos.routes');
 const estimateItemAdditionalWorkRoutes = require('./estimateItemAdditionalWork.routes');
+const communitiesRoutes = require('./communities.routes');
 
 const router = express.Router();
 
@@ -51,5 +52,8 @@ router.use('/api', estimateItemPhotosRoutes);
 
 // Estimate item additional work routes
 router.use('/api', estimateItemAdditionalWorkRoutes);
+
+// Communities and ad types routes
+router.use('/communities', communitiesRoutes);
 
 module.exports = router;

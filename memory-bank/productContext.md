@@ -21,6 +21,7 @@ The system functions as a comprehensive construction management platform that:
 - Guides users through a structured assessment process for properties
 - Supports multiple measurement types (area, linear, quantity) with appropriate calculations
 - Captures property conditions with photo documentation
+- Tracks assessment outcomes including rejections and customer decisions
 - Converts assessment data into structured estimates using AI assistance
 - Allows review and refinement of generated estimates
 - Tracks projects from initial assessment through completion
@@ -41,7 +42,7 @@ For construction professionals using the system:
 - **Mobile Usability**: Responsive design that works well on tablets and phones in the field
 - **Client Management**: Easy tracking of client information and project history
 - **Workflow Focus**: Clear visual emphasis on the current active job to match small company workflow
-- **Project Pipeline Visibility**: Organized view of assessments, upcoming jobs, and completed work
+- **Project Pipeline Visibility**: Organized view of assessments, upcoming jobs, rejected assessments, and completed work
 
 For clients receiving services:
 

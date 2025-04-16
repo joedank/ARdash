@@ -6,7 +6,7 @@
 - **Pinia**: State management for Vue applications
 - **Vue Router**: Official router for Vue.js
 - **Axios**: Promise-based HTTP client
-- **Vite**: Modern frontend build tool and development server
+- **Vite**: Modern frontend build tool and development server with HMR (Hot Module Replacement)
 - **Tailwind CSS**: Utility-first CSS framework for responsive design
 - **OpenAI API**: Integration for AI-assisted estimate generation from assessment data
 - **Chart.js**: JavaScript charting library for data visualization
@@ -18,6 +18,7 @@
 - **Express.js**: Web application framework for Node.js
 - **PostgreSQL**: Powerful, open source object-relational database system (via Homebrew)
 - **Sequelize**: Promise-based Node.js ORM for PostgreSQL and other databases
+- **pgloader**: Tool for migrating data from SQLite to PostgreSQL
 - **Nodemon**: Utility for automatically restarting Node.js applications
 - **Jest**: JavaScript testing framework
 - **Supertest**: Library for testing HTTP servers
@@ -97,6 +98,7 @@ Dependencies are managed through package.json files in both frontend and backend
 - cors
 - helmet
 - winston
+- bcryptjs (Password hashing and authentication)
 - puppeteer (HTML-to-PDF rendering)
 - ejs (PDF templates)
 - multer (File uploads)
@@ -112,3 +114,29 @@ Dependencies are managed through package.json files in both frontend and backend
 - **PDF Generation**: Robust error handling with fallbacks for undefined values
 - **Docker Compatibility**: Special configuration for Puppeteer in containerized environments
 - **File System Access**: Proper directory structure and permissions for file operations
+- **Database Migration**: Strategies for migrating from SQLite to PostgreSQL with proper data conversion
+
+## WebSocket Security
+- **HTTPS Compatibility**: WebSocket connections must use secure protocol (wss://) when the application is accessed over HTTPS
+- **Vite HMR Configuration**: Host-based configuration in vite.config.js to support both HTTP and HTTPS environments
+  ```javascript
+  // In vite.config.js
+  hmr: {
+    // Enable HMR with host-based configuration
+    host: 'job.806040.xyz',
+    clientPort: 5173
+    // No explicit protocol setting - browser will use wss:// for HTTPS
+  }
+  ```
+- **Mixed Content Prevention**: Avoiding mixed content errors when accessing secure pages with insecure WebSocket connections
+- **Nginx Proxy Manager**: SSL termination handled by Nginx Proxy Manager in production environment
+- **Error Handling**: Proper error handling for WebSocket connection failures
+
+## Database Migration
+- **Migration Tool**: pgloader for transferring data from SQLite to PostgreSQL
+- **Column Naming**: Consistent snake_case naming convention for all database columns
+- **Data Type Conversion**: Proper handling of text to date conversions and other type transformations
+- **Index Creation**: Adding appropriate indexes for performance optimization
+- **Backup Strategy**: Creating database backups before and after migration
+- **Column Renaming**: Handling column name changes to match model definitions
+- **Post-Migration Verification**: Testing API endpoints to ensure proper functionality

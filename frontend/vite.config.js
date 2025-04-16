@@ -35,7 +35,9 @@ export default defineConfig({
     allowedHosts: ['job.806040.xyz', 'localhost'],
     hmr: {
       // Enable HMR
-      protocol: 'ws',
+      // Use secure WebSockets when the page is loaded over HTTPS
+      // The protocol is determined by the server
+      host: 'job.806040.xyz',
       clientPort: 5173
     }
   }

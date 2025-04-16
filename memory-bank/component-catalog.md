@@ -298,208 +298,415 @@
 
 {{ ... }}
 ## Overlays
-- **BaseDrawer**  
-  Purpose:  
-  Used in:  
+- **BaseDrawer**
+  Purpose:
+  An off-canvas panel that slides in from the side, used for navigation menus, filters, or supplementary content. Supports left/right positions, custom width, backdrop, and accessibility features.
 
-- **BaseModal**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - (Usage not explicitly found; available for navigation/filter overlays)
 
-- **BasePopover**  
-  Purpose:  
-  Used in:  
+- **BaseModal**
+  Purpose:
+  A customizable modal dialog with header, body, and footer sections. Includes backdrop, focus trap, keyboard accessibility, and multiple sizing options.
 
-- **BaseTooltip**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - User management (UserManagementView.vue)
+  - (Likely used in other dialogs and confirmation flows)
+
+- **BasePopover**
+  Purpose:
+  Displays rich content in a floating portal, triggered by hover or click. Useful for showing additional info, actions, or interactive UI without cluttering the main interface.
+
+  Used in:
+  - (Usage not explicitly found; available for contextual overlays)
+
+- **BaseTooltip**
+  Purpose:
+  Shows a small informational box on hover or focus. Supports multiple positions, custom delays, and rich content via slots. Used for inline help and explanations.
+
+  Used in:
+  - (Usage not explicitly found; available for tooltips on buttons, icons, etc.)
+
 
 ## Feedback
-- **BaseAlert**  
-  Purpose:  
-  Used in:  
+- **BaseAlert**
+  Purpose:
+  A customizable alert for displaying feedback messages. Supports info, success, warning, error variants, can be dismissible, and works with dark mode.
 
-- **BaseLoader**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Authentication (LoginView.vue, RegisterView.vue)
+  - Home view (HomeView.vue)
+  - User management (UserManagementView.vue)
+  - Project detail (ProjectDetail.vue)
+  - Settings (SecuritySettings.vue, NotificationsSettings.vue, AccountSettings.vue, AppearanceSettings.vue)
 
-- **BaseProgressBarSpinner**  
-  Purpose:  
-  Used in:  
+- **BaseLoader**
+  Purpose:
+  A spinner/loader for indicating loading states. Supports different sizes and color themes. Used in lists, forms, and anywhere async data is loaded.
 
-- **BaseToastNotification**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Projects view (ProjectsView.vue)
+  - Project detail (ProjectDetail.vue)
+  - Create project (CreateProject.vue)
+
+- **BaseProgressBarSpinner**
+  Purpose:
+  Displays progress as a determinate bar or indeterminate spinner. Supports different sizes, colors, and optional percentage display.
+
+  Used in:
+  - (Usage not explicitly found; available for upload/progress feedback)
+
+- **BaseToastNotification**
+  Purpose:
+  Toast notification for transient feedback. Supports multiple types, auto-dismiss, actions, and custom content. Appears in the corner of the screen.
+
+  Used in:
+  - User management (UserManagementView.vue)
+  - (Available for global notification needs)
+
 
 ## Project Components
-- **ProjectCard**  
-  Purpose:  
-  Used in:  
 
-- **PhotoUploadSection**  
-  Purpose:  
-  Used in:  
+- **ProjectCard**
+  Purpose:
+  Displays a summary card for a project, including client info, status, type, address, and estimate reference. Clickable for navigation. Integrates with badges and icons for visual status.
 
-- **ActiveJobContent**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Projects view (ProjectsView.vue)
 
-- **AssessmentContent**  
-  Purpose:  
-  Used in:  
+- **PhotoUploadSection**
+  Purpose:
+  A section for uploading project photos. Supports drag-and-drop, image preview, notes input, and upload/cancel actions. Integrates with BaseTextarea for notes and BaseButton for controls.
 
-- **ConvertToJobButton**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Project detail (ProjectDetail.vue)
 
-- **EstimateItemPhotos**  
-  Purpose:  
-  Used in:  
+- **ActiveJobContent**
+  Purpose:
+  Displays details and actions for active jobs, including photo uploads (before, after, receipts), additional work, and job-specific notes. Integrates PhotoUploadSection and PhotoGrid for managing job-related images.
 
-- **PhotoGrid**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - StateContentDisplay (when viewing an active job)
 
-- **PreviousStateCard**  
-  Purpose:  
-  Used in:  
+- **AssessmentContent**
+  Purpose:
+  Shows the assessment details for a project, such as items, measurements, and notes. Used for both editing and readonly display of assessment data.
 
-- **ProjectTimeline**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - StateContentDisplay (when viewing an assessment)
+  - PreviousStateCard (for assessment history)
 
-- **StateContentDisplay**  
-  Purpose:  
-  Used in:  
+- **ConvertToJobButton**
+  Purpose:
+  Button and modal to convert an assessment project into an active job. Handles confirmation, estimate requirements, and triggers conversion logic.
 
-- **TimelineStep**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Project detail (ProjectDetail.vue)
+
+- **EstimateItemPhotos**
+  Purpose:
+  Manages photos associated with estimate items, including upload, preview, deletion, and additional work notes. Handles camera integration and photo categorization.
+
+  Used in:
+  - Estimate item management (estimate-related views/components)
+
+- **PhotoGrid**
+  Purpose:
+  Displays a grid of photos for a project or estimate, with support for preview modal, navigation, error handling, and notes badges. Integrates with PhotoUploadSection.
+
+  Used in:
+  - ActiveJobContent
+  - Project detail (ProjectDetail.vue)
+  - PhotoUploadSection
+
+- **PreviousStateCard**
+  Purpose:
+  Expandable card showing previous assessment history for a project. Displays assessment data in a collapsible format for review.
+
+  Used in:
+  - Project detail (ProjectDetail.vue)
+
+- **ProjectTimeline**
+  Purpose:
+  Visual timeline of project states (assessment, active, completed), with icons, dates, and navigation between steps. Indicates current progress and status.
+
+  Used in:
+  - Project detail (ProjectDetail.vue)
+
+- **StateContentDisplay**
+  Purpose:
+  Displays either assessment or active job details for a project, switching based on project type. Integrates ActiveJobContent and AssessmentContent for unified display.
+
+  Used in:
+  - Project detail (ProjectDetail.vue)
+
+- **TimelineStep**
+  Purpose:
+  Represents a single step in the project timeline, with icon, label, completion state, and navigation. Used within ProjectTimeline.
+
+  Used in:
+  - ProjectTimeline
+
 
 ## Settings Components
-- **ClientSettings**  
-  Purpose:  
-  Used in:  
 
-- **PdfSettings**  
-  Purpose:  
-  Used in:  
+- **ClientSettings**
+  Purpose:
+  Provides a comprehensive interface for managing client records, including creation, editing, address management, billing, and preferences. Handles validation, error reporting, and integrates with forms and tables.
 
-- **LLMPromptManager**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Settings views (Client management)
 
-- **ProductCatalogManager**  
-  Purpose:  
-  Used in:  
+- **PdfSettings**
+  Purpose:
+  Allows administrators to configure PDF output settings for invoices and estimates, including company info, colors, margins, watermarks, and logo uploads. Integrates with backend for persistence.
 
-- **ProjectSettings**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Settings views (PDF configuration)
 
-- **SettingsMenubar**  
-  Purpose:  
-  Used in:  
+- **LLMPromptManager**
+  Purpose:
+  Enables management of prompts for large language model (LLM) integrations. Supports viewing, editing, and saving prompt templates used throughout the application.
 
-- **UserSettings**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Settings views (AI/LLM prompt management)
+
+- **ProductCatalogManager**
+  Purpose:
+  Interface for managing the product and service catalog, including creation, editing, filtering, and deletion. Supports search, type filtering, and integrates with backend services.
+
+  Used in:
+  - Settings views (Product catalog management)
+
+- **ProjectSettings**
+  Purpose:
+  Provides configuration and management for project-related settings, including project types, statuses, and pagination. Supports editing and filtering of project records.
+
+  Used in:
+  - Settings views (Project management)
+
+- **SettingsMenubar**
+  Purpose:
+  Navigation component for settings sections. Displays a menubar or dropdown for navigating between user, client, project, system, and PDF settings. Supports both desktop and mobile layouts.
+
+  Used in:
+  - All settings views (as the main navigation for settings)
+
+- **UserSettings**
+  Purpose:
+  Interface for managing user account settings, including profile info, password, notifications, and preferences. Handles validation, error reporting, and integrates with user management features.
+
+  Used in:
+  - Settings views (User account management)
+
 
 ## Enterprise Components
-- **BaseAdvancedTable**  
-  Purpose:  
-  Used in:  
+- **BaseAdvancedTable**
+  Purpose:
+  An advanced, highly-configurable table for displaying and manipulating structured data. Features include column freezing, row grouping, excel-like editing, row selection, and CSV/Excel export. Supports custom slots for headers, cells, and footers.
+
+  Used in:
+  - Enterprise data views (project, client, or product tables)
 
 ## Estimates Components
-- **AssessmentMarkdownPanel**  
-  Purpose:  
-  Used in:  
 
-- **EstimateControls**  
-  Purpose:  
-  Used in:  
+- **AssessmentMarkdownPanel**
+  Purpose:
+  Renders assessment data as interactive, styled markdown. Supports clickable sections, highlights, and linking between assessment items and estimate items for enhanced navigation and editing.
 
-- **EstimateFromAssessment**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - Estimate creation/editing (as part of EstimateFromAssessment)
 
-- **EstimateItemEditor**  
-  Purpose:  
-  Used in:  
+- **EstimateControls**
+  Purpose:
+  Provides UI controls for adjusting estimate generation parameters, such as aggressiveness and estimation mode. Emits events for settings changes and regeneration requests.
 
-- **ExternalLLMInput**  
-  Purpose:  
-  Used in:  
+  Used in:
+  - EstimateFromAssessment (estimate parameter controls)
 
-- **LLMEstimateInput**  
-  Purpose:  
-  Used in:  
+- **EstimateFromAssessment**
+  Purpose:
+  Main workflow container for generating estimates from assessment data. Integrates the markdown panel, item editor, and controls, managing the process of transforming assessments into actionable estimates.
 
-- **ProductMatchReview**  
+  Used in:
+  - Estimate creation from assessments
+
+- **EstimateItemEditor**
+  Purpose:
+  Editor for individual estimate line items, allowing users to add, edit, or remove items, set quantities, units, and prices. Supports validation and integrates with the overall estimate workflow.
+
+  Used in:
+  - EstimateFromAssessment (estimate item editing)
+
+- **ExternalLLMInput**
+  Purpose:
+  Enables users to paste responses from external LLMs for estimate generation. Validates, parses, and processes the LLM output, integrating assessment data and supporting product matching workflows.
+
+  Used in:
+  - Estimate generation (external LLM integration)
+
+- **LLMEstimateInput**
+  Purpose:
+  Provides a guided interface for generating estimates using an integrated LLM, handling project selection and description input.
+
+  Used in:
+  - `EstimatesList.vue`, `EstimatesList.updated.vue` (invoicing views)
+
+- **ProductMatchReview**
+  Purpose:
+  Displays and manages the review of matched products or services after LLM-based estimate generation, allowing edits before finalizing.
+
+  Used in:
+  - `ExternalLLMInput.vue`, `LLMEstimateInput.vue` (LLM-driven estimate input components)
+
+- **BaseAccordion**  
   Purpose:  
+  Provides a vertically stacked set of interactive headings that reveal content sections, supporting single or multiple open sections.
+
   Used in:  
+  **Not currently used in any parent component or view (orphaned).**
+
+- **BaseContextMenu**  
+  Purpose:  
+  Displays a context menu triggered by right-click events, allowing users to perform actions related to the element it's attached to.
+
+  Used in:  
+  **Not currently used in any parent component or view (orphaned).**
+
+- **ClientSelector**  
+  Purpose:  
+  Allows users to select a client, providing options to add new clients and managing client data loading and selection.
+
+  Used in:  
+  `EditEstimate.vue`, `EditInvoice.vue`, `CreateInvoice.vue`, `CreateEstimate.vue` (invoicing views), and `ProjectSettings.vue` (project management).
+
+- **EstimateSelector**  
+  Purpose:  
+  Manages the selection of estimates based on the selected client, loading estimates when a client is selected.
+
+  Used in:  
+  `CreateProject.vue` (project creation), and `ProjectSettings.vue` (project management).
+
+- **FixedClientSelector**  
+  Purpose:  
+  A specialized client selector component that displays a pre-selected client, preventing changes. Used to lock the client context in workflows where changing the client is not permitted, ensuring data consistency during invoice or estimate creation.
+
+  Used in:  
+  **Not currently used in any parent component or view (orphaned).**
+
+- **LineItemsEditor**  
+  Purpose:  
+  Provides an interactive interface for adding, editing, and removing line items (such as products or services) on invoices or estimates. Supports quantity, unit, price, and description fields, with validation and dynamic total calculation.
+
+  Used in:  
+  `CreateInvoice.vue`, `EditEstimate.vue`, `EditInvoice.vue`, `CreateEstimate.vue` (invoicing views).
 
 ## Interactive
 - **BaseAccordion**  
   Purpose:  
+  Provides a vertically stacked set of interactive headings that reveal content sections, supporting single or multiple open sections.
+
   Used in:  
+  **Not currently used in any parent component or view (orphaned).**
 
 - **BaseContextMenu**  
   Purpose:  
+  Displays a context menu triggered by right-click events, allowing users to perform actions related to the element it's attached to.
+
   Used in:  
+  **Not currently used in any parent component or view (orphaned).**
 
 ## Invoicing
 - **ClientSelector**  
   Purpose:  
+  Allows users to select a client, providing options to add new clients and managing client data loading and selection.
+
   Used in:  
+  `EditEstimate.vue`, `EditInvoice.vue`, `CreateInvoice.vue`, `CreateEstimate.vue` (invoicing views), and `ProjectSettings.vue` (project management).
 
 - **EstimateSelector**  
   Purpose:  
+  Manages the selection of estimates based on the selected client, loading estimates when a client is selected.
+
   Used in:  
+  `CreateProject.vue` (project creation), and `ProjectSettings.vue` (project management).
 
 - **FixedClientSelector**  
   Purpose:  
+  A specialized client selector component that displays a pre-selected client, preventing changes. Used to lock the client context in workflows where changing the client is not permitted, ensuring data consistency during invoice or estimate creation.
+
   Used in:  
+  **Not currently used in any parent component or view (orphaned).**
 
 - **LineItemsEditor**  
   Purpose:  
+  Provides an interactive interface for adding, editing, and removing line items (such as products or services) on invoices or estimates. Supports quantity, unit, price, and description fields, with validation and dynamic total calculation.
+
   Used in:  
+  `CreateInvoice.vue`, `EditEstimate.vue`, `EditInvoice.vue`, `CreateEstimate.vue` (invoicing views).
 
 ## Layout
 - **BaseSidebar**  
   Purpose:  
+  Provides a collapsible sidebar navigation component for the application's main layout. Supports nested menu items, icons, section headers, and active state highlighting. Allows for dynamic menu configuration and responsive behavior.
+
   Used in:  
+  **Not currently used in any parent component or view (orphaned).**
 
 - **BaseSplitPanel**  
   Purpose:  
+  A layout component that divides its container into two resizable panels, either vertically or horizontally. Enables users to adjust the space allocation between panels via drag handle.
+
   Used in:  
+  `EstimateFromAssessment.vue` (estimate generation workflow).
 
 ## Utility
 - **BaseStepperWizard**  
   Purpose:  
+  Guides users through multi-step processes with a visual stepper interface. Supports step validation, navigation, and progress indication. Can be configured for linear or non-linear flows.
+
   Used in:  
+  **Not currently used in any parent component or view (orphaned).**
 
 ## Tables
 - **ClientTableCompact**  
   Purpose:  
+  Displays client data in a compact, space-efficient table format. Optimized for quick scanning and selection, with minimal visual clutter and optional row actions.
+
   Used in:  
+  `ClientSettings.vue` (client management).
 
 - **ClientTableResponsive**  
   Purpose:  
+  Shows client data in a table that adapts to different screen sizes, hiding or stacking columns as needed for mobile or desktop.
+
   Used in:  
+  `ClientSettings.vue` (client management).
 
 - **ProjectTableCompact**  
   Purpose:  
+  Presents project data in a condensed table format for easy browsing and quick actions. Prioritizes essential fields and supports row selection.
+
   Used in:  
+  `ProjectSettings.vue` (project management).
 
 - **ProjectTableResponsive**  
   Purpose:  
+  Displays project data in a responsive table layout, ensuring usability across devices. Adjusts columns and layout for optimal viewing on small or large screens.
+
   Used in:  
+  `ProjectSettings.vue` (project management).
 
 - **UserTableCompact**  
   Purpose:  
+  Shows user data in a minimal, high-density table for quick reference and management. Supports row selection, sorting, and basic actions.
+
   Used in:  
+  `UserSettings.vue` (user management).
 
 - **UserTableResponsive**  
   Purpose:  
-  Used in:
+  Renders user data in a table that automatically adapts to screen size, optimizing for both desktop and mobile use cases.
+
+  Used in:  
+  `UserSettings.vue` (user management).

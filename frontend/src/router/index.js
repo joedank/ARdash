@@ -22,6 +22,10 @@ import ProjectDetail from '../views/projects/ProjectDetail.vue';
 import ProjectsView from '../views/projects/ProjectsView.vue';
 // ProjectLineItemPhotos was removed and integrated into ProjectDetail
 
+// Community Management Views
+import CommunitiesListView from '../views/communities/CommunitiesListView.vue';
+import CommunityDetailView from '../views/communities/CommunityDetailView.vue';
+
 // Import Settings Routes
 import settingsRoutes from './settings.routes';
 
@@ -73,6 +77,23 @@ const routes = [
         path: 'create',
         name: 'create-project',
         component: () => import('../views/projects/CreateProject.vue')
+      }
+    ]
+  },
+  {
+    // Community management routes
+    path: '/communities',
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'communities-list',
+        component: CommunitiesListView
+      },
+      {
+        path: ':id',
+        name: 'community-detail',
+        component: CommunityDetailView
       }
     ]
   },

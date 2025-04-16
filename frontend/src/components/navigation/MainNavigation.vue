@@ -1,9 +1,9 @@
 <!--
   ModernNavigation
-  
+
   A modernized navigation component for the application that maintains the core functionality
   of the original MainNavigation.vue but with an updated design for Tailwind CSS v4.
-  
+
   Features:
   - Role-based navigation items
   - Active route highlighting
@@ -38,7 +38,7 @@
             </router-link>
 
 
-              
+
             <router-link
               to="/projects"
               class="nav-link-modern"
@@ -47,12 +47,20 @@
               Projects
             </router-link>
 
+            <router-link
+              to="/communities"
+              class="nav-link-modern"
+              :class="{ 'active-nav-link-modern': $route.path.startsWith('/communities') }"
+            >
+              Communities
+            </router-link>
+
             <!-- Invoicing Dropdown Menu -->
-            <div 
-              class="relative inline-block" 
+            <div
+              class="relative inline-block"
               v-click-outside="closeInvoicingMenu"
             >
-              <button 
+              <button
                 @click="toggleInvoicingMenu"
                 class="nav-link-modern group"
                 :class="{ 'active-nav-link-modern': isInvoicingRoute }"
@@ -60,17 +68,17 @@
                 :aria-expanded="invoicingMenuOpen"
               >
                 <span>Invoicing</span>
-                <svg 
-                  class="ml-1 h-4 w-4 transition-transform duration-200 ease-in-out" 
+                <svg
+                  class="ml-1 h-4 w-4 transition-transform duration-200 ease-in-out"
                   :class="{ 'rotate-180': invoicingMenuOpen }"
-                  xmlns="http://www.w3.org/2000/svg" 
-                  viewBox="0 0 20 20" 
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
                   fill="currentColor"
                 >
                   <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                 </svg>
               </button>
-              
+
               <!-- Dropdown Menu Content -->
               <transition
                 enter-active-class="transition ease-out duration-200"
@@ -80,7 +88,7 @@
                 leave-from-class="opacity-100 translate-y-0"
                 leave-to-class="opacity-0 translate-y-1"
               >
-                <div 
+                <div
                   v-show="invoicingMenuOpen"
                   class="absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none divide-y divide-gray-100 dark:divide-gray-700 py-1 z-60"
                 >
@@ -124,25 +132,25 @@
             >
               <span class="sr-only">Open main menu</span>
               <!-- Heroicon name: menu (shown when closed) -->
-              <svg 
-                class="h-6 w-6" 
-                :class="{ 'hidden': mobileMenuOpen, 'block': !mobileMenuOpen }" 
-                xmlns="http://www.w3.org/2000/svg" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor" 
+              <svg
+                class="h-6 w-6"
+                :class="{ 'hidden': mobileMenuOpen, 'block': !mobileMenuOpen }"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
                 aria-hidden="true"
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
               <!-- Heroicon name: x (shown when open) -->
-              <svg 
-                class="h-6 w-6" 
-                :class="{ 'block': mobileMenuOpen, 'hidden': !mobileMenuOpen }" 
-                xmlns="http://www.w3.org/2000/svg" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor" 
+              <svg
+                class="h-6 w-6"
+                :class="{ 'block': mobileMenuOpen, 'hidden': !mobileMenuOpen }"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
                 aria-hidden="true"
               >
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -164,7 +172,7 @@
         leave-from-class="opacity-100"
         leave-to-class="opacity-0"
       >
-        <div 
+        <div
           v-if="mobileMenuOpen"
           class="fixed inset-0 bg-black bg-opacity-25 z-40"
           @click="mobileMenuOpen = false"
@@ -180,9 +188,9 @@
         leave-from-class="opacity-100 scale-100"
         leave-to-class="opacity-0 scale-95"
       >
-        <div 
-          v-show="mobileMenuOpen" 
-          class="fixed top-16 inset-x-4 sm:hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-60 mobile-menu-dropdown overflow-hidden" 
+        <div
+          v-show="mobileMenuOpen"
+          class="fixed top-16 inset-x-4 sm:hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-60 mobile-menu-dropdown overflow-hidden"
           id="mobile-menu"
         >
           <div class="px-2 py-3 max-h-[calc(100vh-5rem)] overflow-y-auto">
@@ -194,9 +202,9 @@
             >
               Home
             </router-link>
-            
 
-            
+
+
             <router-link
               to="/projects"
               class="mobile-nav-link"
@@ -205,11 +213,20 @@
             >
               Projects
             </router-link>
-            
+
+            <router-link
+              to="/communities"
+              class="mobile-nav-link"
+              :class="{ 'mobile-nav-active': $route.path.startsWith('/communities') }"
+              @click="mobileMenuOpen = false"
+            >
+              Communities
+            </router-link>
+
             <!-- Mobile Invoicing Section -->
             <div class="space-y-1 pl-3 border-l-2 border-gray-200 dark:border-gray-700 ml-2 mt-2">
               <div class="mobile-nav-section">Invoicing</div>
-              
+
               <router-link
                 to="/invoicing/invoices"
                 class="mobile-nav-link pl-4"
@@ -218,7 +235,7 @@
               >
                 Invoices
               </router-link>
-              
+
               <router-link
                 to="/invoicing/estimates"
                 class="mobile-nav-link pl-4"
@@ -275,11 +292,11 @@ const toggleMobileMenu = () => {
 const handleClickOutside = (event) => {
   const mobileMenuElement = document.getElementById('mobile-menu');
   const mobileMenuButton = document.querySelector('[aria-controls="mobile-menu"]');
-  
-  if (mobileMenuOpen.value && 
-      mobileMenuElement && 
-      !mobileMenuElement.contains(event.target) && 
-      mobileMenuButton && 
+
+  if (mobileMenuOpen.value &&
+      mobileMenuElement &&
+      !mobileMenuElement.contains(event.target) &&
+      mobileMenuButton &&
       !mobileMenuButton.contains(event.target)) {
     mobileMenuOpen.value = false;
   }

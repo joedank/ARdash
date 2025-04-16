@@ -1,6 +1,7 @@
 <template>
   <BaseModal
-    :show="show"
+    :model-value="show"
+    @update:model-value="$emit('close')"
     @close="onClose"
     size="md"
     :title="'Reject Assessment'"
@@ -51,7 +52,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import BaseModal from '@/components/base/BaseModal.vue';
+import BaseModal from '@/components/overlays/BaseModal.vue';
 import BaseButton from '@/components/base/BaseButton.vue';
 import BaseFormGroup from '@/components/form/BaseFormGroup.vue';
 import projectsService from '@/services/standardized-projects.service';
@@ -65,7 +66,8 @@ const props = defineProps({
   },
   projectId: {
     type: String,
-    required: true
+    required: false,
+    default: ''
   }
 });
 
@@ -84,13 +86,19 @@ const onClose = () => {
 };
 
 const confirmReject = async () => {
+  // Validate projectId before proceeding
+  if (!props.projectId) {
+    handleError(new Error('Project ID is missing. Cannot reject assessment.'));
+    return;
+  }
+
   loading.value = true;
   try {
     const response = await projectsService.rejectAssessment(
       props.projectId,
       rejectionReason.value || null
     );
-    
+
     if (response.success) {
       emit('rejected', response.data);
       onClose();

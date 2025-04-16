@@ -38,6 +38,18 @@
         placeholderText="Select an estimate for this project"
       />
 
+      <!-- Scheduled Date Picker -->
+      <div>
+        <label for="scheduledDate" class="block text-sm font-medium text-gray-700">Scheduled Date</label>
+        <input
+          id="scheduledDate"
+          v-model="scheduledDate"
+          type="date"
+          required
+          class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+        />
+      </div>
+
       <!-- Submit Button -->
       <div>
         <button
@@ -68,6 +80,7 @@ const submitting = ref(false);
 const clients = ref([]);
 const selectedClientId = ref('');
 const selectedEstimate = ref(null);
+const scheduledDate = ref(new Date().toISOString().split('T')[0]); // Default to today's date
 
 // Fetch Clients on Mount
 onMounted(async () => {
@@ -101,6 +114,7 @@ const createProject = async () => {
   try {
     const projectData = {
       clientId: selectedClientId.value,
+      scheduledDate: scheduledDate.value,
       // Add estimateId only if an estimate is selected
       ...(selectedEstimate.value ? { estimateId: selectedEstimate.value.id } : {})
     };

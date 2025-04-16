@@ -1,3 +1,529 @@
+[2025-04-30 05:15] - **Identified Assessment Data Display Issue in Estimate Conversion Workflow**
+
+**Issues Identified:**
+
+1. Assessment data not displaying after selection in the assessment-to-estimate conversion workflow:
+   - When selecting an assessment in the assessment-to-estimate view, the data is not displayed
+   - Backend logs show that inspections are being retrieved from the database but not properly processed
+   - The issue is in the `getAssessmentData` function in `estimates.controller.js`
+
+**Root Cause Analysis:**
+
+1. The controller is looking for inspections with the alias `project.project_inspections` but the data is being returned with the alias `project.inspections`
+2. The JSON content in the inspection records needs to be parsed properly to extract measurements, conditions, and materials
+3. The controller needs to handle different data structures for different inspection categories
+
+**Partial Solution Implemented:**
+
+1. Updated `getAssessmentData` function in `estimates.controller.js` to use the correct alias `project.inspections`
+2. Enhanced the JSON parsing logic to handle different data structures for measurements, conditions, and materials
+3. Added detailed logging to track the extraction of data from inspections
+
+**Next Steps:**
+
+1. Complete the fix by updating the frontend components to properly display the assessment data
+2. Add validation to ensure all required data is present before allowing estimate creation
+3. Implement comprehensive error handling for missing or malformed inspection data
+
+**Key Learnings:**
+
+- Database queries return data with specific aliases based on the model associations
+- Inspection data is stored as JSON strings in the database and needs proper parsing
+- Different inspection categories (measurements, conditions, materials) have different data structures
+- Detailed logging is essential for diagnosing data processing issues
+
+---
+
+[2025-04-29 10:15] - **Enhanced Community UI with Tooltips and Fixed WebSocket Security Issues**
+
+**Issues Identified and Fixed:**
+1. WebSocket connection errors when accessing the application over HTTPS:
+   - Error: `Mixed Content: The page was loaded over HTTPS, but attempted to connect to the insecure WebSocket endpoint 'ws://job.806040.xyz:5173'`
+   - Error: `SecurityError: Failed to construct 'WebSocket': An insecure WebSocket connection may not be initiated from a page loaded over HTTPS`
+   - The application was still functional but showed errors in the console
+
+2. Community creation UI had explanatory text on buttons that cluttered the interface:
+   - "Set as Active" button included text "(requires at least one selected ad type)"
+   - This made the button unnecessarily wide and text-heavy
+   - The UI didn't follow the project's clean design principles
+
+3. BaseButton component had invalid prop validation:
+   - Console warning: `Invalid prop: custom validator check failed for prop "variant"`
+   - The code was using `variant="success"` but this wasn't a valid option in the component
+
+**Solution Implemented:**
+1. Fixed WebSocket connection issues by updating Vite configuration:
+   - Changed WebSocket protocol configuration from `protocol: 'ws'` to use host-based configuration
+   - Removed explicit protocol setting and let the browser determine the appropriate protocol
+   - Updated both `vite.config.js` and `vite.config.docker.js` for consistency
+
+2. Enhanced Community UI with tooltips instead of explanatory text:
+   - Replaced inline text explanation with BaseTooltip component
+   - Set tooltip to only appear when the button is disabled
+   - Used concise tooltip text "Ad type required" instead of longer explanation
+   - Made the UI cleaner and more consistent with the rest of the application
+
+3. Fixed BaseButton prop validation issue:
+   - Changed button variant from "success" to "primary" which is a valid option
+   - Ensured all components use valid prop values to prevent console warnings
+
+**Key Learnings:**
+- When accessing an application over HTTPS, WebSocket connections must also use secure protocol (WSS)
+- Vite's HMR configuration needs special handling for HTTPS environments
+- Tooltips provide a cleaner UI solution for contextual help compared to inline text
+- The BaseTooltip component is an effective way to provide information without cluttering the UI
+- Always check component prop validators to ensure valid values are used
+- UI should prioritize clean, concise interfaces with appropriate component selection over explanatory text
+
+---
+
+[2025-04-28 14:30] - **Fixed Community Update Issues and Made Modal Windows Persistent**
+
+**Issues Identified and Fixed:**
+1. Community updates and ad type creation were showing errors when accessed over SSL:
+   - Updates were actually happening in the database but errors were shown to the user
+   - Error message: "Failed to update community: Failed to update community: No data returned"
+   - Similar errors occurred when creating or editing ad types
+   - The application was being accessed over HTTPS via a domain with SSL termination
+
+2. Modal windows (edit community, new community, etc.) were closing when users clicked outside:
+   - This could lead to accidental data loss if users unintentionally clicked outside the modal
+   - Users expected modals to be persistent and only closable via the cancel button
+
+**Solution Implemented:**
+1. Enhanced response handling in community service methods:
+   - Updated `updateCommunity`, `createAdType`, `updateAdType`, and `selectAdType` methods
+   - Added support for different API response structures with proper fallbacks
+   - Implemented detailed logging to trace API responses and data conversion
+   - Added more robust error handling with detailed error messages
+
+2. Made modal windows persistent:
+   - Updated BaseModal component to make `persistent` prop default to `true`
+   - Enhanced the `onBackdropClick` method to provide visual feedback when users try to click outside
+   - Updated the `onEsc` method to prevent closing with the Escape key
+   - Improved the shake animation to be more noticeable when users try to dismiss a persistent modal
+
+**Key Learnings:**
+- API response structures may vary, especially when accessed over SSL with proxy servers
+- Service methods should handle different response structures with proper fallbacks
+- Detailed logging helps identify the exact structure of API responses
+- Modal windows should be persistent by default to prevent accidental data loss
+- Visual feedback (shake animation) helps users understand that clicking outside won't close the modal
+- The application uses bcryptjs for password hashing, which is important to note for future database-related issues
+
+---
+
+[2025-04-27 16:30] - **Enhanced Communities Pages with Consistent Styling and Fixed WebSocket Issues**
+
+**Issues Identified and Fixed:**
+1. Communities pages had inconsistent styling compared to the rest of the application:
+   - Custom styling was used instead of the application's standard components
+   - Modal dialogs used custom implementation instead of BaseModal component
+   - Form fields used basic HTML inputs instead of BaseInput and BaseFormGroup components
+   - No animations or transitions for improved user experience
+
+2. WebSocket connection errors when accessing the application over HTTPS:
+   - Console showed `Mixed Content: The page was loaded over HTTPS, but attempted to connect to the insecure WebSocket endpoint 'ws://job.806040.xyz:5173'`
+   - Error: `SecurityError: Failed to construct 'WebSocket': An insecure WebSocket connection may not be initiated from a page loaded over HTTPS`
+   - The application was still functional but showed errors in the console
+
+**Solution Implemented:**
+1. Enhanced Communities pages with consistent styling:
+   - Refactored CommunitiesListView.vue and CommunityDetailView.vue to use BaseCard components
+   - Updated all modals to use BaseModal component for consistent styling and behavior
+   - Implemented form fields using BaseInput, BaseTextarea, and BaseFormGroup components
+   - Added transition animations for card and table row elements with fade and slide effects
+   - Improved form layouts with responsive grid designs for better mobile experience
+   - Enhanced hover effects for cards and interactive elements
+
+2. Fixed WebSocket connection issues by updating Vite configuration:
+   ```javascript
+   // In vite.config.js
+   export default defineConfig({
+     // ... other config
+     server: {
+       // ... other server config
+       hmr: {
+         // Enable HMR with more robust configuration
+         host: 'job.806040.xyz',
+         port: 5173,
+         clientPort: 443, // Use the HTTPS port when accessed via HTTPS
+         protocol: 'wss', // Always use secure WebSockets
+         timeout: 120000, // Increase timeout for better reliability
+         overlay: true
+       }
+     }
+   });
+   ```
+
+**Key Learnings:**
+- Consistent component usage across the application improves maintainability and user experience
+- BaseModal, BaseInput, and other reusable components provide a more consistent UI
+- When accessing an application over HTTPS, WebSocket connections must also use secure protocol (WSS)
+- Vite's HMR configuration needs special handling for HTTPS environments
+- Animations and transitions can significantly improve the perceived quality of the application
+- Responsive grid layouts provide better experiences across different device sizes
+- Nginx Proxy Manager handles SSL termination but requires proper WebSocket configuration
+
+---
+
+[2025-04-26 14:45] - **Fixed Community Detail View Data Loading Issue**
+
+**Issues Identified and Fixed:**
+1. Community detail view was showing "Community data is empty or null, using default values" error:
+   - Error occurred in `CommunityDetailView.vue` when trying to view a specific community
+   - The community data was not being properly retrieved from the API
+   - Console showed error at line 499 in the component
+   - The issue was related to the camelCase/snake_case conversion similar to the main communities page
+
+2. Root cause identified in service implementation:
+   - `getCommunityById` method in `community.service.js` was expecting a specific response structure
+   - The API response structure might be different after the database migration from SQLite to PostgreSQL
+   - Similar issue was previously fixed in the `getAllCommunities` method but not in the detail view method
+
+**Solution Implemented:**
+1. Enhanced `getCommunityById` method in `community.service.js` to handle different response structures:
+   ```javascript
+   async getCommunityById(id) {
+     try {
+       console.log(`Fetching community with ID: ${id}`);
+       const response = await apiClient.get(`/communities/${id}`);
+
+       // Debug the raw API response to see its structure
+       console.log('Raw API response:', response);
+
+       // Handle different response structures
+       let communityData;
+       if (response.data && response.data.data) {
+         // Standard structure: { data: { data: {...} } }
+         communityData = response.data.data;
+       } else if (response.data) {
+         // Alternative structure: { data: {...} }
+         communityData = response.data;
+       } else {
+         // Unexpected structure
+         console.error('Unexpected API response structure:', response);
+         return null;
+       }
+
+       // Convert to camelCase and debug the result
+       const camelCaseData = toCamelCase(communityData);
+       console.log('Converted community data:', camelCaseData);
+
+       return camelCaseData;
+     } catch (error) {
+       console.error(`Error fetching community ${id}:`, error);
+       throw error;
+     }
+   }
+   ```
+
+2. Similarly enhanced `getAdTypes` method to handle different response structures and provide better error handling:
+   ```javascript
+   async getAdTypes(communityId) {
+     try {
+       console.log(`Fetching ad types for community ID: ${communityId}`);
+       const response = await apiClient.get(`/communities/${communityId}/ad-types`);
+
+       // Handle different response structures
+       let adTypesData;
+       if (response.data && response.data.data) {
+         adTypesData = response.data.data;
+       } else if (response.data) {
+         adTypesData = response.data;
+       } else {
+         console.error('Unexpected API response structure for ad types:', response);
+         return [];
+       }
+
+       return toCamelCase(adTypesData);
+     } catch (error) {
+       console.error(`Error fetching ad types for community ${communityId}:`, error);
+       // Return empty array on error to prevent undefined errors
+       return [];
+     }
+   }
+   ```
+
+**Key Learnings:**
+- API response structures may vary, especially after database migrations
+- Service methods should handle different response structures with proper fallbacks
+- Detailed logging helps identify the exact structure of API responses
+- Similar fixes should be applied consistently across related methods
+- Return appropriate default values (null for single objects, empty arrays for collections) when no data is found
+- The same camelCase/snake_case conversion issues that affected the main communities page also affected the detail view
+
+---
+
+[2025-04-25 11:30] - **Fixed Vue Component Undefined Property Access in CommunityDetailView**
+
+**Issues Identified and Fixed:**
+1. Vue component was throwing "Cannot read properties of undefined (reading 'name')" errors:
+   - Error occurred in `CommunityDetailView.vue` when trying to access `community.name`
+   - The error happened during component rendering when API data wasn't loaded yet
+   - Console showed error at line 20 in the template section
+   - Additional errors occurred in various methods when accessing community properties
+
+2. Root cause identified in component implementation:
+   - `community` ref was initialized as an empty object `{}` without default properties
+   - When API calls failed or before data loaded, properties were undefined
+   - Template was accessing properties like `community.name` without defensive checks
+   - Methods were not checking for undefined values before accessing nested properties
+
+**Solution Implemented:**
+1. Enhanced reactive data initialization with comprehensive default values:
+   ```javascript
+   const community = ref({
+     name: '',
+     address: '',
+     city: '',
+     state: '',
+     phone: '',
+     spaces: '',
+     adSpecialistName: '',
+     adSpecialistEmail: '',
+     adSpecialistPhone: '',
+     newsletterLink: '',
+     generalNotes: '',
+     isActive: false,
+     selectedAdTypeId: null
+   });
+   ```
+
+2. Improved loadCommunity method with proper error handling and data merging:
+   ```javascript
+   const loadCommunity = async () => {
+     loading.value = true;
+     error.value = null;
+
+     try {
+       const data = await communityService.getCommunityById(communityId.value);
+
+       // Check if data exists before assigning
+       if (data) {
+         // Merge data with default values to ensure all properties exist
+         community.value = {
+           name: '',
+           // ... default values
+           ...data // Spread the API data over defaults
+         };
+       } else {
+         throw new Error('Community data not found');
+       }
+     } catch (err) {
+       console.error('Failed to load community:', err);
+       error.value = 'Failed to load community. Please try again.';
+
+       // Reset community to default values on error
+       community.value = {
+         name: '',
+         // ... default values
+       };
+     } finally {
+       loading.value = false;
+     }
+   };
+   ```
+
+3. Added defensive template rendering with optional chaining and fallbacks:
+   ```html
+   <h1>{{ community?.name || 'Community Details' }}</h1>
+   <div class="community-status">
+     <span class="status-indicator" :class="{ 'active': community?.isActive }"></span>
+     <span class="status-label">{{ community?.isActive ? 'Active' : 'Inactive' }}</span>
+   </div>
+   ```
+
+4. Created form preparation methods to properly initialize edit forms:
+   ```javascript
+   const prepareEditCommunity = () => {
+     // Reset the form first
+     Object.assign(editedCommunity, {
+       name: '',
+       // ... default values
+     });
+
+     // Copy values from the community object with fallbacks
+     if (community.value) {
+       Object.assign(editedCommunity, {
+         name: community.value.name || '',
+         // ... other properties with fallbacks
+       });
+     }
+
+     showEditModal.value = true;
+   };
+   ```
+
+**Key Learnings:**
+- Initialize reactive data with comprehensive default values for all properties used in templates
+- Use optional chaining (`?.`) and nullish coalescing (`||`) in templates for defensive rendering
+- Implement two-step form reset and population to prevent stale data issues
+- Add validation in methods to check for required values before API calls
+- Reset objects to default values on error to prevent cascading undefined errors
+- Use Object.assign() for efficient object property updates with defaults
+- Enhance utility methods like formatDate() and formatPhone() with robust error handling
+
+---
+
+[2025-04-23 14:30] - **Fixed Component Prop Validation and v-model Binding Issues**
+
+**Issues Identified and Fixed:**
+1. Vue console warnings about invalid prop types and extraneous non-props attributes:
+   - `RejectAssessmentModal` component was receiving `undefined` for required `projectId` prop
+   - `BaseModal` component was receiving `show` prop but expecting `modelValue` for v-model binding
+   - Modal components were being rendered before data was available
+
+2. Root causes identified in component implementation:
+   - `RejectAssessmentModal` had `projectId` as a required prop with no default value
+   - `ProjectDetail.vue` was passing `project?.id` which could be undefined during loading
+   - `BaseModal` component used `modelValue` for v-model but was receiving `show` prop
+
+**Solution Implemented:**
+1. Updated `RejectAssessmentModal.vue` to make `projectId` prop optional with a default value:
+   ```javascript
+   projectId: {
+     type: String,
+     required: false,
+     default: ''
+   }
+   ```
+
+2. Added validation in the `confirmReject` method to check if `projectId` is valid before making API call:
+   ```javascript
+   if (!props.projectId) {
+     handleError(new Error('Project ID is missing. Cannot reject assessment.'));
+     return;
+   }
+   ```
+
+3. Updated `ProjectDetail.vue` to only render the modal when project data is available:
+   ```html
+   <RejectAssessmentModal
+     v-if="project && project.id"
+     :show="showRejectModal"
+     :project-id="project.id"
+     @close="showRejectModal = false"
+     @rejected="handleRejection"
+   />
+   ```
+
+4. Fixed v-model binding in `RejectAssessmentModal.vue` to use `model-value` prop:
+   ```html
+   <BaseModal
+     :model-value="show"
+     @update:model-value="$emit('close')"
+     @close="onClose"
+     size="md"
+     :title="'Reject Assessment'"
+   >
+   ```
+
+**Key Learnings:**
+- Props with `required: true` should be carefully used, especially for components that might render during loading states
+- Conditional rendering (`v-if`) should be used to prevent components from rendering before data is available
+- When using v-model with custom components, ensure the prop name matches what the component expects (typically `modelValue`)
+- Adding validation in component methods provides an additional safety layer for required data
+- Vue's warning system effectively highlights potential issues that could cause runtime errors
+
+---
+
+[2025-04-22 16:45] - **Fixed Project Creation with Required Scheduled Date**
+
+**Issues Identified and Fixed:**
+1. Project creation was failing with validation errors:
+   - Backend required `scheduled_date` field but frontend wasn't sending it
+   - No date picker was available in the create project form
+   - Console showed validation errors when trying to create a project
+
+2. Root cause identified in form implementation:
+   - `CreateProject.vue` component was only sending `clientId` and optionally `estimateId`
+   - Backend model required `scheduled_date` to be non-null
+   - No default value was set for scheduled date in the database
+
+**Solution Implemented:**
+1. Added date picker to the project creation form:
+   ```html
+   <div>
+     <label for="scheduledDate" class="block text-sm font-medium text-gray-700">Scheduled Date</label>
+     <input
+       id="scheduledDate"
+       v-model="scheduledDate"
+       type="date"
+       required
+       class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+     />
+   </div>
+   ```
+
+2. Added scheduledDate ref with default value of today's date:
+   ```javascript
+   const scheduledDate = ref(new Date().toISOString().split('T')[0]);
+   ```
+
+3. Updated project creation data to include the scheduled date:
+   ```javascript
+   const projectData = {
+     clientId: selectedClientId.value,
+     scheduledDate: scheduledDate.value,
+     // Add estimateId only if an estimate is selected
+     ...(selectedEstimate.value ? { estimateId: selectedEstimate.value.id } : {})
+   };
+   ```
+
+**Key Learnings:**
+- Always check backend model requirements when creating forms
+- Required fields should have appropriate UI elements and default values
+- Date fields should use ISO format (YYYY-MM-DD) for consistent API communication
+- Form validation should match backend validation requirements
+
+---
+
+[2025-04-15 18:45] - **Implemented 'Rejected' Status for Assessment Projects**
+
+**Issues Identified and Fixed:**
+1. Assessment project workflow lacked clarity about customer decisions:
+   - No way to track assessments where customers chose not to proceed
+   - All non-converted assessments appeared as in-progress regardless of decision
+   - No ability to filter out rejected assessments in dashboard or reports
+
+2. Root cause identified in project status limitations:
+   - Existing statuses (`pending`, `in_progress`, `completed`, `upcoming`) did not capture customer rejection
+   - No dedicated UI for marking assessments as rejected with reasons
+   - No dashboard section for tracking rejected assessments
+
+**Solution Implemented:**
+1. Added 'rejected' status to `enum_projects_status` in PostgreSQL:
+   ```sql
+   ALTER TYPE enum_projects_status ADD VALUE 'rejected';
+   ```
+
+2. Added backend functionality for rejection workflow:
+   - Created `rejectAssessment(projectId, rejectionReason)` method in projectService
+   - Added controller endpoint for handling assessment rejection
+   - Implemented GET route for fetching rejected assessments
+   - Enhanced status validation to ensure status appropriateness for project type
+
+3. Updated frontend components for rejected assessments:
+   - Created RejectAssessmentModal.vue for capturing rejection reasons
+   - Updated ProjectStatusBadge.vue to style the rejected status
+   - Added reject button to assessment projects in ProjectDetail.vue
+   - Added Rejected Assessments section to the dashboard
+
+4. Implemented dashboard integration:
+   - Added `getRejectedProjects()` method to show recently rejected assessments
+   - Enhanced ProjectCard.vue to display the rejected status correctly
+   - Created standardized service method for fetching rejected assessments
+
+**Key Learnings:**
+- Project statuses should capture the complete business workflow including negative outcomes
+- Tracking rejections provides valuable business intelligence about conversion rates
+- Status implementations should align with user mental models and business terminology
+- Modal-based workflows with reason capturing improve data quality for analysis
+- Creating a complete project lifecycle view improves business planning and forecasting
+
+---
+
 [2025-04-22 15:45] - **Implemented 'Upcoming' Project Status and Automatic Transitions**
 
 **Issues Identified and Fixed:**
@@ -75,13 +601,13 @@
          include: [...],
          order: [['updated_at', 'DESC']]
        });
-       
+
        // If no active job is found, return null without error
        if (!activeJob) {
          logger.info('No active job found');
          return null;
        }
-       
+
        return activeJob;
      } catch (error) {
        logger.error('Error getting current active job:', error);
@@ -143,10 +669,10 @@
    ```javascript
    // Get assessment projects
    router.get('/assessments', authenticate, controller.getAssessmentProjects);
-   
+
    // Get upcoming projects
    router.get('/upcoming', authenticate, controller.getUpcomingProjects);
-   
+
    // Get recently completed projects
    router.get('/recently-completed', authenticate, controller.getRecentlyCompletedProjects);
    ```
@@ -291,6 +817,88 @@
 - Breaking references before deletion prevents constraint violations
 - Giving users control over deletion strategy improves experience and prevents data loss
 - The bidirectional nature of project references (assessment ↔ job) serves important UX needs but requires special deletion handling
+
+---
+
+[2025-04-16 02:45] - **Migrated Database from SQLite to PostgreSQL**
+
+**Completed Tasks:**
+1. Successfully migrated data from SQLite to PostgreSQL using pgloader:
+   - Transferred 677 communities and 13 ad_types records
+   - Fixed column names with hyphens (renamed to use underscores)
+   - Added created_at and updated_at timestamp columns to both tables
+   - Added is_active boolean column to communities table based on state column
+   - Converted date columns in ad_types from text to date type
+2. Fixed column naming issue in communities table:
+   - Renamed active column to is_active to match the model definition
+   - Added missing indexes for name, city, and is_active columns
+3. Restarted backend service to pick up the changes
+4. Created database backup after migration
+
+**Key Learnings:**
+- pgloader provides a simple way to migrate from SQLite to PostgreSQL
+- Column names must match between database and model definitions
+- Proper indexes are essential for performance
+- Database migration requires careful planning and testing
+- Always create backups before and after migration
+
+---
+
+[2025-04-16 03:30] - **Fixed Communities Page After PostgreSQL Migration**
+
+**Issues Identified and Fixed:**
+1. Communities page was showing "No communities found" after SQLite to PostgreSQL migration:
+   - Frontend was making API requests but not displaying any data
+   - API was returning communities data correctly when tested with curl
+   - Authentication was working properly for other parts of the application
+
+2. Root causes identified:
+   - Import path issue in community.service.js: incorrect path to api.service.js
+   - Response data structure handling issue: frontend wasn't properly accessing the data in the API response
+   - Case conversion issue: frontend expected camelCase (isActive) but backend was using snake_case (is_active)
+
+**Solution Implemented:**
+1. Fixed the import path in community.service.js:
+   ```javascript
+   // Changed from
+   import apiClient from '@/utils/api-client';
+   // To
+   import apiClient from './api.service';
+   ```
+
+2. Updated the getAllCommunities method to properly handle the API response:
+   ```javascript
+   async getAllCommunities(filters = {}) {
+     try {
+       // Convert filters to snake_case for API
+       const snakeCaseFilters = toSnakeCase(filters);
+
+       // Debug the filters being sent to the API
+       console.log('Fetching communities with filters:', snakeCaseFilters);
+
+       const response = await apiClient.get('/communities', { params: snakeCaseFilters });
+
+       // Debug the response from the API
+       console.log('Communities API response:', response);
+
+       // Ensure we're properly converting snake_case to camelCase
+       const communities = toCamelCase(response.data);
+       return communities;
+     } catch (error) {
+       console.error('Error fetching communities:', error);
+       throw error;
+     }
+   }
+   ```
+
+3. Restarted the frontend service to apply the changes
+
+**Key Learnings:**
+- After database migrations, carefully check for case convention mismatches between frontend and backend
+- Proper debugging with console logs helps identify data structure issues
+- API service imports should use relative paths for consistency
+- The toCamelCase utility function is essential for handling the snake_case to camelCase conversion
+- Authentication token handling is working correctly across the application
 
 ---
 

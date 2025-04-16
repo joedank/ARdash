@@ -31,7 +31,7 @@ const listEstimates = async (req, res) => {
       dateFrom,
       dateTo
     };
-    
+
     logger.info(`Listing estimates with filters: ${JSON.stringify(filters)}, page: ${page}, limit: ${limit}`);
 
     const result = await estimateService.listEstimates(
@@ -39,7 +39,7 @@ const listEstimates = async (req, res) => {
       parseInt(page, 10),
       parseInt(limit, 10)
     );
-    
+
     logger.info(`Estimate count: ${result.total}, total pages: ${result.totalPages}`);
 
     return res.status(200).json(success(result, 'Estimates retrieved successfully'));
@@ -477,34 +477,105 @@ const getAssessmentData = async (req, res) => {
     }
 
     // Extract measurements, conditions, and materials from inspections
-    const inspections = project.project_inspections || [];
+    const inspections = project.inspections || [];
     const measurements = [];
     const conditions = [];
     const materials = [];
 
+    logger.info(`Processing ${inspections.length} inspections for project ${projectId}`);
+
     inspections.forEach((inspection) => {
       if (!inspection || !inspection.category || !inspection.content) return;
-      if (inspection.category === 'measurements') {
-        // If content is an array, concat; else, push as single item
-        if (Array.isArray(inspection.content)) {
-          measurements.push(...inspection.content);
-        } else {
-          measurements.push(inspection.content);
+
+      // Parse the content if it's a string (JSON)
+      let parsedContent = inspection.content;
+      if (typeof inspection.content === 'string') {
+        try {
+          parsedContent = JSON.parse(inspection.content);
+        } catch (err) {
+          logger.error(`Error parsing inspection content: ${err.message}`);
+          // Continue with the original content if parsing fails
         }
-      } else if (inspection.category === 'conditions') {
-        if (Array.isArray(inspection.content)) {
-          conditions.push(...inspection.content);
+      }
+
+      logger.info(`Processing inspection category: ${inspection.category}`);
+
+      if (inspection.category === 'measurements') {
+        // Handle measurements data structure
+        if (parsedContent.items && Array.isArray(parsedContent.items)) {
+          // Extract items from the measurements object
+          parsedContent.items.forEach(item => {
+            // Convert dimensions to a standardized format
+            if (item.dimensions) {
+              // Area measurement
+              if (item.measurementType === 'area') {
+                measurements.push({
+                  label: item.description,
+                  value: item.dimensions.length * item.dimensions.width,
+                  unit: item.dimensions.units || 'sq ft',
+                  measurementType: 'area',
+                  location: item.location || ''
+                });
+              }
+              // Linear measurement
+              else if (item.measurementType === 'linear') {
+                measurements.push({
+                  label: item.description,
+                  value: item.dimensions.length,
+                  unit: item.dimensions.units || 'ln ft',
+                  measurementType: 'linear',
+                  location: item.location || ''
+                });
+              }
+            }
+            // Quantity measurement
+            else if (item.measurementType === 'quantity') {
+              measurements.push({
+                label: item.description,
+                value: item.quantity,
+                unit: item.quantityUnit || 'each',
+                measurementType: 'quantity',
+                location: item.location || ''
+              });
+            }
+          });
         } else {
-          conditions.push(inspection.content);
+          // If it's not in the expected format, add it as-is
+          measurements.push(parsedContent);
+        }
+      } else if (inspection.category === 'condition') {
+        // Handle condition data structure
+        if (parsedContent.assessment) {
+          conditions.push({
+            location: parsedContent.location || 'General',
+            issue: parsedContent.assessment,
+            severity: parsedContent.severity || 'Moderate',
+            notes: parsedContent.notes || ''
+          });
+        } else {
+          conditions.push(parsedContent);
         }
       } else if (inspection.category === 'materials') {
-        if (Array.isArray(inspection.content)) {
-          materials.push(...inspection.content);
+        // Handle materials data structure
+        if (parsedContent.items && Array.isArray(parsedContent.items)) {
+          parsedContent.items.forEach(item => {
+            if (item.name) {
+              materials.push({
+                name: item.name,
+                specification: item.specification || '',
+                quantity: item.quantity || '',
+                unit: item.unit || ''
+              });
+            }
+          });
         } else {
-          materials.push(inspection.content);
+          materials.push(parsedContent);
         }
       }
     });
+
+    logger.info(`Extracted ${measurements.length} measurements, ${conditions.length} conditions, ${materials.length} materials`);
+
 
     // Format the assessment data using the new service
     const assessmentData = {
@@ -513,7 +584,24 @@ const getAssessmentData = async (req, res) => {
       photos: project.project_photos || [],
       measurements,
       conditions,
-      materials
+      materials,
+      // Add project details
+      projectId: project.id,
+      date: project.scheduled_date,
+      inspector: project.inspector || 'Unknown',
+      client: project.client ? {
+        id: project.client.id,
+        name: `${project.client.first_name || ''} ${project.client.last_name || ''}`.trim(),
+        email: project.client.email,
+        phone: project.client.phone
+      } : null,
+      address: project.address ? {
+        id: project.address.id,
+        street: project.address.street,
+        city: project.address.city,
+        state: project.address.state,
+        zip: project.address.zip
+      } : null
     };
 
     // Example of how you might structure the data for the formatter

@@ -1,46 +1,4 @@
-  /**
-   * Get rejected assessment projects
-   * @param {number} limit - Maximum number of projects to return
-   * @returns {Promise<Array>} Rejected assessment projects
-   */
-  async getRejectedProjects(limit = 5) {
-    try {
-      const projects = await Project.findAll({
-        where: {
-          type: 'assessment',
-          status: 'rejected'
-        },
-        include: [{
-          model: Client,
-          as: 'client',
-          attributes: ['id', 'display_name', 'company', 'email', 'phone'],
-          include: [{
-            model: ClientAddress,
-            as: 'addresses'
-          }]
-        }, {
-          model: ClientAddress,
-          as: 'address',
-          required: false
-        }],
-        order: [
-          ['updated_at', 'DESC'] // Most recently rejected first
-        ],
-        limit
-      });
-      
-      // Return empty array if no projects found
-      if (!projects || projects.length === 0) {
-        logger.info('No rejected assessment projects found');
-        return [];
-      }
-      
-      return projects;
-    } catch (error) {
-      logger.error('Error getting rejected assessment projects:', error);
-      throw error;
-    }
-  },'use strict';
+'use strict';
 
 const { Project, ProjectInspection, ProjectPhoto, Client, ClientAddress, Estimate, EstimateItem, sequelize } = require('../models');
 const { ValidationError } = require('../utils/errors');
@@ -161,7 +119,7 @@ class ProjectService {
       if (!estimate) {
         throw new ValidationError('Estimate not found');
       }
-      if (estimate.client_fk_id !== client_id) {
+      if (estimate.client_id !== client_id) {
         throw new ValidationError('Estimate does not belong to this client');
       }
     }
@@ -170,15 +128,15 @@ class ProjectService {
     let initialStatus = status;
     if (!initialStatus) {
       initialStatus = 'pending';
-      
+
       if (type === 'active') {
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Set to start of day
-        
+
         if (scheduled_date) {
           const scheduledDate = new Date(scheduled_date);
           scheduledDate.setHours(0, 0, 0, 0); // Set to start of day
-          
+
           if (scheduledDate > today) {
             initialStatus = 'upcoming';
           } else {
@@ -450,21 +408,21 @@ class ProjectService {
         await transaction.rollback();
         throw new ValidationError('Project not found');
       }
-      
+
       // Handle bidirectional references
-      
+
       // 1. If this is an assessment with a converted job, update the job
       if (project.converted_to_job_id) {
         await Project.update(
           { assessment_id: null },
-          { 
+          {
             where: { id: project.converted_to_job_id },
             transaction
           }
         );
         logger.info(`Updated job ${project.converted_to_job_id} to remove assessment reference`);
       }
-      
+
       // 2. If this is a job linked to an assessment, update the assessment
       if (project.assessment_id) {
         await Project.update(
@@ -585,35 +543,35 @@ class ProjectService {
       if (project.type === 'active' && project.assessment_id) {
         // First get the assessment
         const assessment = await Project.findByPk(project.assessment_id, { transaction });
-        
+
         if (assessment) {
           // Delete assessment's photos and inspections first
           await this._deleteProjectPhotosAndInspections(assessment.id, transaction);
-          
+
           // Delete the assessment
           await assessment.destroy({ transaction });
           logger.info(`Deleted associated assessment: ${assessment.id}`);
         }
       }
-      
+
       // If this is an assessment, find and delete the converted job
       if (project.type === 'assessment' && project.converted_to_job_id) {
         // First get the job
         const job = await Project.findByPk(project.converted_to_job_id, { transaction });
-        
+
         if (job) {
           // Delete job's photos and inspections first
           await this._deleteProjectPhotosAndInspections(job.id, transaction);
-          
+
           // Delete the job
           await job.destroy({ transaction });
           logger.info(`Deleted converted job: ${job.id}`);
         }
       }
-      
+
       // Delete this project's photos and inspections
       await this._deleteProjectPhotosAndInspections(projectId, transaction);
-      
+
       // Delete any associated estimates
       if (project.estimate) {
         // Delete estimate items first
@@ -621,15 +579,15 @@ class ProjectService {
           where: { estimate_id: project.estimate.id },
           transaction
         });
-        
+
         // Delete the estimate
         await project.estimate.destroy({ transaction });
         logger.info(`Deleted associated estimate: ${project.estimate.id}`);
       }
-      
+
       // Finally delete the project
       await project.destroy({ transaction });
-      
+
       // Commit transaction
       await transaction.commit();
       return true;
@@ -655,13 +613,13 @@ class ProjectService {
       },
       transaction
     });
-    
+
     // Delete inspections
     await ProjectInspection.destroy({
       where: { project_id: projectId },
       transaction
     });
-    
+
     // Delete direct project photos
     await ProjectPhoto.destroy({
       where: {
@@ -670,7 +628,7 @@ class ProjectService {
       },
       transaction
     });
-    
+
     // Attempt to remove the photos directory
     try {
       const photosDir = path.join('uploads', 'project-photos', projectId);
@@ -952,16 +910,16 @@ class ProjectService {
       if (!estimate) {
         throw new ValidationError('Estimate not found');
       }
-      
+
       // Determine status based on scheduled date
       let initialStatus = 'in_progress';
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Set to start of day
-      
+
       // Use job's scheduled date or default to today
       const scheduledDate = assessmentProject.scheduled_date ? new Date(assessmentProject.scheduled_date) : new Date();
       scheduledDate.setHours(0, 0, 0, 0); // Set to start of day
-      
+
       if (scheduledDate > today) {
         initialStatus = 'upcoming';
       }
@@ -1036,7 +994,7 @@ class ProjectService {
     // Return the updated project with full details
     return await this.getProjectWithDetails(projectId);
   }
-  
+
   /**
    * Get the current active job (the most recently updated 'in_progress' job)
    * @returns {Promise<Object|null>} The current active job or null if none found
@@ -1078,20 +1036,20 @@ class ProjectService {
           ['updated_at', 'DESC']
         ]
       });
-      
+
       // If no active job is found, return null without error
       if (!activeJob) {
         logger.info('No active job found');
         return null;
       }
-      
+
       return activeJob;
     } catch (error) {
       logger.error('Error getting current active job:', error);
       throw error;
     }
   }
-  
+
   /**
    * Get upcoming projects (with 'upcoming' status)
    * @param {number} limit - Maximum number of projects to return
@@ -1126,20 +1084,20 @@ class ProjectService {
         ],
         limit
       });
-      
+
       // Return empty array if no projects found
       if (!projects || projects.length === 0) {
         logger.info('No upcoming projects found');
         return [];
       }
-      
+
       return projects;
     } catch (error) {
       logger.error('Error getting upcoming projects:', error);
       throw error;
     }
   }
-  
+
   /**
    * Get assessment projects that haven't been converted to jobs
    * @param {number} limit - Maximum number of projects to return
@@ -1173,20 +1131,20 @@ class ProjectService {
         ],
         limit
       });
-      
+
       // Return empty array if no projects found
       if (!projects || projects.length === 0) {
         logger.info('No assessment projects found');
         return [];
       }
-      
+
       return projects;
     } catch (error) {
       logger.error('Error getting assessment projects:', error);
       throw error;
     }
   }
-  
+
   /**
    * Get recently completed projects
    * @param {number} limit - Maximum number of projects to return
@@ -1221,20 +1179,20 @@ class ProjectService {
         ],
         limit
       });
-      
+
       // Return empty array if no projects found
       if (!projects || projects.length === 0) {
         logger.info('No recently completed projects found');
         return [];
       }
-      
+
       return projects;
     } catch (error) {
       logger.error('Error getting recently completed projects:', error);
       throw error;
     }
   }
-  
+
   /**
    * Update upcoming projects to in_progress when their scheduled date arrives
    * This method is designed to be called by a daily CRON job
@@ -1244,10 +1202,10 @@ class ProjectService {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Set to start of day
-      
+
       // Format as YYYY-MM-DD string for DATEONLY comparison
       const formattedDate = today.toISOString().split('T')[0];
-      
+
       // Find upcoming projects with scheduled date that is today or earlier
       const upcomingProjects = await Project.findAll({
         where: {
@@ -1257,26 +1215,70 @@ class ProjectService {
           }
         }
       });
-      
+
       logger.info(`Found ${upcomingProjects.length} upcoming projects to update`);
-      
+
       // Update the projects to in_progress
       let updatedCount = 0;
       const projectIds = [];
-      
+
       for (const project of upcomingProjects) {
         await project.update({ status: 'in_progress' });
         updatedCount++;
         projectIds.push(project.id);
         logger.info(`Updated project ${project.id} from upcoming to in_progress`);
       }
-      
+
       return {
         updatedCount,
         projectIds
       };
     } catch (error) {
       logger.error('Error updating upcoming projects:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get rejected assessment projects
+   * @param {number} limit - Maximum number of projects to return
+   * @returns {Promise<Array>} Rejected assessment projects
+   */
+  async getRejectedProjects(limit = 5) {
+    try {
+      const projects = await Project.findAll({
+        where: {
+          type: 'assessment',
+          status: 'rejected'
+        },
+        include: [{
+          model: Client,
+          as: 'client',
+          attributes: ['id', 'display_name', 'company', 'email', 'phone'],
+          include: [{
+            model: ClientAddress,
+            as: 'addresses'
+          }]
+        }, {
+          model: ClientAddress,
+          as: 'address',
+          required: false
+        }],
+        order: [
+          ['updated_at', 'DESC'] // Most recently rejected first
+        ],
+        limit
+      });
+
+      // Return empty array if no projects found
+      if (!projects || projects.length === 0) {
+        logger.info('No rejected assessment projects found');
+        return [];
+      }
+
+      return projects;
+    } catch (error) {
+      logger.error('Error getting rejected assessment projects:', error);
       throw error;
     }
   }
@@ -1305,14 +1307,14 @@ class ProjectService {
       // Update status and add rejection reason if provided
       const updateData = { status: 'rejected' };
       if (rejectionReason) {
-        updateData.scope = project.scope 
+        updateData.scope = project.scope
           ? `${project.scope}\n\nRejection Reason: ${rejectionReason}`
           : `Rejection Reason: ${rejectionReason}`;
       }
 
       await project.update(updateData);
       logger.info(`Assessment project ${projectId} marked as rejected`);
-      
+
       // Return updated project with details
       return await this.getProjectWithDetails(projectId);
     } catch (error) {

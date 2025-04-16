@@ -30,9 +30,9 @@ const getAll = async (req, res, next) => {
       status: req.query.status,
       includeConverted: req.query.includeConverted === 'true'
     };
-    
+
     logger.info(`Getting projects with filters: ${JSON.stringify(filters)}`);
-    
+
     const projects = await projectService.getAllProjects(filters);
     return res.json(success(projects, 'Projects retrieved successfully'));
   } catch (err) {
@@ -130,13 +130,13 @@ const checkProjectDependencies = async (req, res, next) => {
 const deleteProject = async (req, res, next) => {
   try {
     const { deleteReferences } = req.query; // Get deletion type from query
-    
+
     if (deleteReferences === 'true') {
       await projectService.deleteProjectWithReferences(req.params.id);
     } else {
       await projectService.deleteProject(req.params.id); // Existing method
     }
-    
+
     return res.json(success(null, 'Project deleted successfully'));
   } catch (err) {
     logger.error(`Error deleting project ${req.params.id}:`, err);
@@ -256,7 +256,7 @@ const convertToEstimate = async (req, res, next) => {
 const convertToJob = async (req, res, next) => {
   try {
     const { estimate_id } = req.body;
-    
+
     if (!estimate_id) {
       throw new ValidationError('Estimate ID is required for conversion');
     }
@@ -266,10 +266,10 @@ const convertToJob = async (req, res, next) => {
     if (!project.estimate_id) {
       await projectService.updateProject(req.params.id, { estimate_id });
     }
-    
+
     // Then convert the project to a job
     const jobProject = await projectService.convertAssessmentToJob(req.params.id, estimate_id);
-    
+
     return res.json(success(jobProject, 'Assessment converted to job successfully'));
   } catch (err) {
     logger.error(`Error converting assessment ${req.params.id} to job:`, err);
@@ -286,13 +286,13 @@ const convertToJob = async (req, res, next) => {
 const updateAdditionalWork = async (req, res, next) => {
   try {
     const { additional_work } = req.body;
-    
+
     if (additional_work === undefined) {
       throw new ValidationError('Additional work notes are required');
     }
-    
+
     const project = await projectService.updateAdditionalWork(req.params.id, additional_work);
-    
+
     return res.json(success(project, 'Additional work notes updated successfully'));
   } catch (err) {
     logger.error(`Error updating additional work for project ${req.params.id}:`, err);
@@ -415,7 +415,7 @@ const rejectAssessment = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { rejectionReason } = req.body;
-    
+
     const project = await projectService.rejectAssessment(id, rejectionReason);
     return res.json(success(project, 'Assessment project rejected successfully'));
   } catch (err) {
@@ -444,6 +444,7 @@ module.exports = {
   getUpcomingProjects,
   getAssessmentProjects,
   getRecentlyCompletedProjects,
+  getRejectedProjects,
   updateUpcomingProjects,
   rejectAssessment
 };

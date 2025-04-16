@@ -5,18 +5,29 @@
 2. **Frontend Adaptation**: Significant progress with standardized services implemented for key entities (invoices, estimates, clients)
 3. **Backend Standardization**: Partially completed with updated controllers created and some deployed
 4. **Standardized Service Pattern**: Implemented for critical components with proper data conversion between frontend and backend
+5. **Database Migration**: Successfully migrated from SQLite to PostgreSQL with proper column naming and data types
+6. **Communities Module**: Implemented communities and ad types functionality with proper database structure
 
 ### Open Issues
 1. **Property Naming Inconsistencies**: Some components still use mixed camelCase and snake_case in frontend templates
 2. **Controller Replacement**: Some updated controllers still need to be deployed
 3. **Entity ID Handling**: Some components may still rely on specific ID field names (id vs entityId)
+4. **Assessment Data Display Issue**: The assessment-to-estimate conversion workflow has an issue where assessment data is not displaying after selection
+   - The backend controller (`estimates.controller.js`) is looking for inspections with the alias `project.project_inspections` but the data is being returned with the alias `project.inspections`
+   - The JSON content in inspection records needs proper parsing to extract measurements, conditions, and materials
+   - Partial fix implemented by updating the `getAssessmentData` function to use the correct alias, but frontend components still need updates
 
 ### Critical Next Steps
-1. Continue implementing standardized services for remaining entities
-2. Ensure consistent property naming in all frontend components (use camelCase consistently)
-3. Deploy remaining updated controllers
-4. Add robust error handling and logging throughout the application
-5. Implement fallback mechanisms for potentially undefined values in critical functions
+1. Fix assessment data display issue in the assessment-to-estimate conversion workflow:
+   - Update frontend components to properly handle the assessment data
+   - Add validation to ensure all required data is present before allowing estimate creation
+   - Implement comprehensive error handling for missing or malformed inspection data
+2. Continue implementing standardized services for remaining entities
+3. Ensure consistent property naming in all frontend components (use camelCase consistently)
+4. Deploy remaining updated controllers
+5. Add robust error handling and logging throughout the application
+6. Implement fallback mechanisms for potentially undefined values in critical functions
+7. Complete testing of communities module functionality
 
 # Database and Routes Map
 
@@ -79,6 +90,13 @@ This document provides a comprehensive overview of the database structure and AP
   - Many-to-One with `projects`
   - One-to-Many with `project_photos` (via `inspection_id`)
 - **Notes**: Stores structured inspection data in JSON format
+- **Content Structure**:
+  - `measurements`: Contains items with dimensions, quantities, and measurement types
+  - `condition`: Contains assessment details, severity, and notes
+  - `materials`: Contains items with name, specification, quantity, and unit
+- **Access Pattern**:
+  - When queried via `projectService.getProjectWithDetails()`, inspections are returned with the alias `project.inspections`
+  - The `getAssessmentData()` function in `estimates.controller.js` processes these inspections to extract measurements, conditions, and materials
 
 #### Project Photos
 - **Table**: `project_photos`
@@ -217,17 +235,20 @@ This document provides a comprehensive overview of the database structure and AP
 #### Projects Status Transitions
 Projects use the following status values, defined as an enum type in PostgreSQL:
 - **Enum**: `enum_projects_status`
-- **Values**: `pending`, `upcoming`, `in_progress`, `completed`
+- **Values**: `pending`, `upcoming`, `in_progress`, `completed`, `rejected`
 - **Transition Logic**:
   - New assessment projects start with `pending` status
-  - New active projects are determined by scheduled date: 
+  - Assessment projects can be marked as `rejected` when customers choose not to proceed
+  - New active projects are determined by scheduled date:
     - Future dates → `upcoming`
     - Current or past dates → `in_progress`
   - Projects converted from assessments inherit the same date-based logic
   - Automatic transition: `upcoming` → `in_progress` when scheduled date arrives
   - Manual transition: `in_progress` → `completed` when work is finished
-- **Associated API Endpoints**: 
+- **Associated API Endpoints**:
   - `GET /api/projects/upcoming` - Gets all upcoming projects
+  - `GET /api/projects/rejected` - Gets all rejected assessments
+  - `POST /api/projects/:id/reject` - Rejects an assessment with optional reason
   - `POST /api/projects/update-upcoming` - Updates projects from upcoming to in_progress
 - **Automation**: Daily CRON job to update status for projects whose scheduled date has arrived
 
@@ -244,6 +265,34 @@ Projects use the following status values, defined as an enum type in PostgreSQL:
 - **Table**: `client_view`
 - **Purpose**: Provides a consolidated view of client data
 - **Notes**: Not a physical table, but a database view
+
+### Communities Module
+
+#### Communities
+- **Table**: `communities`
+- **Primary Key**: `id` (Integer)
+- **Key Fields**: `name`, `address`, `city`, `phone`, `spaces`, `state`
+- **Relationships**:
+  - One-to-Many with `ad_types` (via `community_id`)
+  - Many-to-One with `ad_types` (via `selected_ad_type_id`)
+- **Notes**: Stores community information with ad specialist contact details
+- **Special Fields**:
+  - `is_active` (Boolean): Indicates if the community is currently active
+  - `ad_specialist_name`, `ad_specialist_email`, `ad_specialist_phone`: Contact information for ad specialists
+  - `newsletter_link`: URL to the community newsletter
+  - `general_notes`: Text field for additional information
+
+#### Ad Types
+- **Table**: `ad_types`
+- **Primary Key**: `id` (Integer)
+- **Key Fields**: `community_id`, `name`, `width`, `height`, `cost`
+- **Relationships**:
+  - Many-to-One with `communities` (via `community_id`)
+  - One-to-Many with `communities` (via `selected_ad_type_id` in communities table)
+- **Notes**: Stores advertisement types available for each community
+- **Special Fields**:
+  - `start_date`, `end_date`, `deadline_date`: Date fields for ad scheduling
+  - `term_months`: Duration of the advertisement in months
 
 ## API Routes Structure
 
@@ -272,6 +321,8 @@ Based on the backend routes file (`backend/src/routes/index.js`), the following 
 - `/api/projects/:projectId/inspections` - Project inspection data [Standardized with UUID validation]
 - `/api/projects/:projectId/photos` - Project photo management [Standardized with UUID validation]
 - `/api/assessment` - Assessment-specific operations
+- `/api/communities` - Community management operations
+- `/api/communities/:communityId/ad-types` - Ad types for specific communities
 
 ### System Configuration
 - `/api/settings` - Application settings
