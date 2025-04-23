@@ -11,7 +11,7 @@ class CatalogMatcherService {
    */
   async checkSimilarity(descriptions) {
     try {
-      const response = await apiService.post('/api/estimates/llm/similarity-check', { descriptions });
+      const response = await apiService.post('/estimates/llm/similarity-check', { descriptions });
       
       return {
         success: true,
@@ -35,7 +35,7 @@ class CatalogMatcherService {
    */
   async getCatalogEligibleItems(descriptions, threshold = 0.7) {
     try {
-      const response = await apiService.post('/api/estimates/llm/catalog-eligible', { 
+      const response = await apiService.post('/estimates/llm/catalog-eligible', { 
         descriptions,
         threshold
       });

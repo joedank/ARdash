@@ -33,7 +33,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created estimate
    */
   async createEstimate(estimateData) {
-    return apiService.post('/api/estimates', estimateData);
+    return apiService.post('/estimates', estimateData);
   }
 
   /**
@@ -144,7 +144,7 @@ class EstimatesService {
    * @returns {Promise} Response data with { estimateNumber: '...' }
    */
   async getNextEstimateNumber() {
-    return apiService.get('/api/estimates/next-number');
+    return apiService.get('/estimates/next-number');
   }
 
   /**
@@ -214,7 +214,7 @@ class EstimatesService {
       console.log('Calling API: /api/estimates/llm/analyze...');
       const startTime = new Date().getTime();
       
-      const response = await apiService.post('/api/estimates/llm/analyze', enhancedPayload, {
+      const response = await apiService.post('/estimates/llm/analyze', enhancedPayload, {
         signal: controller.signal,
         timeout: TIMEOUT_MS
       });
@@ -337,7 +337,7 @@ class EstimatesService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-      const response = await apiService.post('/api/estimates/llm/generate', dataToSend, {
+      const response = await apiService.post('/estimates/llm/generate', dataToSend, {
         signal: controller.signal,
         timeout: TIMEOUT_MS
       });
@@ -373,7 +373,7 @@ class EstimatesService {
    * @returns {Promise} Response data with matched products.
    */
   async matchProductsToLineItems(lineItems) {
-    return apiService.post('/api/estimates/llm/match-products', { lineItems });
+    return apiService.post('/estimates/llm/match-products', { lineItems });
   }
 
   /**
@@ -382,7 +382,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created products.
    */
   async createProductsFromLineItems(newProducts) {
-    return apiService.post('/api/estimates/llm/create-products', { newProducts });
+    return apiService.post('/estimates/llm/create-products', { newProducts });
   }
 
   /**
@@ -391,7 +391,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created estimate.
    */
   async finalizeEstimateFromMatches(finalData) {
-    return apiService.post('/api/estimates/llm/finalize', finalData);
+    return apiService.post('/estimates/llm/finalize', finalData);
   }
 
   /**
@@ -414,7 +414,7 @@ class EstimatesService {
       }
     };
 
-    return apiService.post('/api/estimates/llm/generate', payload);
+    return apiService.post('/estimates/llm/generate', payload);
   }
 
   /**
@@ -423,7 +423,7 @@ class EstimatesService {
    * @returns {Promise} Response data with parsed line items
    */
   async processExternalLlmResponse(payload) {
-    return apiService.post('/api/estimates/llm/process-external', payload);
+    return apiService.post('/estimates/llm/process-external', payload);
   }
 
   /**
@@ -441,7 +441,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created estimate
    */
   async saveEstimateWithSourceMap(estimateData) {
-    return apiService.post('/api/estimates/with-source-map', estimateData);
+    return apiService.post('/estimates/with-source-map', estimateData);
   }
 }
 
