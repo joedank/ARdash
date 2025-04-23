@@ -411,25 +411,104 @@ const getEstimateSourceMap = async (req, res) => {
  */
 const analyzeEstimateScope = async (req, res) => {
   try {
-    const { description, assessmentData, mode, aggressiveness } = req.body;
+    const { description, projectId, assessment, options } = req.body;
+
+    // Debug incoming request
+    console.log('\n===== DEBUG: ANALYZE ESTIMATE SCOPE =====');
+    console.log('Received request with:');
+    console.log('Description:', description?.substring(0, 100) + (description?.length > 100 ? '...' : ''));
+    console.log('Project ID:', projectId);
+    console.log('Assessment Data Available:', !!assessment);
+    console.log('Options:', options);
+    
+    // Debug the measurements and conditions if available
+    if (assessment && assessment.measurements) {
+      console.log('Assessment Measurements:', assessment.measurements.length);
+      assessment.measurements.forEach((m, i) => {
+        console.log(`- Measurement ${i+1}: ${m.label} = ${m.value} ${m.unit}`);
+      });
+    }
+    
+    if (assessment && assessment.formattedMeasurements) {
+      console.log('Formatted Measurements:', assessment.formattedMeasurements.length);
+      assessment.formattedMeasurements.forEach((m, i) => {
+        console.log(`- Formatted Measurement ${i+1}: ${m.name} = ${m.value} ${m.unit}`);
+      });
+    }
+    
+    if (assessment && assessment.conditions) {
+      console.log('Assessment Conditions:', assessment.conditions.length);
+      assessment.conditions.forEach((c, i) => {
+        console.log(`- Condition ${i+1}: ${c.issue} (${c.severity}) at ${c.location}`);
+      });
+    }
 
     if (!description) {
       return res.status(400).json(error('Description is required'));
     }
 
+    // Check for and validate projectId
+    if (projectId) {
+      logger.info(`Analyzing estimate scope with project ID: ${projectId}`);
+      
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(projectId)) {
+        logger.warn(`Invalid UUID format for project ID: ${projectId}`);
+        // Continue execution but log the warning
+      }
+    }
+
+    // Extract options from the request if available
+    const mode = options?.mode;
+    const aggressiveness = options?.aggressiveness;
+
     logger.info(`Analyzing estimate scope with mode: ${mode}, aggressiveness: ${aggressiveness}`);
 
-    // Call the LLM service to analyze the scope
+    // Call the LLM service to analyze the scope with enhanced payload
     const analysisResult = await llmEstimateService.analyzeScope({
       scope: description, // Make sure we use 'scope' here as expected by the method
-      assessmentData,
+      projectId, // Explicitly pass projectId
+      assessmentData: assessment, // Pass the assessment data
       mode,
       aggressiveness
     });
 
+    // Debug the result from the LLM service
+    console.log('\nLLM Analysis Result:');
+    console.log(JSON.stringify(analysisResult, null, 2));
+    console.log('========================================\n');
+
     if (!analysisResult.success) {
        // Pass the detailed error message from the service
        return res.status(400).json(error(analysisResult.message || 'LLM analysis failed', analysisResult.data));
+    }
+
+    // EMERGENCY FIX: Ensure required_services exists and is not empty
+    if (analysisResult.data) {
+      if (!analysisResult.data.required_services || !Array.isArray(analysisResult.data.required_services) || analysisResult.data.required_services.length === 0) {
+        console.log('\n===== ADDING MISSING SERVICES =====');
+        console.log('Original data:', JSON.stringify(analysisResult.data, null, 2));
+        
+        // Add default services based on repair type
+        const repairType = analysisResult.data.repair_type || 'General Repair';
+        let defaultServices = ['general_repair'];
+        
+        // Add more specific services based on repair type
+        if (repairType.toLowerCase().includes('roof')) {
+          defaultServices = ['roof_inspection', 'roof_repair'];
+        } else if (repairType.toLowerCase().includes('window')) {
+          defaultServices = ['window_repair', 'window_replacement'];
+        } else if (repairType.toLowerCase().includes('door')) {
+          defaultServices = ['door_repair', 'door_replacement'];
+        } else if (repairType.toLowerCase().includes('paint')) {
+          defaultServices = ['painting', 'surface_preparation'];
+        }
+        
+        // Apply the default services
+        analysisResult.data.required_services = defaultServices;
+        console.log('Fixed data:', JSON.stringify(analysisResult.data, null, 2));
+      }
     }
 
     // Check if clarifications are needed
@@ -441,14 +520,18 @@ const analyzeEstimateScope = async (req, res) => {
        }, 'Clarifications needed for estimate'));
     } else {
        // If no clarifications needed, return the generated line items
-       return res.status(200).json(success({
-         clarificationsNeeded: false,
-         lineItems: analysisResult.lineItems
-       }, 'Estimate scope analyzed successfully'));
+       return res.status(200).json(success(analysisResult.data, 'Estimate scope analyzed successfully'));
     }
 
   } catch (err) {
     logger.error('Error analyzing estimate scope:', err);
+    
+    // Log detailed error information
+    console.log('\n===== ERROR IN ANALYZE ESTIMATE SCOPE =====');
+    console.log('Error message:', err.message);
+    console.log('Error stack:', err.stack);
+    console.log('==========================================\n');
+    
     return res.status(500).json(error('Failed to analyze estimate scope', { message: err.message }));
   }
 };
@@ -587,11 +670,15 @@ const getAssessmentData = async (req, res) => {
       materials,
       // Add project details
       projectId: project.id,
+      // Create a descriptive project name from client and address information
+      projectName: project.client ? 
+        `${project.client.display_name || 'Client'} - ${project.type || 'Project'} ${new Date(project.scheduled_date).toLocaleDateString()}` : 
+        `${project.type || 'Project'} #${project.id.substring(0, 8)}`,
       date: project.scheduled_date,
       inspector: project.inspector || 'Unknown',
       client: project.client ? {
         id: project.client.id,
-        name: `${project.client.first_name || ''} ${project.client.last_name || ''}`.trim(),
+        name: project.client.display_name || '',
         email: project.client.email,
         phone: project.client.phone
       } : null,
@@ -833,6 +920,153 @@ const generateEstimateFromAssessment = async (req, res) => {
 };
 
 /**
+ * Check similarity between line items descriptions and catalog products
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const checkCatalogSimilarity = async (req, res) => {
+  try {
+    const { descriptions } = req.body;
+
+    if (!descriptions || !Array.isArray(descriptions) || descriptions.length === 0) {
+      return res.status(400).json(error('Descriptions array is required and cannot be empty'));
+    }
+
+    logger.info(`Checking catalog similarity for ${descriptions.length} descriptions`);
+
+    // Get products for similarity checking
+    const { Product } = require('../models');
+    const stringSimilarity = require('string-similarity');
+    
+    const products = await Product.findAll({
+      where: { 
+        type: 'service', 
+        deleted_at: null 
+      }
+    });
+
+    if (!products || products.length === 0) {
+      logger.info('No products found in catalog for similarity check');
+      return res.status(200).json(success([], 'No products found for similarity check'));
+    }
+
+    // Process each description for similarity matches
+    const results = [];
+    
+    for (const description of descriptions) {
+      if (!description || typeof description !== 'string') continue;
+      
+      // Calculate similarity for each product
+      const matches = products
+        .map(product => ({
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          unit: product.unit,
+          similarity: stringSimilarity.compareTwoStrings(
+            description.toLowerCase(),
+            product.name.toLowerCase()
+          )
+        }))
+        .filter(match => match.similarity > 0.3) // Only include reasonable matches
+        .sort((a, b) => b.similarity - a.similarity) // Sort by similarity (highest first)
+        .slice(0, 3); // Get top 3 matches
+
+      if (matches.length > 0) {
+        results.push({
+          description,
+          matches
+        });
+      }
+    }
+
+    logger.info(`Found similarity matches for ${results.length} descriptions`);
+    return res.status(200).json(success(results, 'Similarity check completed successfully'));
+  } catch (err) {
+    logger.error('Error checking catalog similarity:', err);
+    return res.status(500).json(error('Failed to check catalog similarity', { message: err.message }));
+  }
+};
+
+/**
+ * Get catalog-eligible items from descriptions based on similarity threshold
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getCatalogEligibleItems = async (req, res) => {
+  try {
+    const { descriptions, threshold = 0.7 } = req.body;
+
+    if (!descriptions || !Array.isArray(descriptions) || descriptions.length === 0) {
+      return res.status(400).json(error('Descriptions array is required and cannot be empty'));
+    }
+
+    logger.info(`Checking catalog eligibility for ${descriptions.length} descriptions with threshold ${threshold}`);
+
+    // Get products for similarity checking
+    const { Product } = require('../models');
+    const stringSimilarity = require('string-similarity');
+    
+    const products = await Product.findAll({
+      where: { 
+        type: 'service', 
+        deleted_at: null 
+      }
+    });
+
+    if (!products || products.length === 0) {
+      logger.info('No products found in catalog for eligibility check');
+      return res.status(200).json(success([], 'No products found for eligibility check'));
+    }
+
+    // Find highly similar matches that exceed the threshold
+    const eligibleItems = [];
+    
+    for (const description of descriptions) {
+      if (!description || typeof description !== 'string') continue;
+      
+      // Find the best match for this description
+      let bestMatch = null;
+      let bestSimilarity = 0;
+      
+      for (const product of products) {
+        const similarity = stringSimilarity.compareTwoStrings(
+          description.toLowerCase(),
+          product.name.toLowerCase()
+        );
+        
+        if (similarity > bestSimilarity) {
+          bestSimilarity = similarity;
+          bestMatch = product;
+        }
+      }
+      
+      // If the best match exceeds our threshold, it's eligible for catalog replacement
+      if (bestMatch && bestSimilarity >= threshold) {
+        eligibleItems.push({
+          description,
+          product: {
+            id: bestMatch.id,
+            name: bestMatch.name,
+            description: bestMatch.description,
+            price: bestMatch.price,
+            unit: bestMatch.unit
+          },
+          similarity: bestSimilarity
+        });
+      }
+    }
+
+    logger.info(`Found ${eligibleItems.length} catalog-eligible items`);
+    return res.status(200).json(success(eligibleItems, 'Catalog eligibility check completed successfully'));
+  } catch (err) {
+    logger.error('Error checking catalog eligibility:', err);
+    return res.status(500).json(error('Failed to check catalog eligibility', { message: err.message }));
+  }
+};
+
+/**
  * Process externally generated LLM response
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -886,5 +1120,8 @@ module.exports = {
   matchProductsToLineItems,
   createProductsFromLineItems,
   generateEstimateFromAssessment,
-  processExternalLlmResponse
+  processExternalLlmResponse,
+  // Catalog integration
+  checkCatalogSimilarity,
+  getCatalogEligibleItems
 };

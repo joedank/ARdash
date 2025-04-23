@@ -23,6 +23,11 @@ const EstimateItemPhotoModelDefinition = require('./estimateItemPhoto');
 const EstimateItemAdditionalWorkModelDefinition = require('./estimateItemAdditionalWork');
 const CommunityModelDefinition = require('./Community');
 const AdTypeModelDefinition = require('./AdType');
+const WorkTypeModelDefinition = require('./workType');
+const WorkTypeMaterialModelDefinition = require('./workTypeMaterial');
+const WorkTypeTagModelDefinition = require('./workTypeTag');
+const WorkTypeCostHistoryModelDefinition = require('./workTypeCostHistory');
+const AssessmentWorkTypeModelDefinition = require('./AssessmentWorkType');
 
 // Initialize each model
 const User = UserModelDefinition(sequelize, Sequelize.DataTypes);
@@ -44,6 +49,11 @@ const EstimateItemPhoto = EstimateItemPhotoModelDefinition(sequelize, Sequelize.
 const EstimateItemAdditionalWork = EstimateItemAdditionalWorkModelDefinition(sequelize, Sequelize.DataTypes);
 const Community = CommunityModelDefinition(sequelize, Sequelize.DataTypes);
 const AdType = AdTypeModelDefinition(sequelize, Sequelize.DataTypes);
+const WorkType = WorkTypeModelDefinition(sequelize, Sequelize.DataTypes);
+const WorkTypeMaterial = WorkTypeMaterialModelDefinition(sequelize, Sequelize.DataTypes);
+const WorkTypeTag = WorkTypeTagModelDefinition(sequelize, Sequelize.DataTypes);
+const WorkTypeCostHistory = WorkTypeCostHistoryModelDefinition(sequelize, Sequelize.DataTypes);
+const AssessmentWorkType = AssessmentWorkTypeModelDefinition(sequelize, Sequelize.DataTypes);
 
 // Store models in db object
 const db = {
@@ -65,7 +75,12 @@ const db = {
   EstimateItemPhoto,
   EstimateItemAdditionalWork,
   Community,
-  AdType
+  AdType,
+  WorkType,
+  WorkTypeMaterial,
+  WorkTypeTag,
+  WorkTypeCostHistory,
+  AssessmentWorkType
 };
 
 // Call associate method for each model

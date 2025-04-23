@@ -424,6 +424,42 @@ const rejectAssessment = async (req, res, next) => {
   }
 };
 
+/**
+ * Update work types for a project assessment
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const updateWorkTypes = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { work_types } = req.body;
+
+    if (!id) {
+      throw new ValidationError('Project ID is required');
+    }
+
+    if (!work_types || !Array.isArray(work_types)) {
+      throw new ValidationError('Work types must be an array');
+    }
+
+    // Get project to verify it exists and is an assessment
+    const project = await projectService.getProject(id);
+
+    if (!project) {
+      throw new ValidationError(`Project with ID ${id} not found`);
+    }
+
+    // Update work_types field
+    const updatedProject = await projectService.updateWorkTypes(id, work_types);
+
+    return res.json(success(updatedProject, 'Work types updated successfully'));
+  } catch (err) {
+    logger.error(`Error updating work types for project ${req.params.id}:`, err);
+    next(err);
+  }
+};
+
 module.exports = {
   photoUpload,
   getAll,
@@ -446,5 +482,6 @@ module.exports = {
   getRecentlyCompletedProjects,
   getRejectedProjects,
   updateUpcomingProjects,
-  rejectAssessment
+  rejectAssessment,
+  updateWorkTypes
 };

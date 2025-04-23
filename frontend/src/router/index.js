@@ -26,6 +26,10 @@ import ProjectsView from '../views/projects/ProjectsView.vue';
 import CommunitiesListView from '../views/communities/CommunitiesListView.vue';
 import CommunityDetailView from '../views/communities/CommunityDetailView.vue';
 
+// Work Types Views
+import WorkTypeDetail from '../views/work-types/WorkTypeDetail.vue';
+import CreateWorkType from '../views/work-types/CreateWorkType.vue';
+
 // Import Settings Routes
 import settingsRoutes from './settings.routes';
 
@@ -94,6 +98,28 @@ const routes = [
         path: ':id',
         name: 'community-detail',
         component: CommunityDetailView
+      }
+    ]
+  },
+  {
+    // Work types routes
+    path: '/work-types',
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'work-types-list',
+        component: () => import('../views/work-types/WorkTypesList.vue')
+      },
+      {
+        path: 'new',
+        name: 'create-work-type',
+        component: CreateWorkType
+      },
+      {
+        path: ':id',
+        name: 'work-type-detail',
+        component: WorkTypeDetail
       }
     ]
   },

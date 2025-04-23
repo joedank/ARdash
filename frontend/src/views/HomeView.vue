@@ -157,6 +157,9 @@
           </div>
         </BaseCard>
         
+        <!-- Work Types Widget -->
+        <WorkTypesWidget class="mt-6" />
+        
         <!-- Calendar Events -->
         <BaseCard 
           title="Upcoming Events" 
@@ -198,6 +201,7 @@ import BaseAlert from '../components/feedback/BaseAlert.vue';
 import BaseToggleSwitch from '../components/form/BaseToggleSwitch.vue';
 import BaseSkeletonLoader from '../components/data-display/BaseSkeletonLoader.vue';
 import BaseButton from '../components/base/BaseButton.vue';
+import WorkTypesWidget from '../components/dashboard/WorkTypesWidget.vue';
 
 const authStore = useAuthStore();
 const user = computed(() => authStore.user);

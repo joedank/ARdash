@@ -1284,6 +1284,38 @@ class ProjectService {
   }
 
   /**
+   * Update work types for a project assessment
+   * @param {string} projectId - Project ID
+   * @param {Array} workTypes - Array of work type IDs
+   * @returns {Promise<Object>} Updated project
+   */
+  async updateWorkTypes(projectId, workTypes) {
+    try {
+      const project = await Project.findByPk(projectId);
+      if (!project) {
+        throw new ValidationError('Project not found');
+      }
+
+      if (!Array.isArray(workTypes)) {
+        throw new ValidationError('Work types must be an array');
+      }
+
+      // Update the project with work types
+      await project.update({
+        work_types: workTypes
+      });
+
+      logger.info(`Updated work types for project ${projectId}: ${workTypes.length} work types`);
+
+      // Return updated project with details
+      return await this.getProjectWithDetails(projectId);
+    } catch (error) {
+      logger.error(`Error updating work types for project ${projectId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Reject an assessment project
    * @param {string} projectId - Project ID
    * @param {string} rejectionReason - Optional reason for rejection

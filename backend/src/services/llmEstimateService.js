@@ -156,13 +156,14 @@ Task: Analyze the given project description and identify the repair type(s) pres
        - Request counts and dimensions as needed.
    * For remodeling or painting:
        - Request room or surface area measurements as applicable.
-- required_services: an array of strings listing the repair services needed.
+- required_services: an array of strings listing the specific repair services needed. THIS FIELD MUST CONTAIN AT LEAST ONE SERVICE, EVEN FOR GENERAL REPAIRS. Common services include: "roof_replacement", "tile_removal", "underlayment_replacement", "window_installation", "door_repair", "painting", "flooring", etc.
 - clarifying_questions: an array of strings for any questions that help clarify missing or ambiguous details. Ensure the questions are directly pertinent to the identified repair type and do not ask for extraneous data.
 Guidelines:
 1. Identify the repair type(s) by examining keywords in the description (e.g., "leak", "remove tiles" imply roofing; "door", "window" imply fixture repairs).
 2. If the description specifies a localized repair (e.g., "remove tiles to locate a leak"), avoid asking for full-scale measurements such as total roof square footage.
 3. Generate clarifying questions only when the provided description lacks necessary details, ensuring they relate directly to the task (for example, ask for the affected area's dimensions rather than the entire roof if the job is partial).
 4. Base your questions on our industry practices and the standard service types we provide.
+5. ALWAYS include at least one specific service in the required_services array, even for general repairs.
 Example Input: "I have to remove ceramic tiles on a roof due to a leak. We'll remove tiles to locate the water intrusion point and replace the underlayment. The wood appears intact. A full roof replacement is not necessary."
 Example Output:
 {
@@ -355,17 +356,33 @@ Format: Return a JSON object matching the service catalog schema.`
    * Analyzes the project scope using LLM to extract repair types, measurements, and clarifying questions.
    * @param {Object} params - Parameters object
    * @param {string} params.scope - The scope/description to analyze
+   * @param {string} params.projectId - The project ID associated with this scope
+   * @param {Object} params.assessmentData - Optional assessment data object
+   * @param {string} params.mode - Optional estimation mode
+   * @param {number} params.aggressiveness - Optional aggressiveness level
    * @returns {Promise<Object>} - Analysis result
    */
   async analyzeScope(params = {}) {
     try {
-      const { scope } = params;
+      const { scope, projectId, assessmentData, mode, aggressiveness } = params;
+      
+      console.log('\n===== LLM SERVICE - ANALYZE SCOPE =====');
+      console.log('Parameters:');
+      console.log('- Scope:', scope?.substring(0, 50) + '...');
+      console.log('- Project ID:', projectId);
+      console.log('- Assessment data available:', !!assessmentData);
+      console.log('- Mode:', mode);
+      console.log('- Aggressiveness:', aggressiveness);
+      
       if (!scope || typeof scope !== 'string') {
         throw new Error('Scope description is required');
       }
 
       // Use the same prompt as initialAnalysis
       const prompt = this._getDefaultPrompt('initialAnalysis') + `\n${scope}`;
+      console.log('\nPrompt used (first 200 chars):', prompt.substring(0, 200) + '...');
+      
+      console.log('\nCalling DeepSeek API...');
       const llmResponse = await this.deepSeekService.generateChatCompletion([
         {
           role: "system",
@@ -379,31 +396,78 @@ Format: Return a JSON object matching the service catalog schema.`
         temperature: 0.3, // More deterministic for analysis
         max_tokens: 512
       });
+      
+      console.log('\nReceived LLM response');
       let content = llmResponse?.choices?.[0]?.message?.content || '';
+      console.log('Raw content (first 500 chars):', content.substring(0, 500) + (content.length > 500 ? '...' : ''));
+      
       if (!content) {
         throw new Error('No response from LLM');
       }
+      
       // Try to parse as JSON
       let analysis;
       try {
         analysis = JSON.parse(content);
+        console.log('\nSuccessfully parsed direct JSON:', JSON.stringify(analysis, null, 2));
       } catch (err) {
+        console.log('\nFailed to parse direct JSON, attempting to extract from code block:', err.message);
         // Try to extract JSON from code block
         const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (match && match[1]) {
           try {
-            analysis = JSON.parse(match[1].trim());
+            const extracted = match[1].trim();
+            console.log('Extracted JSON from code block (first 200 chars):', extracted.substring(0, 200) + '...');
+            analysis = JSON.parse(extracted);
+            console.log('Successfully parsed JSON from code block:', JSON.stringify(analysis, null, 2));
           } catch (e) {
+            console.log('Failed to parse JSON from code block:', e.message);
+            console.log('Raw extracted content:', match[1]);
             throw new Error('Failed to parse LLM response as JSON');
           }
         } else {
+          console.log('Could not find JSON in code block');
+          console.log('Raw content:', content);
           throw new Error('Failed to parse LLM response as JSON');
         }
       }
-      return { success: true, data: analysis };
+      
+      // Ensure all required fields exist with defaults
+      const result = {
+        repair_type: analysis.repair_type || 'General Repair',
+        required_measurements: Array.isArray(analysis.required_measurements) ? analysis.required_measurements : [],
+        required_services: Array.isArray(analysis.required_services) ? analysis.required_services : ['general_repair_service'],
+        clarifying_questions: Array.isArray(analysis.clarifying_questions) ? analysis.clarifying_questions : []
+      };
+      
+      // If projectId was provided, add it to the result
+      if (projectId) {
+        result.projectId = projectId;
+      }
+      
+      // Log what was received and what we're returning
+      console.log('\nFinal processed result:', JSON.stringify(result, null, 2));
+      console.log('===== END LLM SERVICE - ANALYZE SCOPE =====\n');
+      
+      return { success: true, data: result };
     } catch (error) {
+      console.log('\n===== ERROR IN LLM SERVICE - ANALYZE SCOPE =====');
+      console.log('Error message:', error.message);
+      console.log('Error stack:', error.stack);
+      console.log('===== END ERROR IN LLM SERVICE - ANALYZE SCOPE =====\n');
+      
       logger.error('Error in analyzeScope:', error);
-      return { success: false, message: error.message };
+      return { 
+        success: false, 
+        message: error.message,
+        // Provide a fallback result with defaults
+        data: {
+          repair_type: 'General Repair',
+          required_measurements: [],
+          required_services: ['general_repair_service'],
+          clarifying_questions: []
+        }
+      };
     }
   }
 
@@ -623,13 +687,33 @@ Format: Return a JSON object matching the service catalog schema.`
           let itemUnit = 'each'; // Default unit
 
           if (item && item.measurementType) {
-            if ((item.measurementType === 'area' || item.measurementType === 'linear') && item.dimensions && item.dimensions.units) {
-              itemUnit = item.dimensions.units;
-            } else if (item.measurementType === 'quantity' && item.quantityUnit) {
-              itemUnit = item.quantityUnit;
+            if (item.measurementType === 'area') {
+              // For area measurements, check both structures
+              if (item.dimensions && item.dimensions.units) {
+                itemUnit = item.dimensions.units;
+              } else if (item.units) {
+                itemUnit = item.units;
+              } else {
+                itemUnit = 'sq ft'; // Default for area
+              }
+            } else if (item.measurementType === 'linear') {
+              // For linear measurements, check both structures
+              if (item.dimensions && item.dimensions.units) {
+                itemUnit = item.dimensions.units;
+              } else if (item.units) {
+                itemUnit = item.units;
+              } else {
+                itemUnit = 'ln ft'; // Default for linear
+              }
+            } else if (item.measurementType === 'quantity') {
+              // For quantity measurements
+              itemUnit = item.quantityUnit || item.unit || 'each';
             }
-            // Add more conditions here if other measurementTypes have different unit locations
+          } else if (item.unit) {
+            // Fallback to explicit unit property if available
+            itemUnit = item.unit;
           }
+          
           itemUnit = (itemUnit || 'each').toLowerCase(); // Normalize and ensure fallback
           // --- End: Robust Unit Extraction ---
 

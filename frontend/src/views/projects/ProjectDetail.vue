@@ -90,9 +90,15 @@
             v-model:condition="condition"
             v-model:measurements="measurements"
             v-model:materials="materials"
+            v-model:workTypes="workTypes"
             @refresh-project="refreshProject"
             @photo-deleted="handlePhotoDeleted"
           />
+        </section>
+        
+        <!-- Work Types Panel (if project has work types) -->
+        <section v-if="project.type === 'assessment' && workTypes && workTypes.length > 0" class="space-y-4 mt-4">
+          <WorkTypeSummary :ids="workTypes" />
         </section>
       </template>
 
@@ -176,6 +182,11 @@
                 Add Receipt
               </BaseButton>
             </div>
+          </div>
+
+          <!-- Work Types Panel (if job has work types) -->
+          <div v-if="project.assessment?.workTypes && project.assessment.workTypes.length > 0" class="mt-4">
+            <WorkTypeSummary :ids="project.assessment.workTypes" />
           </div>
 
           <!-- Line Item Photos Component -->
@@ -318,6 +329,7 @@ import BaseButton from '@/components/base/BaseButton.vue';
 import BaseLoader from '@/components/feedback/BaseLoader.vue';
 import BaseAlert from '@/components/feedback/BaseAlert.vue';
 import RejectAssessmentModal from '@/components/projects/RejectAssessmentModal.vue';
+import WorkTypeSummary from '@/components/projects/WorkTypeSummary.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -343,6 +355,7 @@ const measurements = ref({
 const materials = ref({
   items: [{ name: '', quantity: '' }]
 });
+const workTypes = ref([]); // Store work types for the assessment
 
 // Status badge variant
 const statusVariant = computed(() => {
@@ -683,16 +696,24 @@ const loadProject = async () => {
 
       // Only update if data exists and is different
       if (conditionData) {
-        condition.value = JSON.parse(JSON.stringify(conditionData));
+      condition.value = JSON.parse(JSON.stringify(conditionData));
       }
 
       if (measurementsData) {
-        measurements.value = JSON.parse(JSON.stringify(measurementsData));
+      measurements.value = JSON.parse(JSON.stringify(measurementsData));
       }
 
       if (materialsData) {
-        materials.value = JSON.parse(JSON.stringify(materialsData));
+      materials.value = JSON.parse(JSON.stringify(materialsData));
       }
+    
+    // Load work types if available
+    if (project.value.workTypes) {
+      workTypes.value = Array.isArray(project.value.workTypes) 
+        ? [...project.value.workTypes] 
+        : [];
+      console.log('Loaded work types:', workTypes.value);
+    }
     }
 
     // If this is a job created from an assessment, fetch the assessment data and convert it
@@ -754,6 +775,11 @@ const saveAssessment = async () => {
     await projectsService.addInspection(project.value.id,
       projectsService.formatInspectionData('materials', materials.value)
     );
+    
+    // Save work types
+    if (workTypes.value.length > 0 || (project.value.workTypes && project.value.workTypes.length > 0)) {
+      await projectsService.updateWorkTypes(project.value.id, workTypes.value);
+    }
 
     alertMessage.value = 'Assessment saved successfully';
     alertVariant.value = 'success';

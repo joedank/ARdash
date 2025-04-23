@@ -200,29 +200,9 @@
                 </svg>
               </button>
 
-              <!-- LLM Option Tabs -->
-              <div v-if="showLlmOptions" class="mb-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
-                <div class="flex border-b border-gray-200 dark:border-gray-700">
-                  <button
-                    @click="currentLlmOption = 'integrated'"
-                    class="py-2 px-4 text-sm font-medium border-b-2 focus:outline-none"
-                    :class="currentLlmOption === 'integrated' ? 'text-blue-600 border-blue-600 dark:text-blue-400 dark:border-blue-400' : 'text-gray-500 border-transparent hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
-                  >
-                    Integrated LLM
-                  </button>
-                  <button
-                    @click="currentLlmOption = 'external'"
-                    class="py-2 px-4 text-sm font-medium border-b-2 focus:outline-none"
-                    :class="currentLlmOption === 'external' ? 'text-blue-600 border-blue-600 dark:text-blue-400 dark:border-blue-400' : 'text-gray-500 border-transparent hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
-                  >
-                    External LLM Input
-                  </button>
-                </div>
-              </div>
-              <!-- LLM Component based on selected option -->
-              <LLMEstimateInput v-if="!showLlmOptions || currentLlmOption === 'integrated'" @close="showGeneratorModal = false" />
-              <ExternalLLMInput
-                v-else-if="currentLlmOption === 'external'"
+
+              <!-- Unified LLM Estimate Generator -->
+              <EstimateGeneratorContainer
                 @close="showGeneratorModal = false"
                 :assessmentData="selectedAssessmentData"
                 @clearAssessment="selectedAssessmentData = null"
@@ -257,7 +237,7 @@
           <!-- Modal Body -->
           <div class="px-6 py-4">
             <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              Select an assessment to include context in your external LLM prompt. This will help generate more accurate estimates.
+              Select an assessment to include context in your AI estimate generator. This will help generate more accurate estimates.
             </p>
             <div v-if="loadingAssessmentProjects" class="text-center py-4">
               <svg class="animate-spin h-6 w-6 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -299,7 +279,7 @@
               Cancel
             </button>
             <button
-              @click="proceedToExternalLLM"
+              @click="proceedToAIGenerator"
               :disabled="loadingAssessmentData"
               class="px-3 py-1.5 bg-blue-600 border border-transparent rounded text-sm text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >            <span v-if="loadingAssessmentData">
@@ -329,8 +309,7 @@ import clientService from '@/services/clients.service.js'
 import projectsService from '@/services/standardized-projects.service.js'
 import { formatDate, formatCurrency } from '@/utils/formatters'
 import useErrorHandler from '@/composables/useErrorHandler.js' // Import error handler
-import LLMEstimateInput from '@/components/estimates/LLMEstimateInput.vue'
-import ExternalLLMInput from '@/components/estimates/ExternalLLMInput.vue'
+import EstimateGeneratorContainer from '../../components/estimates/generator/EstimateGeneratorContainer.vue'
 import ActionMenu from '@/components/common/ActionMenu.vue'
 import BasePagination from '@/components/navigation/BasePagination.vue'
 
@@ -339,9 +318,8 @@ const { handleError } = useErrorHandler() // Instantiate error handler
 const isLoading = ref(true)
 const estimates = ref([])
 const clients = ref([])
+// LLM generator state
 const showGeneratorModal = ref(false)
-const showLlmOptions = ref(true) // Set to true to show the tabs
-const currentLlmOption = ref('integrated') // Default to integrated LLM
 
 // Pagination state
 const currentPage = ref(1) // for BasePagination
@@ -384,21 +362,13 @@ const createEstimateActions = computed(() => [
   },
   { divider: true },
   {
-    text: 'Use Integrated LLM Generator',
-    action: () => {
-      currentLlmOption.value = 'integrated';
-      showGeneratorModal.value = true;
-    },
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>'
-  },
-  {
-    text: 'Paste External LLM Response',
+    text: 'Use AI Estimate Generator',
     action: () => {
       // First show assessment selection modal
       loadAssessmentProjects();
       showAssessmentSelectionModal.value = true;
     },
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>'
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>'
   },
 ]);
 
@@ -537,11 +507,10 @@ const loadAssessmentProjects = async () => {
   }
 }
 
-// Fetch assessment data and proceed to external LLM
-const proceedToExternalLLM = async () => {
+// Fetch assessment data and proceed to AI generator
+const proceedToAIGenerator = async () => {
   // If no assessment is selected, simply proceed
   if (!selectedAssessmentId.value) {
-    currentLlmOption.value = 'external'
     showAssessmentSelectionModal.value = false
     showGeneratorModal.value = true
     return
@@ -564,8 +533,7 @@ const proceedToExternalLLM = async () => {
   } finally {
     loadingAssessmentData.value = false
 
-    // Proceed to external LLM input
-    currentLlmOption.value = 'external'
+    // Proceed to AI generator
     showAssessmentSelectionModal.value = false
     showGeneratorModal.value = true
   }

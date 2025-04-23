@@ -164,4 +164,11 @@ router.put('/:id/additional-work', authenticate, validateUuid('id'), controller.
  */
 router.post('/:id/reject', authenticate, validateUuid('id'), controller.rejectAssessment);
 
+/**
+ * @route   PUT /api/projects/:id/work-types
+ * @desc    Update work types for a project assessment
+ * @access  Private
+ */
+router.put('/:id/work-types', authenticate, validateUuid('id'), controller.updateWorkTypes);
+
 module.exports = router;

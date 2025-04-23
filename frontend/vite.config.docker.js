@@ -34,10 +34,14 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: ['job.806040.xyz', 'localhost'],
     hmr: {
-      // Enable HMR
-      // Use secure WebSockets when the page is loaded over HTTPS
-      // The protocol is determined by the server
+      // Enable HMR with more robust configuration
       host: 'job.806040.xyz',
+      port: 5173,
+      // When accessed via HTTPS, this will handle clientPort appropriately
+      // Don't specify protocol explicitly - let browser determine it
+      timeout: 120000, // Increased timeout for better reliability
+      overlay: true,
+      // Allow both localhost and the domain name
       clientPort: 5173
     }
   }

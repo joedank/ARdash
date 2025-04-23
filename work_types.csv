@@ -1,0 +1,81 @@
+id,name,parent_bucket,measurement_type,suggested_units
+85f2c1a0-3f3a-4ba4-a0c1-76d789e0f7a1,Subfloor Replacement,Interior-Structural,area,sq ft
+4a1fb3c2-90de-42b6-b3f7-c5e7a8d10c9b,Floor Joist Sistering,Interior-Structural,linear,ft
+e20378d5-6fa4-48e9-b215-3c9d8f67c42a,Floor Insulation Replacement,Interior-Structural,area,sq ft
+7c23db1a-f82e-4d3c-95b0-42a1e8c7b593,Mobile-Home Leveling,Exterior-Structural,quantity,job
+f68d4a91-c2e0-4f7b-8d32-61a9e507c124,Pier/Block Replacement,Exterior-Structural,quantity,each
+a012c3e4-5f67-48d9-b0a1-c2d3e4f5a6b7,Tornado Anchor Installation,Exterior-Structural,quantity,each
+b123d4e5-6f78-49e0-a1b2-c3d4e5f6a7b8,Metal Roof-Over (Single-Wide),Exterior-Structural,area,sq ft
+c234e5f6-7a89-4af1-b2c3-d4e5f6a7b8c9,Metal Roof-Over (Double-Wide),Exterior-Structural,area,sq ft
+d345f6a7-8b90-4ba2-c3d4-e5f6a7b8c9d0,EPDM Roof Coating,Exterior-Structural,area,sq ft
+e456a7b8-9c01-4cb3-d4e5-f6a7b8c9d0e1,Gutter Installation,Exterior-Finish,linear,ft
+f567b8c9-0d12-4dc4-e5f6-a7b8c9d0e1f2,Gutter Guard Install,Exterior-Finish,linear,ft
+a678c9d0-1e23-4ed5-f6a7-b8c9d0e1f2a3,Skirting Installation,Exterior-Finish,linear,ft
+b789d0e1-2f34-4fe6-a7b8-c9d0e1f2a3b4,Skirting Vent Replacement,Exterior-Finish,quantity,each
+c890e1f2-3a45-4af7-b8c9-d0e1f2a3b4c5,Vinyl Siding Replacement,Exterior-Finish,area,sq ft
+d901f2a3-4b56-4ba8-c9d0-e1f2a3b4c5d6,Window Replacement,Exterior-Finish,quantity,each
+e012a3b4-5c67-4cb9-d0e1-f2a3b4c5d6e7,Exterior Door Replacement,Exterior-Finish,quantity,each
+f123b4c5-6d78-4dca-e1f2-a3b4c5d6e7f8,French-Door Install,Exterior-Finish,quantity,each
+a234c5d6-7e89-4edb-f2a3-b4c5d6e7f8a9,Exterior Painting,Exterior-Finish,area,sq ft
+b345d6e7-8f90-4fec-a3b4-c5d6e7f8a9b0,Deck Construction (8×16),Exterior-Structural,quantity,each
+c456e7f8-9a01-4afd-b4c5-d6e7f8a9b0c1,Deck Railing Replacement,Exterior-Finish,linear,ft
+d567f8a9-0b12-4bfe-c5d6-e7f8a9b0c1d2,Ramp Construction (ADA),Exterior-Structural,linear,ft
+e678a9b0-1c23-4caf-d6e7-f8a9b0c1d2e3,HVAC Package-Unit Swap,Mechanical,quantity,each
+f789b0c1-2d34-4db0-e7f8-a9b0c1d2e3f4,Ductwork Reseal,Mechanical,area,sq ft
+a890c1d2-3e45-4ec1-f8a9-b0c1d2e3f4a5,Water-Heater Replacement,Mechanical,quantity,each
+b901d2e3-4f56-4fd2-a9b0-c1d2e3f4a5b6,PEX Re-Pipe (Whole Home),Mechanical,linear,ft
+c012e3f4-5a67-4ae3-b0c1-d2e3f4a5b6c7,Under-Belly Repair,Interior-Structural,area,sq ft
+d123f4a5-6b78-4bf4-c1d2-e3f4a5b6c7d8,Electrical Panel Upgrade,Mechanical,quantity,each
+e234a5b6-7c89-4ca5-d2e3-f4a5b6c7d8e9,Branch-Circuit Rewire,Mechanical,linear,ft
+f345b6c7-8d90-4db6-e3f4-a5b6c7d8e9f0,Smoke Detector Install,Mechanical,quantity,each
+a456c7d8-9e01-4ec7-f4a5-b6c7d8e9f0a1,Kitchen Cabinet Replacement,Interior-Finish,linear,ft
+b567d8e9-0f12-4fd8-a5b6-c7d8e9f0a1b2,Countertop Install (Laminate),Interior-Finish,linear,ft
+c678e9f0-1a23-4ae9-b6c7-d8e9f0a1b2c3,Back-Splash Tile Install,Interior-Finish,area,sq ft
+d789f0a1-2b34-4bfa-c7d8-e9f0a1b2c3d4,Appliance Set Install,Interior-Finish,quantity,set
+e890a1b2-3c45-4cab-d8e9-f0a1b2c3d4e5,Vinyl Plank Flooring Install,Interior-Finish,area,sq ft
+f901b2c3-4d56-4dac-e9f0-a1b2c3d4e5f6,Carpet Replacement,Interior-Finish,area,sq ft
+a012c3d4-5e67-4ebd-f0a1-b2c3d4e5f6a7,Interior Painting (Walls),Interior-Finish,area,sq ft
+b123d4e5-6f78-4fce-a1b2-c3d4e5f6a7b8,Baseboard Install,Interior-Finish,linear,ft
+c234e5f6-7a89-4adf-b2c3-d4e5f6a7b8c9,Interior Door Replacement,Interior-Finish,quantity,each
+d345f6a7-8b90-4be0-c3d4-e5f6a7b8c9d0,Drywall Repair (Small Hole),Interior-Finish,quantity,each
+e456a7b8-9c01-4cf1-d4e5-f6a7b8c9d0e1,Textured Ceiling Repair,Interior-Finish,area,sq ft
+f567b8c9-0d12-4da2-e5f6-a7b8c9d0e1f2,Standing Shower Installation,Interior-Finish,quantity,each
+a678c9d0-1e23-4eb3-f6a7-b8c9d0e1f2a3,Tub-to-Shower Conversion,Interior-Finish,quantity,each
+b789d0e1-2f34-4fc4-a7b8-c9d0e1f2a3b4,Toilet Replacement,Interior-Finish,quantity,each
+c890e1f2-3a45-4ad5-b8c9-d0e1f2a3b4c5,Bathroom Vanity Install,Interior-Finish,quantity,each
+d901f2a3-4b56-4be6-c9d0-e1f2a3b4c5d6,Exhaust Fan Install (Bath),Mechanical,quantity,each
+e012a3b4-5c67-4cf7-d0e1-f2a3b4c5d6e7,Closet Door Install,Interior-Finish,quantity,each
+f123b4c5-6d78-4da8-e1f2-a3b4c5d6e7f8,Interior Trim Caulking,Interior-Finish,linear,ft
+a234c5d6-7e89-4eb9-f2a3-b4c5d6e7f8a9,Interior Door Hardware Swap,Interior-Finish,quantity,each
+b345d6e7-8f90-4fca-a3b4-c5d6e7f8a9b0,Electrical Outlet Upgrade,Mechanical,quantity,each
+c456e7f8-9a01-4adb-b4c5-d6e7f8a9b0c1,LED Ceiling Light Install,Mechanical,quantity,each
+d567f8a9-0b12-4bec-c5d6-e7f8a9b0c1d2,Skylight Replacement,Exterior-Structural,quantity,each
+e678a9b0-1c23-4cfd-d6e7-f8a9b0c1d2e3,Roof Vent Installation,Exterior-Structural,quantity,each
+f789b0c1-2d34-4dee-e7f8-a9b0c1d2e3f4,Awning Installation,Exterior-Finish,linear,ft
+a890c1d2-3e45-4eff-f8a9-b0c1d2e3f4a5,Carport Post Replacement,Exterior-Structural,quantity,each
+b901d2e3-4f56-4fa0-a9b0-c1d2e3f4a5b6,Storm-Door Install,Exterior-Finish,quantity,each
+c012e3f4-5a67-4ab1-b0c1-d2e3f4a5b6c7,Insulated Belly Wrap,Interior-Structural,area,sq ft
+d123f4a5-6b78-4bc2-c1d2-e3f4a5b6c7d8,Vapor Barrier Install,Interior-Structural,area,sq ft
+e234a5b6-7c89-4cd3-d2e3-f4a5b6c7d8e9,Laundry Hook-Up Install,Mechanical,quantity,each
+f345b6c7-8d90-4de4-e3f4-a5b6c7d8e9f0,Dryer Vent Reroute,Mechanical,linear,ft
+a456c7d8-9e01-4ef5-f4a5-b6c7d8e9f0a1,Range Hood Install,Mechanical,quantity,each
+b567d8e9-0f12-4fa6-a5b6-c7d8e9f0a1b2,Kitchen Sink Replacement,Interior-Finish,quantity,each
+c678e9f0-1a23-4ab7-b6c7-d8e9f0a1b2c3,Faucet Replacement (Kitchen),Mechanical,quantity,each
+d789f0a1-2b34-4bc8-c7d8-e9f0a1b2c3d4,Faucet Replacement (Bath),Mechanical,quantity,each
+e890a1b2-3c45-4cd9-d8e9-f0a1b2c3d4e5,Sub-Panel Add-On,Mechanical,quantity,each
+f901b2c3-4d56-4dea-e9f0-a1b2c3d4e5f6,Smart Thermostat Install,Mechanical,quantity,each
+a012c3e4-5e67-4efb-f0a1-b2c3d4e5f6a7,Whole-House Surge Protector,Mechanical,quantity,each
+b123d4e5-6f78-4fac-a1b2-c3d4e5f6a7b8,Water Softener Install,Mechanical,quantity,each
+c234e5f6-7a89-4abd-b2c3-d4e5f6a7b8c9,Interior Wall Panel Remove & Replace,Interior-Structural,area,sq ft
+d345f6a7-8b90-4bce-c3d4-e5f6a7b8c9d0,Interior Wall Panel Paint-Prep,Interior-Finish,area,sq ft
+e456a7b8-9c01-4cdf-d4e5-f6a7b8c9d0e1,Mold Remediation (Spot),Interior-Structural,area,sq ft
+f567b8c9-0d12-4de0-e5f6-a7b8c9d0e1f2,Asbestos Tile Abatement,Interior-Structural,area,sq ft
+a678c9d0-1e23-4ef1-f6a7-b8c9d0e1f2a3,Skirting Access Door Install,Exterior-Finish,quantity,each
+b789d0e1-2f34-4fa2-a7b8-c9d0e1f2a3b4,Tie-Down Strap Replacement,Exterior-Structural,quantity,each
+c890e1f2-3a45-4ab3-b8c9-d0e1f2a3b4c5,Roof Jack Flashing Replace,Exterior-Structural,quantity,each
+d901f2a3-4b56-4bc4-c9d0-e1f2a3b4c5d6,Refrigerator Vent Cap Replace,Exterior-Structural,quantity,each
+e012a3b4-5c67-4cd5-d0e1-f2a3b4c5d6e7,Porch Screen Repair,Exterior-Finish,area,sq ft
+f123b4c5-6d78-4de6-e1f2-a3b4c5d6e7f8,Window AC Cut-In,Exterior-Structural,quantity,each
+a234c5d6-7e89-4ef7-f2a3-b4c5d6e7f8a9,Heat Tape Install (Water Line),Mechanical,linear,ft
+b345d6e7-8f90-4fa8-a3b4-c5d6e7f8a9b0,Water Line Insulation,Mechanical,linear,ft
+c456e7f8-9a01-4ab9-b4c5-d6e7f8a9b0c1,Foundation Skirt Foam Backfill,Exterior-Structural,linear,ft

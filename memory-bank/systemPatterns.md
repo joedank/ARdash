@@ -1,6 +1,481 @@
 # System Patterns: Construction Management Web Application
 
+## Frontend Integration Patterns
+
+### Work Types Frontend Integration Pattern
+
+- **Problem**: Completed backend work types knowledge base (Phase B) needed frontend components for user management
+- **Pattern**: Component-based modular design with specialized functionality
+- **Solution**: Created reusable components with clear responsibilities and consistent design
+
+```javascript
+// 1. Component structure with tabbed interface for complex data
+<template>
+  <div>
+    <!-- Tabs for organizing complex data -->
+    <div class="border-b border-gray-200 dark:border-gray-700">
+      <nav class="-mb-px flex space-x-8">
+        <button
+          v-for="tab in tabs"
+          :key="tab.key"
+          @click="activeTab = tab.key"
+          class="py-4 px-1 text-sm font-medium border-b-2 whitespace-nowrap"
+          :class="[
+            activeTab === tab.key
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          ]"
+        >
+          {{ tab.label }}
+        </button>
+      </nav>
+    </div>
+
+    <!-- Dynamic content based on active tab -->
+    <div>
+      <div v-if="activeTab === 'details'"><!-- Details content --></div>
+      <div v-if="activeTab === 'costs'"><!-- Costs content --></div>
+      <MaterialsTab v-if="activeTab === 'materials-safety'" />
+      <CostHistoryTab v-if="activeTab === 'history'" />
+    </div>
+  </div>
+</template>
+
+// 2. Contextual component styling based on content
+const tagClasses = computed(() => {
+  const lowerTag = props.tag.toLowerCase();
+  
+  if (lowerTag.includes('hazard') || lowerTag.includes('danger')) {
+    return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
+  }
+  
+  if (lowerTag.includes('permit') || lowerTag.includes('license')) {
+    return 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200';
+  }
+  
+  // Default styling
+  return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+});
+
+// 3. Dashboard widget integration for data visualization
+<template>
+  <BaseCard title="Work Types Knowledge Base" :loading="loading">
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex flex-col items-center justify-center p-4 bg-blue-50 rounded-lg">
+        <span class="text-2xl font-bold text-blue-600">{{ stats.totalCount }}</span>
+        <span class="text-sm text-gray-600">Total Work Types</span>
+      </div>
+      <div class="flex flex-col items-center justify-center p-4 bg-green-50 rounded-lg">
+        <span class="text-2xl font-bold text-green-600">{{ stats.withCostsCount }}</span>
+        <span class="text-sm text-gray-600">With Cost Data</span>
+      </div>
+    </div>
+  </BaseCard>
+</template>
+```
+
+- **Key Aspects**:
+  - Tabbed interface pattern for organizing complex data in limited space
+  - Component-based architecture with clear separation of concerns
+  - Contextual styling based on content semantics for improved user experience
+  - Reuse of existing permissions system for consistent access control
+  - Dashboard integration for at-a-glance information
+  - Form validation with real-time feedback for user input
+  - Modals for focused editing experience without page navigation
+
+## Database Schema Management Patterns
+
+### Transaction-Based View Management Pattern
+
+- **Problem**: Database schema changes fail when columns are referenced by views or other dependent objects
+- **Pattern**: Transaction-based view handling with dependency detection
+- **Solution**: Implement a comprehensive system for safely managing schema changes with view dependencies
+
+```javascript
+// Transaction-based approach to dropping and recreating views
+module.exports = {
+  up: async (queryInterface, Sequelize) => {
+    // Using a transaction to ensure all operations succeed or fail together
+    return queryInterface.sequelize.transaction(async (transaction) => {
+      // First drop the view that depends on the column
+      await queryInterface.sequelize.query(
+        'DROP VIEW IF EXISTS client_view;',
+        { transaction }
+      );
+      
+      // Now alter the column type (since it's already nullable with no default)
+      await queryInterface.sequelize.query(
+        'ALTER TABLE "clients" ALTER COLUMN "payment_terms" TYPE TEXT;',
+        { transaction }
+      );
+      
+      // Recreate the view with the exact same definition
+      await queryInterface.sequelize.query(
+        `CREATE OR REPLACE VIEW client_view AS
+         SELECT id,
+           display_name AS name,
+           company,
+           email,
+           phone,
+           payment_terms,
+           default_tax_rate,
+           default_currency,
+           notes,
+           is_active,
+           client_type,
+           created_at,
+           updated_at
+         FROM clients;`,
+        { transaction }
+      );
+    });
+  }
+};
+
+// Reusable ViewManager class for view operations
+class ViewManager {
+  constructor(queryInterface) {
+    this.queryInterface = queryInterface;
+  }
+
+  async dropAndRecreateView(viewName, viewDefinition, transaction) {
+    // Drop the view if it exists
+    await this.queryInterface.sequelize.query(
+      `DROP VIEW IF EXISTS ${viewName};`, 
+      { transaction }
+    );
+    
+    // Recreate the view with the provided definition
+    await this.queryInterface.sequelize.query(
+      viewDefinition, 
+      { transaction }
+    );
+    
+    return true;
+  }
+
+  async getDependentViews(tableName) {
+    const query = `
+      SELECT dependent_view.relname AS view_name
+      FROM pg_depend 
+      JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid 
+      JOIN pg_class as dependent_view ON pg_rewrite.ev_class = dependent_view.oid 
+      JOIN pg_class as source_table ON pg_depend.refobjid = source_table.oid 
+      WHERE source_table.relname = '${tableName}'
+      AND dependent_view.relkind = 'v'
+      GROUP BY dependent_view.relname;
+    `;
+    
+    const result = await this.queryInterface.sequelize.query(
+      query,
+      { type: this.queryInterface.sequelize.QueryTypes.SELECT }
+    );
+    
+    return result.map(row => row.view_name);
+  }
+}
+```
+
+- **Key Aspects**:
+  - Transaction wrapping ensures atomicity (all operations succeed or fail together)
+  - View management follows a three-step pattern: drop view, modify object, recreate view
+  - Using queryInterface.sequelize.query for direct SQL operations
+  - View definitions stored in a central registry for consistent recreation
+  - View dependencies identified before modification to prevent cascading errors
+  - OOP approach with ViewManager class for encapsulating view operations
+  - Error handling with transaction rollback when issues occur
+
+### Model-Schema Reconciliation Pattern
+
+- **Problem**: Sequelize model definitions can drift from actual database schema during development
+- **Pattern**: Automated comparison and migration generation for model-schema alignment
+- **Solution**: Implement tools to identify discrepancies and generate corrective migrations
+
+```javascript
+// Find mismatches between models and database schema
+async compareModelToTable(model) {
+  const tableName = model.getTableName();
+  const modelAttributes = model.getAttributes();
+  
+  // Get table columns from database
+  const columnsResult = await this.queryInterface.sequelize.query(
+    `SELECT column_name, data_type, is_nullable, column_default 
+     FROM information_schema.columns 
+     WHERE table_name = '${tableName}';`,
+    { type: this.queryInterface.sequelize.QueryTypes.SELECT }
+  );
+  
+  const results = {
+    model: model.name,
+    tableName,
+    matches: [],
+    mismatches: []
+  };
+  
+  // Check each model attribute against table columns
+  for (const [attrName, attrOptions] of Object.entries(modelAttributes)) {
+    // Skip virtual fields
+    if (attrOptions.type && attrOptions.type.key === 'VIRTUAL') {
+      continue;
+    }
+    
+    // Get the actual column name (accounting for field option)
+    const columnName = attrOptions.field || attrName;
+    
+    // Find matching column in database
+    const column = columnsResult.find(col => col.column_name === columnName);
+    
+    if (!column) {
+      results.mismatches.push({
+        field: attrName,
+        issue: 'missing_in_db',
+        modelType: attrOptions.type && attrOptions.type.key ? attrOptions.type.key : 'unknown'
+      });
+      continue;
+    }
+    
+    // Compare types and other attributes...
+  }
+  
+  return results;
+}
+
+// Generate migration to fix mismatches
+async generateFixMigration() {
+  // Get comparison results
+  const comparison = await this.comparer.compareAll();
+  
+  let migrationContent = `'use strict';\n\n`;
+  migrationContent += `const ViewManager = require('../utils/viewManager');\n`;
+  migrationContent += `const viewDefinitions = require('../config/viewDefinitions');\n\n`;
+  
+  migrationContent += `module.exports = {\n`;
+  migrationContent += `  up: async (queryInterface, Sequelize) => {\n`;
+  migrationContent += `    return queryInterface.sequelize.transaction(async (transaction) => {\n`;
+  migrationContent += `      const viewManager = new ViewManager(queryInterface);\n\n`;
+  
+  // Process each table with mismatches
+  for (const mismatch of comparison.mismatches) {
+    // Generate SQL operations to handle dependencies and changes
+  }
+  
+  // Write migration file
+  return { created: true, path: filePath, mismatches: comparison.mismatches };
+}
+```
+
+- **Key Aspects**:
+  - Automated detection of discrepancies between models and database
+  - Support for virtual fields and field aliases in comparisons
+  - Type comparison with mapping between Sequelize and PostgreSQL types
+  - Generation of corrective migrations that handle dependencies
+  - Transaction-based migration to ensure consistency
+  - View dependency management in generated migrations
+  - Both up and down migration functions for rollback support
+
+### Automated Database Documentation Pattern
+
+- **Problem**: Database schema documentation becomes outdated and disconnected from actual schema
+- **Pattern**: Real-time documentation generation from actual database structure
+- **Solution**: Create a documentation generator that queries database metadata
+
+```javascript
+// Generate schema documentation from actual database
+async generateSchemaDoc() {
+  const tables = await this.getTables();
+  const filePath = path.join(this.outputDir, 'schema.md');
+  
+  let content = `# Database Schema Documentation\n\n`;
+  content += `Generated on: ${new Date().toISOString()}\n\n`;
+  
+  for (const table of tables) {
+    content += `## ${table.table_name}\n\n`;
+    
+    // Get table columns
+    const columns = await this.getTableColumns(table.table_name);
+    
+    content += `| Column | Type | Nullable | Default | Description |\n`;
+    content += `|--------|------|----------|---------|-------------|\n`;
+    
+    for (const column of columns) {
+      content += `| ${column.column_name} | ${column.data_type} | ${column.is_nullable} | ${column.column_default || 'NULL'} | ${column.description || ''} |\n`;
+    }
+    
+    content += `\n`;
+  }
+  
+  fs.writeFileSync(filePath, content);
+  return filePath;
+}
+
+// Generate views documentation
+async generateViewsDoc() {
+  const views = await this.getViews();
+  const filePath = path.join(this.outputDir, 'views.md');
+  
+  let content = `# Database Views Documentation\n\n`;
+  content += `Generated on: ${new Date().toISOString()}\n\n`;
+  
+  for (const view of views) {
+    content += `## ${view.viewname}\n\n`;
+    
+    // Get view definition
+    const definition = await this.getViewDefinition(view.viewname);
+    
+    content += `### Definition\n\n`;
+    content += `\`\`\`sql\n${definition}\n\`\`\`\n\n`;
+    
+    // Get dependencies and generate documentation
+  }
+  
+  fs.writeFileSync(filePath, content);
+  return filePath;
+}
+```
+
+- **Key Aspects**:
+  - Documentation generated directly from database metadata
+  - Comprehensive coverage of schema: tables, columns, views, relationships, and indexes
+  - Markdown format for easy reading and GitHub integration
+  - Includes column details like types, nullability, defaults, and descriptions
+  - View documentation with full SQL definitions and dependency lists
+  - Relationship documentation showing foreign keys and referenced tables
+  - Index documentation with type and covered columns
+  - Completely automated with no manual intervention required
+
 ## API and Data Patterns
+
+### Enhanced Work Types Knowledge Base Pattern (Phase A)
+
+- **Problem**: AI Wizard needed standardized work types for mobile-home repairs with consistent measurements and units, but required additional validation and extensibility
+- **Pattern**: Structured taxonomy with parent buckets, ENUM-based measurement types, and similarity protection
+- **Solution**: Enhanced work_types table with ENUM constraints, vector embedding support, revision tracking and similarity validation
+
+```javascript
+// Sequelize migration for enhanced work_types table
+module.exports = {
+  up: async (queryInterface, Sequelize) => {
+    // Create the ENUM type for measurement types
+    await queryInterface.sequelize.query(
+      `CREATE TYPE enum_work_types_measurement_type AS ENUM ('area', 'linear', 'quantity');`
+    );
+    
+    // Create the work_types table
+    await queryInterface.createTable('work_types', {
+      id: {
+        type: Sequelize.UUID,
+        defaultValue: Sequelize.UUIDV4,
+        primaryKey: true
+      },
+      name: {
+        type: Sequelize.STRING(255),
+        allowNull: false
+      },
+      parent_bucket: {
+        type: Sequelize.STRING(100),
+        allowNull: false
+      },
+      measurement_type: {
+        type: Sequelize.ENUM('area', 'linear', 'quantity'),
+        allowNull: false
+      },
+      suggested_units: {
+        type: Sequelize.STRING(50),
+        allowNull: false
+      },
+      name_vec: {
+        type: Sequelize.VECTOR(384), // For future embeddings
+        allowNull: true
+      },
+      revision: {
+        type: Sequelize.INTEGER,
+        defaultValue: 1
+      },
+      updated_by: {
+        type: Sequelize.UUID,
+        allowNull: true
+      },
+      created_at: Sequelize.DATE,
+      updated_at: Sequelize.DATE
+    });
+    
+    // Add check constraint for units based on measurement type
+    await queryInterface.sequelize.query(`
+      ALTER TABLE work_types ADD CONSTRAINT check_suggested_units 
+      CHECK (
+        (measurement_type = 'area' AND suggested_units IN ('sq ft', 'sq yd', 'sq m')) OR
+        (measurement_type = 'linear' AND suggested_units IN ('ft', 'in', 'yd', 'm')) OR
+        (measurement_type = 'quantity' AND suggested_units IN ('each', 'job', 'set'))
+      );
+    `);
+    
+    // Trigram index for similarity search
+    await queryInterface.sequelize.query(`
+      CREATE INDEX idx_work_types_name ON work_types USING gin (name gin_trgm_ops);
+    `);
+  }
+};
+
+// Enhanced service with duplicate protection using transactions
+async createWorkType(data) {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    // Check for duplicates using trigram similarity
+    const similar = await this.findSimilarWorkTypes(data.name, 0.85);
+    if (similar.length > 0) {
+      throw new ValidationError(
+        `A similar work type already exists: "${similar[0].name}" (${similar[0].score.toFixed(2)} similarity)`
+      );
+    }
+    
+    // Clean up name for consistency
+    if (data.name) {
+      data.name = data.name.replace(/\u202F/g, '-'); // Fix Unicode issues
+    }
+    
+    const workType = await WorkType.create(data, { transaction });
+    await transaction.commit();
+    return workType;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+
+// Enhanced frontend service with rate limiting
+async findSimilarWorkTypes(name, threshold = 0.3) {
+  // Rate limit - add delay between requests
+  if (this._lastSimilarityRequest && 
+      Date.now() - this._lastSimilarityRequest < 300) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+  this._lastSimilarityRequest = Date.now();
+  
+  try {
+    const response = await apiService.get('/work-types/similar', {
+      params: { q: name, threshold } // Use 'q' for consistency
+    });
+    
+    // Return similar work types with scores
+    return response.success ? response.data : [];
+  } catch (error) {
+    console.error('Error finding similar work types:', error);
+    return [];
+  }
+}
+```
+
+- **Key Aspects**:
+  - Five standardized parent buckets: Interior-Structural, Interior-Finish, Exterior-Structural, Exterior-Finish, Mechanical
+  - Three measurement types (area, linear, quantity) with ENUM-constrained validation
+  - Suggested units validated with database check constraints
+  - Strong duplicate prevention with 0.85 similarity threshold
+  - Transaction handling for data consistency
+  - Rate limiting (300ms) for similarity API
+  - Name vector column for future semantic similarity
+  - Revision tracking for audit purposes
+  - Integration with both pg_trgm and support for pgvector
 
 ### API Route Parameter Validation Pattern
 
@@ -232,6 +707,516 @@ if (filters.includeConverted !== true) {
   - Conversion indicators with arrow icons provide visual cues about relationships
   - User toggle provides explicit control over view complexity
   - Reduces UI clutter while maintaining data integrity
+
+### Smart Data Reuse Pattern
+
+- **Problem**: Users are asked to re-enter information that is already available from previous steps in the workflow
+- **Pattern**: Implement intelligent detection of existing data with visual feedback
+- **Solution**: Create helpers and computed properties to compare required vs. available data
+
+```javascript
+// Core implementation approach
+// 1. Detection function to identify existing data
+const dataAlreadyExists = (requiredIdentifier) => {
+  // Check if this identifier or semantically similar data exists in source
+  return sourceData.some(item => {
+    return matchesIdentifier(item, requiredIdentifier);
+  });
+};
+
+// 2. Computed properties to separate data needs
+const existingData = computed(() => {
+  return requiredData.filter(data => dataAlreadyExists(data));
+});
+
+const missingData = computed(() => {
+  return requiredData.filter(data => !dataAlreadyExists(data));
+});
+
+// 3. UI that clearly shows what data is being reused
+<div v-if="existingData.length > 0" class="data-reuse-indicator">
+  <h5>Using existing data:</h5>
+  <ul>
+    <li v-for="data in existingData">{{ data.name }}: {{ data.value }}</li>
+  </ul>
+</div>
+
+// 4. Only request missing information
+<div v-if="missingData.length > 0">
+  <h5>Please provide additional information:</h5>
+  <div v-for="data in missingData">
+    <input v-model="inputs[data.id]" />
+  </div>
+</div>
+```
+
+- **Key Aspects**:
+  - Semantic matching considers variations in naming (e.g., "subfloor area" matches "subfloor_area_sq_ft")
+  - Visual indicators clearly show what data is being reused from earlier steps
+  - Only truly missing information is requested, eliminating redundant data entry
+  - Combined with proper data structure formatting for optimal API integration
+  - Enhanced user experience by reducing friction and data entry errors
+
+### Cost-Augmented PromptEngine Pattern
+
+- **Problem**: LLM-generated estimates lacked realistic cost information and safety considerations
+- **Pattern**: Augment LLM prompts with reference costs and safety guidance from the work types knowledge base
+- **Solution**: Enhance PromptEngine to extract tasks from prompts, find matching work types, and inject cost/safety data
+
+```javascript
+// Extract potential work type names and find matching work types with costs/tags
+async buildDraft(scopedAssessment, opts = {}) {
+  // ... existing code ...
+  
+  // Extract work type names from the assessment
+  const workTypeNames = this.extractWorkTypeNames(userContent);
+  
+  // Find matching work types with costs and safety tags
+  const references = await Promise.all(
+    workTypeNames.map(name => this.findMatchingWorkTypes(name))
+  );
+  
+  // Add cost and safety guidance to the system prompt
+  if (validReferences.length > 0) {
+    // Add cost references
+    for (const ref of validReferences) {
+      if (ref.unit_cost_material !== null || ref.unit_cost_labor !== null) {
+        systemContent += `\n\nFor "${ref.name}" (${ref.measurement_type}):\n"reference_cost": { ... }`;
+      }
+      
+      // Add safety tags if available
+      if (ref.tags && ref.tags.length > 0) {
+        systemContent += `\n"safety_tags": [${ref.tags.map(tag => `"${tag}"`).join(', ')}]`;
+        
+        // Add specific safety guidance for certain tags
+        const safetyGuidance = [];
+        if (ref.tags.includes('asbestos')) {
+          safetyGuidance.push('Add appropriate PPE and testing as line items.');
+        }
+        // ... other safety rules ...
+      }
+    }
+  }
+}
+```
+
+- **Key Aspects**:
+  - Extracts potential work type names from user prompts using regex patterns
+  - Uses trigram similarity to find matching work types in the database
+  - Injects material and labor cost references into the prompt when available
+  - Includes safety tags with specific guidance for high-risk tasks like asbestos removal
+  - Adds regulatory compliance hints for tasks requiring permits or licensed professionals
+  - Maintains backward compatibility with the existing prompt format
+  - Improves estimate accuracy without requiring user awareness of the feature
+
+### Work Type Material & Safety Management Pattern
+
+- **Problem**: Work types needed to track associated materials and safety requirements for better estimates
+- **Pattern**: Bidirectional relationship between work types and materials with safety tag support
+- **Solution**: Implement related tables with transaction-protected operations and visual safety indicators
+
+```javascript
+// Transaction-protected material addition
+async addMaterials(workTypeId, materials) {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const workType = await WorkType.findByPk(workTypeId, { transaction });
+    // ... validation ...
+    
+    const results = [];
+    for (const material of materials) {
+      // Check for existing material
+      const existingMaterial = await WorkTypeMaterial.findOne({
+        where: { work_type_id: workTypeId, product_id: material.product_id },
+        transaction
+      });
+      
+      if (existingMaterial) {
+        // Update existing material
+        await existingMaterial.update({
+          qty_per_unit: material.qty_per_unit || existingMaterial.qty_per_unit,
+          unit: material.unit || existingMaterial.unit
+        }, { transaction });
+        
+        results.push(existingMaterial);
+      } else {
+        // Create new material
+        const newMaterial = await WorkTypeMaterial.create({
+          id: uuidv4(),
+          work_type_id: workTypeId,
+          product_id: material.product_id,
+          qty_per_unit: material.qty_per_unit || 1,
+          unit: material.unit || 'each'
+        }, { transaction });
+        
+        results.push(newMaterial);
+      }
+    }
+    
+    // Increment revision counter
+    await workType.update({ revision: workType.revision + 1 }, { transaction });
+    await transaction.commit();
+    return results;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+```
+
+- **Key Aspects**:
+  - Bidirectional relationship between work types and materials via products
+  - Transaction-protected operations to ensure data integrity
+  - Intelligent updating of existing materials vs. creating new ones
+  - Revision tracking for audit purposes
+  - Visual color-coding of safety tags based on risk level
+  - Support for multiple materials per work type with quantity calculations
+  - Centralized service methods for consistent access patterns
+
+### Cost History Tracking Pattern
+
+- **Problem**: Work type costs change over time and vary by region, making historical analysis valuable
+- **Pattern**: Record cost changes over time with user attribution and region support
+- **Solution**: Implement a dedicated cost history table with transaction-protected updates
+
+```javascript
+// Update costs and record in history
+async updateCosts(id, costData, userId, region = 'default') {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    // ... validation ...
+    
+    const workType = await WorkType.findByPk(id, { transaction });
+    
+    // Update the work type costs
+    const updateData = {
+      revision: (workType.revision || 0) + 1,
+      updated_by: userId
+    };
+    
+    if (costData.unit_cost_material !== undefined) {
+      updateData.unit_cost_material = costData.unit_cost_material;
+    }
+    
+    if (costData.unit_cost_labor !== undefined) {
+      updateData.unit_cost_labor = costData.unit_cost_labor;
+    }
+    
+    if (costData.productivity_unit_per_hr !== undefined) {
+      updateData.productivity_unit_per_hr = costData.productivity_unit_per_hr;
+    }
+    
+    await workType.update(updateData, { transaction });
+    
+    // Record in cost history
+    await WorkTypeCostHistory.create({
+      id: uuidv4(),
+      work_type_id: id,
+      region,
+      unit_cost_material: costData.unit_cost_material !== undefined ? 
+                         costData.unit_cost_material : workType.unit_cost_material,
+      unit_cost_labor: costData.unit_cost_labor !== undefined ? 
+                     costData.unit_cost_labor : workType.unit_cost_labor,
+      captured_at: new Date(),
+      updated_by: userId
+    }, { transaction });
+    
+    await transaction.commit();
+    return workType;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+}
+```
+
+- **Key Aspects**:
+  - Preserves complete history of cost changes over time
+  - Supports region-specific cost data to account for geographic variations
+  - Includes user attribution for audit and accountability
+  - Records snapshot of all cost fields, even those not being updated
+  - Uses transaction protection to ensure consistent data
+  - Increments revision counter on the work type for tracking
+  - Provides API for historical analysis and trend visualization
+
+### Unified LLM Estimate Generator Component Architecture Pattern
+
+- **Problem**: Multiple separate LLM estimate generation methods lead to inconsistent UX, code duplication, and maintenance challenges
+- **Pattern**: Hierarchical component architecture with container, mode-specific, and shared components
+- **Solution**: Implement a container component with mode toggle and shared component reuse
+
+```
+EstimateGenerator/
+├── EstimateGeneratorContainer.vue (Container with state management)
+│   ├── State: activeMode, generatedItems, assessmentData
+│   ├── Methods: handleGeneratedItems, clearAssessment
+│   └── Events: close, clearAssessment
+├── modes/
+│   ├── BuiltInAIMode.vue (Integrated AI interface)
+│   │   ├── State: description, targetPrice, analysisResult
+│   │   ├── Methods: analyzeScope, submitDetails
+│   │   └── Events: generated-items, close
+│   └── ExternalPasteMode.vue (External paste interface)
+│       ├── State: llmResponse, validationMessage
+│       ├── Methods: processResponse, tryParseAsJson
+│       └── Events: generated-items, close
+└── common/
+    ├── ItemsList.vue (Shared item display/edit)
+    │   ├── Props: items, catalogMatches
+    │   ├── Methods: addItem, editItem, removeItem
+    │   └── Events: update:items, highlightSource
+    ├── CatalogActions.vue (Catalog integration)
+    │   ├── Props: items, selectedItemIndices
+    │   ├── Methods: addToCatalog, replaceCatalogItems
+    │   └── Events: update:selectedItemIndices, update:items
+    └── AssessmentContext.vue (Assessment data display)
+        ├── Props: assessmentData
+        └── Events: clearAssessment
+```
+
+- **Key Aspects**:
+  - Container component manages shared state using provide/inject
+  - Mode-specific components encapsulate different generation approaches
+  - Common components reused between modes for consistency
+  - Event-based communication maintains loose coupling
+  - Props drilling minimized through strategic state placement
+
+### Smart AI Conversation Pattern
+
+- **Problem:** Traditional LLM prompts often lead to hallucination when information is incomplete, and lead to repetitive user input
+- **Pattern:** Split AI interaction into two targeted phases with different objectives
+- **Solution:** Implement a two-phase approach with structured schema validation
+
+```javascript
+// Phase 1: Scope Analysis - identify only what's missing
+const scopePrompt = {
+  messages: [
+    { role: 'system', content: 'You are a construction estimation assistant.' },
+    { role: 'user',   content: `Assessment:\n${assessment}` },
+    { role: 'user',   content: 'Return JSON {"requiredMeasurements":[],"questions":[]}' }
+  ],
+  max_tokens: 600,
+  temperature: 0.2, // Low temperature for consistent, focused responses
+};
+
+// Phase 2: Draft Generation - create line items with complete information
+const draftPrompt = {
+  messages: [
+    { role: 'system', content: 'Respond ONLY with a JSON array of line items.' },
+    { role: 'user',   content: JSON.stringify(completedAssessment) }
+  ],
+  max_tokens: 1200,
+  temperature: 0.5, // Higher for more creative line item generation
+};
+```
+
+- **Key Benefits:**
+  - First phase is quick (1-2 seconds) and focuses only on identifying gaps
+  - Second phase only runs after all information is available, preventing hallucination
+  - Schema validation ensures structured, predictable responses
+  - User only provides information that's truly missing
+  - Faster overall workflow and higher quality results
+
+### Tiered Catalog Matching Pattern
+
+- **Problem:** Duplicate items in the product catalog cause inconsistency and management challenges
+- **Pattern:** Multi-level confidence scoring with different actions at each tier
+- **Solution:** Implement a three-tier matching system with database-level similarity checks
+
+```javascript
+async upsertOrMatch(draftItem, { hard = 0.85, soft = 0.60 } = {}) {
+  // Find similar products using trigram similarity
+  const trgmHits = await this.findByTrgm(draftItem.name);
+  
+  // High confidence (>85%) - automatic match
+  if (trgmHits[0]?.score >= hard) {
+    return { kind: 'match', productId: trgmHits[0].id };
+  }
+  
+  // Medium confidence (60-85%) - suggest for review
+  if (trgmHits[0]?.score >= soft) {
+    return { kind: 'review', matches: trgmHits };
+  }
+  
+  // Low confidence (<60%) - create new product
+  const created = await Product.create({ name: draftItem.name });
+  return { kind: 'created', productId: created.id };
+}
+```
+
+- **Key Benefits:**
+  - Automatic handling of high-confidence matches saves time
+  - User review for medium-confidence matches prevents false positives
+  - Database-level similarity matching is significantly faster than application-level
+  - Configurable thresholds allow adaptation to catalog size and quality
+  - Provides a clean, consistent catalog without duplicates
+
+### Feature Flag Rollout Pattern
+
+- **Problem:** Implementing large new features can be risky if released all at once
+- **Pattern:** Use feature flags to control visibility and rollout of new functionality
+- **Solution:** Environment variable flags with computed visibility in components
+
+```javascript
+// Environment variable in .env.development
+VITE_USE_ESTIMATE_V2=true
+
+// In component
+const showWizardTab = computed(() => {
+  return import.meta.env.VITE_USE_ESTIMATE_V2 === 'true';
+});
+
+// Conditional rendering
+<button
+  v-if="showWizardTab"
+  @click="activeMode = 'wizard'"
+  class="tab-button"
+>
+  AI Wizard (v2)
+</button>
+```
+
+- **Key Benefits:**
+  - New functionality can be hidden in production until ready
+  - Enables A/B testing by selectively enabling for certain users
+  - Allows complete development and testing in parallel with existing functionality
+  - No code changes needed to toggle features on and off
+  - Can be extended to support gradual rollout percentages
+
+### Vector Search and Similarity Matching Pattern
+
+- **Problem**: Need efficient and accurate detection of similar products to prevent catalog duplication
+- **Pattern**: Multi-method similarity matching with confidence-based actions
+- **Solution**: Implement both trigram and vector similarity with tiered confidence levels
+
+```javascript
+// Combined similarity approach with confidence-based actions
+async upsertOrMatch(draftItem, { hard = 0.85, soft = 0.60 } = {}) {
+  try {
+    // First try trigram matching for text similarity
+    const trgmHits = await this.findByTrgm(draftItem.name);
+    
+    // High confidence (>85%) - automatic match
+    if (trgmHits[0]?.score >= hard) {
+      return { kind: 'match', productId: trgmHits[0].id };
+    }
+    
+    // Medium confidence (60-85%) - suggest for review
+    if (trgmHits[0]?.score >= soft) {
+      return { kind: 'review', matches: trgmHits };
+    }
+    
+    // Low confidence (<60%) - create new product
+    const created = await Product.create({ name: draftItem.name });
+    
+    // Auto-generate embedding for new product
+    this.generateAndStoreEmbedding(created.id, created.name)
+      .catch(err => logger.error(`Embedding generation failed: ${err.message}`));
+    
+    return { kind: 'created', productId: created.id };
+  } catch (error) {
+    logger.error(`Error in upsertOrMatch: ${error.message}`);
+    throw error;
+  }
+}
+```
+
+- **Key Aspects**:
+  - Combined approach using text-based trigram matching and semantic vector similarity
+  - Three confidence tiers with different actions for each level
+  - Automatic embedding generation for new products
+  - Database-level similarity queries for performance
+  - Integration with existing DeepSeek API infrastructure
+  - Confidence thresholds configurable for different contexts
+
+### Advanced Catalog Similarity Integration Pattern
+
+- **Problem**: LLM-generated estimates may create duplicate items already in the product catalog
+- **Pattern**: Multi-method similarity checking with database-level matching and user decision workflows
+- **Solution**: Implement frontend/backend similarity checking with pg_trgm and pgvector for both text and semantic matching
+
+```javascript
+// Frontend service call
+async checkSimilarity(descriptions) {
+  try {
+    const response = await apiService.post('/api/estimates/llm/similarity-check', { descriptions });
+    return {
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    console.error('Error checking catalog similarity:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Failed to check catalog similarity',
+      error
+    };
+  }
+}
+
+// Backend implementation with pg_trgm
+async checkCatalogSimilarityWithTrgm(descriptions) {
+  // Directly leverage pg_trgm in the database query
+  const results = [];
+  for (const description of descriptions) {
+    const matches = await sequelize.query(`
+      SELECT 
+        id, 
+        name, 
+        similarity(name, :description) as similarity 
+      FROM products 
+      WHERE 
+        type = 'service' 
+        AND deleted_at IS NULL 
+        AND similarity(name, :description) > 0.3 
+      ORDER BY similarity DESC 
+      LIMIT 3
+    `, {
+      replacements: { description },
+      type: sequelize.QueryTypes.SELECT
+    });
+    
+    if (matches.length > 0) {
+      results.push(...matches);
+    }
+  }
+  
+  return results;
+}
+
+// Backend implementation with pgvector (when using semantic vectors)
+async checkCatalogSimilarityWithVector(description, embedding) {
+  // Using pgvector for semantic similarity via cosine distance
+  const matches = await sequelize.query(`
+    SELECT 
+      id, 
+      name, 
+      1 - (embedding <=> :embedding) as similarity 
+    FROM products 
+    WHERE type = 'service' AND deleted_at IS NULL 
+    ORDER BY embedding <=> :embedding 
+    LIMIT 5
+  `, {
+    replacements: { embedding },
+    type: sequelize.QueryTypes.SELECT
+  });
+  
+  return matches;
+}
+```
+
+- **Key Aspects**:
+  - Frontend service calls backend for dual similarity checking approaches
+  - Trigram-based text similarity via pg_trgm directly in SQL for exact matching and typo resilience
+  - Optional vector similarity via pgvector for semantic matching (synonyms, related concepts)
+  - Confidence scoring system to categorize matches as high, medium, or low confidence
+  - Visual indicators in UI show potential duplicates with confidence levels
+  - Automatic linking for high-confidence matches (>0.8 similarity)
+  - Interactive resolution UI for medium-confidence matches (0.5-0.8 similarity)
+  - User can choose to keep or replace items with catalog equivalents
+  - Database-level similarity calculations for better performance
 
 ### Vue Component Tag Structure Pattern
 

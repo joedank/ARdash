@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const estimatesController = require('../controllers/estimates.controller');
 const estimateItemPhotosController = require('../controllers/estimateItemPhotos.controller.js'); // Added import
+const estimateControllerV2 = require('../v2/estimate.controller.v2'); // Import V2 controller
 const { authenticate } = require('../middleware/auth.middleware');
 const { validateUuid } = require('../middleware/uuidValidator');
 
@@ -12,6 +13,9 @@ router.use(authenticate);
 // POST /api/estimates/llm/analyze - Analyze project scope using LLM
 router.post('/llm/analyze', estimatesController.analyzeEstimateScope);
 
+// POST /api/estimates/v2/generate - Smart estimate generation with conversation and catalog integration
+router.post('/v2/generate', estimateControllerV2.generate);
+
 // GET /api/estimates/llm/assessment/:projectId - Get assessment data for a project
 router.get('/llm/assessment/:projectId', validateUuid('projectId'), estimatesController.getAssessmentData);
 
@@ -20,6 +24,12 @@ router.post('/llm/clarify', estimatesController.submitEstimateClarifications);
 
 // POST /api/estimates/llm/match-products - Match products to line items
 router.post('/llm/match-products', estimatesController.matchProductsToLineItems);
+
+// POST /api/estimates/llm/similarity-check - Check similarity between line items and catalog products
+router.post('/llm/similarity-check', estimatesController.checkCatalogSimilarity);
+
+// POST /api/estimates/llm/catalog-eligible - Get catalog-eligible items from descriptions
+router.post('/llm/catalog-eligible', estimatesController.getCatalogEligibleItems);
 
 // POST /api/estimates/llm/create-products - Create new products from unmatched line items
 router.post('/llm/create-products', estimatesController.createProductsFromLineItems);

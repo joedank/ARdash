@@ -36,7 +36,7 @@ class DeepSeekService {
    * @returns {Promise<object|Stream>} - The API response or stream.
    * @throws {Error} If the API call fails.
    */
-  async generateChatCompletion(messages, model = 'deepseek-chat', stream = false) {
+  async generateChatCompletion(messages, model = 'deepseek-chat', stream = false, options = {}) {
     if (!this.client) {
         throw new Error('DeepSeek client not initialized.');
     }
@@ -44,20 +44,70 @@ class DeepSeekService {
         throw new Error('Messages array cannot be empty.');
     }
 
+    console.log('\n===== DEEPSEEK SERVICE API CALL =====');
+    console.log('Model:', model);
+    console.log('Stream:', stream);
+    console.log('Options:', JSON.stringify(options, null, 2));
+    console.log('Messages:');
+    messages.forEach((msg, i) => {
+      console.log(`[${i}] Role: ${msg.role}`);
+      console.log(`    Content: ${msg.content.substring(0, 100)}${msg.content.length > 100 ? '...' : ''}`);
+    });
+
     try {
       logger.debug(`Sending request to DeepSeek model: ${model} with stream: ${stream}`);
       const requestParams = {
         messages: messages,
         model: model,
         stream: stream,
+        ...options
       };
-      
-      logger.debug(`Request parameters: ${JSON.stringify(requestParams, null, 2)}`);
-      
+
+      // Log timestamp when request is sent
+      const requestTime = new Date().toISOString();
+      console.log('Request sent at:', requestTime);
+
       const completion = await this.client.chat.completions.create(requestParams);
+
+      // Log timestamp when response is received
+      const responseTime = new Date().toISOString();
+      console.log('Response received at:', responseTime);
+      console.log('Response ID:', completion.id);
+
+      // Log the content of the first choice
+      if (completion.choices && completion.choices.length > 0) {
+        const content = completion.choices[0].message?.content || 'No content';
+        console.log('Response Content (first 500 chars):');
+        console.log(content.substring(0, 500) + (content.length > 500 ? '...' : ''));
+      } else {
+        console.log('No choices in response');
+      }
+      console.log('===== END DEEPSEEK SERVICE API CALL =====\n');
+
       logger.debug(`Received response from DeepSeek model: ${model}`);
+
+      // Normalize response to match OpenAI format if needed
+      if (completion && !completion.choices) {
+        // If the response doesn't have the expected OpenAI structure
+        logger.debug('Normalizing DeepSeek response to match OpenAI format');
+        return {
+          id: completion.id || `deepseek-${Date.now()}`,
+          choices: [{
+            message: {
+              role: 'assistant',
+              content: completion.content || completion.text || JSON.stringify(completion)
+            }
+          }]
+        };
+      }
+
       return completion;
     } catch (error) {
+      console.log('\n===== DEEPSEEK SERVICE API ERROR =====');
+      console.log('Error message:', error.message);
+      console.log('Error details:', error.response?.data || 'No error details available');
+      console.log('===== END DEEPSEEK SERVICE API ERROR =====\n');
+
       logger.error(`Error calling DeepSeek API (${model}):`, error.response ? error.response.data : error.message);
       // Rethrow or handle specific errors (e.g., rate limits, auth errors)
       throw new Error(`DeepSeek API request failed: ${error.message}`);

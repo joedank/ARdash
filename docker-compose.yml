@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # PostgreSQL Database
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -14,7 +14,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/00-init.sh:/docker-entrypoint-initdb.d/00-init.sh
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/01-create-role.sql:/docker-entrypoint-initdb.d/01-create-role.sql
-      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/backups/management_db_20250414_145056.sql:/docker-entrypoint-initdb.d/02-init.sql
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/03-enable-pgvector.sql:/docker-entrypoint-initdb.d/03-enable-pgvector.sql
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/backups/management_db_20250414_145056.sql:/docker-entrypoint-initdb.d/04-init.sql
     networks:
       - app_network
     healthcheck:
@@ -55,6 +56,7 @@ services:
       - JWT_EXPIRES_IN=365d
       - JWT_REFRESH_EXPIRES_IN=365d
       - DEEPSEEK_API_KEY=sk-aebbce11d90a4a5190d6be5ccf1ee504
+      - ENABLE_VECTOR_SIMILARITY=true
     depends_on:
       db:
         condition: service_healthy

@@ -12,6 +12,21 @@
           class="mb-2"
           :disabled="readonly"
         />
+
+        <!-- Work Type Suggestions -->
+        <div v-if="suggested.length && !readonly" class="mt-2 flex flex-wrap gap-2">
+          <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 w-full">Suggested work types:</div>
+          <div
+            v-for="s in suggested"
+            :key="s.workTypeId"
+            @click="toggleWorkType(s)"
+            class="badge cursor-pointer px-2 py-1 text-xs rounded-full flex items-center gap-1"
+            :class="isWorkTypeSelected(s.workTypeId) ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'"
+          >
+            <span>{{ s.name }}</span>
+            <span class="text-xs opacity-70">({{ Math.round(s.score*100) }}%)</span>
+          </div>
+        </div>
         <PhotoUploadSection
           v-if="!readonly"
           :project-id="project.id"
@@ -64,7 +79,7 @@
               <template v-if="measurement.measurementType === 'area'">
                 <div class="col-span-1">
                   <BaseInput
-                    v-model="measurement.length"
+                    v-model="measurement.dimensions.length"
                     label="Length (ft)"
                     type="number"
                     :disabled="readonly"
@@ -72,7 +87,7 @@
                 </div>
                 <div class="col-span-1">
                   <BaseInput
-                    v-model="measurement.width"
+                    v-model="measurement.dimensions.width"
                     label="Width (ft)"
                     type="number"
                     :disabled="readonly"
@@ -90,7 +105,7 @@
               <template v-else-if="measurement.measurementType === 'linear'">
                 <div class="col-span-2">
                   <BaseInput
-                    v-model="measurement.length"
+                    v-model="measurement.dimensions.length"
                     label="Length (ft)"
                     type="number"
                     :disabled="readonly"
@@ -115,10 +130,10 @@
                   />
                 </div>
                 <div class="col-span-1">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
                   <BaseSelect
                     v-model="measurement.quantityUnit"
                     :options="quantityUnitOptions"
-                    label="Unit"
                     :disabled="readonly"
                   />
                 </div>
@@ -260,10 +275,10 @@
                       <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">{{ getMeasurementTypeLabel(item) }}</p>
                         <p v-if="getMeasurementType(item) === 'area'">
-                          {{ item.length || 'N/A' }} ft × {{ item.width || 'N/A' }} ft = {{ calculateSquareFootage(item) }}
+                          {{ getDisplayLength(item) }} ft × {{ getDisplayWidth(item) }} ft = {{ calculateSquareFootage(item) }}
                         </p>
                         <p v-else-if="getMeasurementType(item) === 'linear'">
-                          {{ item.length || 'N/A' }} linear ft
+                          {{ getDisplayLength(item) }} linear ft
                         </p>
                         <p v-else-if="getMeasurementType(item) === 'quantity'">
                           {{ item.quantity || 'N/A' }} {{ item.quantityUnit || 'units' }}
@@ -340,20 +355,27 @@
 <script setup>
 import { toCamelCase } from '@/utils/casing';
 import { ref, computed, watch } from 'vue';
+import { watchDebounced } from '@vueuse/core';
 import BaseTextarea from '@/components/form/BaseTextarea.vue';
 import BaseInput from '@/components/form/BaseInput.vue';
 import BaseButton from '@/components/base/BaseButton.vue';
 import BaseIcon from '@/components/base/BaseIcon.vue';
 import BaseSelect from '@/components/form/BaseSelect.vue';
+import Badge from 'primevue/badge';
+import assessmentsService from '@/services/assessments.service.js';
 import PhotoUploadSection from '@/components/projects/PhotoUploadSection.vue';
 import PhotoGrid from '@/components/projects/PhotoGrid.vue';
 
-const emit = defineEmits(['refresh-project', 'update:condition', 'update:measurements', 'update:materials', 'photo-deleted']);
+const emit = defineEmits(['refresh-project', 'update:condition', 'update:measurements', 'update:materials', 'photo-deleted', 'update:workTypes']);
 
 const props = defineProps({
   project: {
     type: Object,
     required: true
+  },
+  workTypes: {
+    type: Array,
+    default: () => []
   },
   readonly: {
     type: Boolean,
@@ -396,6 +418,8 @@ const normalizedProject = computed(() => {
 const condition = ref(props.condition);
 const measurements = ref(props.measurements);
 const materials = ref(props.materials);
+const suggested = ref([]);
+const workTypes = ref(props.workTypes || []);
 
 // Watch for changes and emit updates
 watch(condition, (newValue) => {
@@ -409,6 +433,138 @@ watch(measurements, (newValue) => {
 watch(materials, (newValue) => {
   emit('update:materials', newValue);
 }, { deep: true });
+
+watch(workTypes, (newValue) => {
+  emit('update:workTypes', newValue);
+}, { deep: true });
+
+// Watch condition text with debounce for work type detection
+watchDebounced(
+  () => condition.value.assessment,
+  async (text) => {
+    if (!text || text.length < 15) return; // Skip short text
+
+    console.log('Detecting work types for:', text.substring(0, 30) + '...');
+    suggested.value = await assessmentsService.detectWorkTypes(text);
+    console.log('Detected work types:', suggested.value);
+  },
+  { debounce: 400, maxWait: 2000 } // Debounce for 400ms, max wait of 2s
+);
+
+// Helper functions for measurement field handling
+const getMeasurementValue = (measurement, property) => {
+  // First check direct property
+  if (measurement[property] !== undefined && measurement[property] !== '') {
+    return measurement[property];
+  }
+  // Then check in dimensions object
+  if (measurement.dimensions && measurement.dimensions[property] !== undefined) {
+    return measurement.dimensions[property];
+  }
+  // Default to empty string if not found
+  return '';
+};
+
+const setMeasurementValue = (measurement, property, value) => {
+  // For quantity measurements, always set directly on the measurement object
+  if (measurement.measurementType === 'quantity' && (property === 'quantity' || property === 'quantityUnit')) {
+    measurement[property] = value;
+    return;
+  }
+
+  // For area and linear measurements, use the dimensions object if it exists
+  if (measurement.measurementType === 'area' || measurement.measurementType === 'linear') {
+    // Create dimensions object if it doesn't exist
+    if (!measurement.dimensions) {
+      measurement.dimensions = { units: 'feet' };
+    }
+    measurement.dimensions[property] = value;
+    return;
+  }
+
+  // Fallback: set directly on the measurement object
+  measurement[property] = value;
+};
+
+// Length field handling
+const getLengthField = (measurement) => {
+  // Log the measurement object to debug
+  console.log('Getting length for measurement:', measurement);
+
+  // First check dimensions object
+  if (measurement.dimensions && measurement.dimensions.length !== undefined) {
+    console.log('Found length in dimensions:', measurement.dimensions.length);
+    return measurement.dimensions.length;
+  }
+
+  // Then check direct property
+  if (measurement.length !== undefined) {
+    console.log('Found length directly:', measurement.length);
+    return measurement.length;
+  }
+
+  // Default to empty string if not found
+  console.log('No length found, returning empty string');
+  return '';
+};
+
+const setLengthField = (measurement, value) => {
+  console.log('Setting length for measurement to:', value);
+
+  // For area and linear measurements, use the dimensions object
+  if (measurement.measurementType === 'area' || measurement.measurementType === 'linear') {
+    // Create dimensions object if it doesn't exist
+    if (!measurement.dimensions) {
+      measurement.dimensions = { units: 'feet' };
+    }
+    measurement.dimensions.length = value;
+    console.log('Set length in dimensions:', measurement.dimensions);
+  } else {
+    // Fallback: set directly on the measurement object
+    measurement.length = value;
+    console.log('Set length directly:', measurement);
+  }
+};
+
+// Width field handling
+const getWidthField = (measurement) => {
+  // Log the measurement object to debug
+  console.log('Getting width for measurement:', measurement);
+
+  // First check dimensions object
+  if (measurement.dimensions && measurement.dimensions.width !== undefined) {
+    console.log('Found width in dimensions:', measurement.dimensions.width);
+    return measurement.dimensions.width;
+  }
+
+  // Then check direct property
+  if (measurement.width !== undefined) {
+    console.log('Found width directly:', measurement.width);
+    return measurement.width;
+  }
+
+  // Default to empty string if not found
+  console.log('No width found, returning empty string');
+  return '';
+};
+
+const setWidthField = (measurement, value) => {
+  console.log('Setting width for measurement to:', value);
+
+  // For area measurements, use the dimensions object
+  if (measurement.measurementType === 'area') {
+    // Create dimensions object if it doesn't exist
+    if (!measurement.dimensions) {
+      measurement.dimensions = { units: 'feet' };
+    }
+    measurement.dimensions.width = value;
+    console.log('Set width in dimensions:', measurement.dimensions);
+  } else {
+    // Fallback: set directly on the measurement object
+    measurement.width = value;
+    console.log('Set width directly:', measurement);
+  }
+};
 
 // Measurement type options
 const measurementTypeOptions = [
@@ -432,11 +588,13 @@ const addMeasurement = () => {
   measurements.value.items.push({
     description: '',
     measurementType: 'area', // Default to area measurement
-    length: '',
-    width: '',
+    dimensions: {
+      length: '',
+      width: '',
+      units: 'feet'
+    },
     quantity: '1',
-    quantityUnit: 'each',
-    units: 'feet'
+    quantityUnit: 'each'
   });
 };
 
@@ -444,19 +602,49 @@ const addMeasurement = () => {
 const updateMeasurementFields = (measurement) => {
   // Ensure all required fields exist based on measurement type
   if (measurement.measurementType === 'area') {
-    // Make sure length and width are initialized
-    if (!measurement.length) measurement.length = '';
-    if (!measurement.width) measurement.width = '';
+    // For area measurements, ensure dimensions object exists with length and width
+    if (!measurement.dimensions) {
+      measurement.dimensions = { units: 'feet', length: '', width: '' };
+    } else {
+      if (!measurement.dimensions.length) measurement.dimensions.length = '';
+      if (!measurement.dimensions.width) measurement.dimensions.width = '';
+      if (!measurement.dimensions.units) measurement.dimensions.units = 'feet';
+    }
+
+    // Clean up any direct properties that might exist from previous formats
+    delete measurement.length;
+    delete measurement.width;
+    delete measurement.units;
   } else if (measurement.measurementType === 'linear') {
-    // For linear, we only need length
-    if (!measurement.length) measurement.length = '';
-    // Reset width as it's not needed
-    measurement.width = '';
+    // For linear measurements, ensure dimensions object exists with length
+    if (!measurement.dimensions) {
+      measurement.dimensions = { units: 'feet', length: '' };
+    } else {
+      if (!measurement.dimensions.length) measurement.dimensions.length = '';
+      if (!measurement.dimensions.units) measurement.dimensions.units = 'feet';
+      // Reset width as it's not needed for linear measurements
+      measurement.dimensions.width = '';
+    }
+
+    // Clean up any direct properties that might exist from previous formats
+    delete measurement.length;
+    delete measurement.width;
+    delete measurement.units;
   } else if (measurement.measurementType === 'quantity') {
-    // For quantity, we need quantity and unit
+    // For quantity measurements, ensure quantity and unit properties exist
     if (!measurement.quantity) measurement.quantity = '1';
     if (!measurement.quantityUnit) measurement.quantityUnit = 'each';
+
+    // Clean up dimensions object if it exists (not needed for quantity)
+    delete measurement.dimensions;
+
+    // Clean up any direct properties that might exist from previous formats
+    delete measurement.length;
+    delete measurement.width;
+    delete measurement.units;
   }
+
+  console.log('Updated measurement fields:', measurement);
 };
 
 // Helper to determine measurement type from item data
@@ -464,13 +652,28 @@ const getMeasurementType = (item) => {
   // If the item has an explicit measurement type, use it
   if (item.measurementType) return item.measurementType;
 
-  // Otherwise infer from the data structure (use direct properties)
-  if (item.quantity && item.quantityUnit) return 'quantity';
-  if (item.width && item.length) return 'area'; // Check direct width and length
-  if (item.length) return 'linear'; // Check direct length
+  // Otherwise infer from the data structure
+  if (item.quantity !== undefined) return 'quantity';
+
+  // Check dimensions object if it exists
+  if (item.dimensions) {
+    if (item.dimensions.width && item.dimensions.length) return 'area';
+    if (item.dimensions.length) return 'linear';
+  }
+
+  // Check direct properties (legacy format)
+  if (item.width && item.length) return 'area';
+  if (item.length) return 'linear';
 
   // Default to area if we can't determine
   return 'area';
+};
+
+// Log the detected measurement type for debugging
+const logMeasurementType = (item) => {
+  const type = getMeasurementType(item);
+  console.log('Detected measurement type:', type, 'for item:', item);
+  return type;
 };
 
 // Get display label for measurement type
@@ -484,23 +687,37 @@ const getMeasurementTypeLabel = (item) => {
   }
 };
 
+// Helper for read-only view to display values correctly
+const getDisplayLength = (item) => {
+  return getMeasurementValue(item, 'length') || 'N/A';
+};
+
+// Helper for read-only view to display values correctly
+const getDisplayWidth = (item) => {
+  return getMeasurementValue(item, 'width') || 'N/A';
+};
+
 // Format linear feet display
 const formatLinearFeet = (measurement) => {
-  if (!measurement.length) return '0 ln ft';
-  const length = parseFloat(measurement.length) || 0;
+  const lengthValue = getMeasurementValue(measurement, 'length');
+  if (!lengthValue) return '0 ln ft';
+  const length = parseFloat(lengthValue) || 0;
   return `${length.toFixed(2)} ln ft`;
 };
 
+// This duplicate declaration has been removed as it's already defined at line 417
+
 // Calculate square footage
 const calculateSquareFootage = (measurement) => {
-  // Use direct properties
-  const length = parseFloat(measurement.length) || 0;
-  const width = parseFloat(measurement.width) || 0;
+  // Use helper function to get values from either location
+  const length = parseFloat(getMeasurementValue(measurement, 'length')) || 0;
+  const width = parseFloat(getMeasurementValue(measurement, 'width')) || 0;
 
   if (length === 0 || width === 0) return '0 sq ft';
 
   const area = length * width;
 
+  console.log('Calculated square footage:', area, 'from length:', length, 'width:', width);
   return `${area.toFixed(2)} sq ft`;
 };
 
@@ -531,7 +748,7 @@ onMounted(() => {
     let hasUpdatedCondition = false;
     let hasUpdatedMeasurements = false;
     let hasUpdatedMaterials = false;
-    
+
     normProject.inspections.forEach(inspection => {
       switch (inspection.category) {
         case 'condition':
@@ -542,47 +759,62 @@ onMounted(() => {
           break;
         case 'measurements':
           if (!hasUpdatedMeasurements && (!measurements.value || !measurements.value.items || measurements.value.items.length === 0)) {
+            console.log('Processing measurements inspection:', inspection.content);
+
             if (inspection.content && Array.isArray(inspection.content.items)) {
               // Transform items using normalized properties
               const updatedItems = inspection.content.items.map(item => {
                 // Determine measurement type
                 const measurementType = item.measurementType ||
-                  (item.quantity ? 'quantity' :
-                   (item.width ? 'area' : 'linear'));
+                  (item.quantity !== undefined ? 'quantity' :
+                   (item.dimensions?.width !== undefined ? 'area' : 'linear'));
+
+                console.log('Processing measurement item:', item, 'Detected type:', measurementType);
 
                 // Create base item with common properties
                 const transformedItem = {
                   description: item.description || '',
-                  measurementType: measurementType,
-                  units: item.units || 'feet',
+                  measurementType: measurementType
                 };
 
                 // Add type-specific properties
                 if (measurementType === 'area' || measurementType === 'linear') {
-                  transformedItem.length = item.length || '';
+                  // Create dimensions object for area and linear measurements
+                  transformedItem.dimensions = {
+                    units: item.dimensions?.units || item.units || 'feet',
+                    length: item.dimensions?.length || item.length || ''
+                  };
+
+                  // Add width for area measurements
                   if (measurementType === 'area') {
-                    transformedItem.width = item.width || '';
+                    transformedItem.dimensions.width = item.dimensions?.width || item.width || '';
                   }
                 } else if (measurementType === 'quantity') {
+                  // Add quantity properties directly to the item
                   transformedItem.quantity = item.quantity || '1';
                   transformedItem.quantityUnit = item.quantityUnit || 'each';
                 }
 
+                console.log('Transformed item:', transformedItem);
                 return transformedItem;
               });
-              
+
               measurements.value = { items: updatedItems };
+              console.log('Updated measurements:', measurements.value);
             } else if (inspection.content) {
               // Handle legacy format
               measurements.value = {
                 items: [{
                   description: inspection.content.description || '',
                   measurementType: 'area',
-                  length: inspection.content.length || '',
-                  width: inspection.content.width || '',
-                  units: inspection.content.units || 'feet'
+                  dimensions: {
+                    length: inspection.content.dimensions?.length || inspection.content.length || '',
+                    width: inspection.content.dimensions?.width || inspection.content.width || '',
+                    units: inspection.content.dimensions?.units || inspection.content.units || 'feet'
+                  }
                 }]
               };
+              console.log('Updated measurements from legacy format:', measurements.value);
             }
             hasUpdatedMeasurements = true;
           }
@@ -595,7 +827,7 @@ onMounted(() => {
           break;
       }
     });
-    
+
     // After initializing, emit updates
     if (hasUpdatedCondition) emit('update:condition', condition.value);
     if (hasUpdatedMeasurements) emit('update:measurements', measurements.value);
@@ -654,6 +886,17 @@ const handlePhotoDeleted = (photoId) => {
   localConditionPhotos.value = localConditionPhotos.value.filter(p => p.id !== photoId);
   emit('photo-deleted', photoId);
   emit('refresh-project'); // Request a refresh from parent
+};
+
+// Work types management
+const toggleWorkType = (workType) => {
+  const updated = assessmentsService.toggleWorkType(workTypes.value, workType);
+  workTypes.value = [...updated]; // Create a new array to trigger reactivity
+  console.log('Updated work types:', workTypes.value);
+};
+
+const isWorkTypeSelected = (workTypeId) => {
+  return workTypes.value.includes(workTypeId);
 };
 
 // Removed otherAssessmentPhotos computed property as general assessment photos are no longer used separately

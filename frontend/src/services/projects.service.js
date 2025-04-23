@@ -10,7 +10,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   createProject(data) {
-    return api.post('/projects', data);
+    return api.post('/api/projects', data);
   }
 
   /**
@@ -67,6 +67,16 @@ class ProjectsService {
    */
   updateAdditionalWork(id, notes) {
     return api.put(`/api/projects/${id}/additional-work`, { additional_work: notes });
+  }
+
+  /**
+   * Update work types for a project assessment
+   * @param {string} id Project ID
+   * @param {Array} workTypes Array of work type IDs
+   * @returns {Promise} API response
+   */
+  updateWorkTypes(id, workTypes) {
+    return api.put(`/api/projects/${id}/work-types`, { work_types: workTypes });
   }
 
   /**
@@ -190,25 +200,28 @@ class ProjectsService {
 
               // Add type-specific properties based on measurement type
               if (item.measurementType === 'area') {
+                // For area measurements, use dimensions object if it exists, otherwise create it
                 formattedItem.dimensions = {
-                  length: item.length || '',
-                  width: item.width || '',
-                  units: item.units || 'feet'
+                  length: item.dimensions?.length || item.length || '',
+                  width: item.dimensions?.width || item.width || '',
+                  units: item.dimensions?.units || item.units || 'feet'
                 };
               } else if (item.measurementType === 'linear') {
+                // For linear measurements, use dimensions object if it exists, otherwise create it
                 formattedItem.dimensions = {
-                  length: item.length || '',
-                  units: item.units || 'feet'
+                  length: item.dimensions?.length || item.length || '',
+                  units: item.dimensions?.units || item.units || 'feet'
                 };
               } else if (item.measurementType === 'quantity') {
+                // For quantity measurements, use direct properties
                 formattedItem.quantity = item.quantity || '1';
                 formattedItem.quantityUnit = item.quantityUnit || 'each';
               } else {
                 // Default to area if no measurement type specified
                 formattedItem.dimensions = {
-                  length: item.length || '',
-                  width: item.width || '',
-                  units: item.units || 'feet'
+                  length: item.dimensions?.length || item.length || '',
+                  width: item.dimensions?.width || item.width || '',
+                  units: item.dimensions?.units || item.units || 'feet'
                 };
               }
 

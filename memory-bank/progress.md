@@ -1,3 +1,311 @@
+[2025-05-29 14:30] - **Integrated Frontend with Work Types Database**
+
+**Tasks Completed:**
+
+1. Created comprehensive frontend components for work type management:
+   - Built `CreateWorkType.vue` for adding new work types with validation
+   - Created `SafetyTagChip.vue` for visualizing safety tags with context-aware color coding
+   - Implemented `MaterialsTab.vue` for managing materials associated with work types
+   - Developed `CostEditor.vue` for updating cost information with real-time calculations
+   - Created `CostHistoryTab.vue` for viewing cost history with region filtering
+
+2. Enhanced router configuration and dashboard integration:
+   - Added routes for creating and viewing work types
+   - Created `WorkTypesWidget.vue` for dashboard statistics display
+   - Updated `HomeView.vue` to include the work types widget
+   - Leveraged existing `canManageWorkTypes` permissions for access control
+
+3. Implemented materials service and integration:
+   - Created `materials.service.js` for managing work type materials
+   - Utilized existing API endpoints for seamless integration
+   - Added proper error handling and user feedback
+
+**Key Learnings:**
+
+- Consistent component design patterns improve maintainability
+- Tabbed interfaces provide better organization for complex data
+- Reusing existing permission structures ensures coherent access control
+- Dashboard widgets provide valuable at-a-glance information for users
+- Conditional rendering based on permissions creates a cleaner user experience
+
+---
+
+[2025-05-28 16:45] - **Implemented Caching for Work Types Knowledge Base**
+
+**Tasks Completed:**
+
+1. Enhanced workTypeService.js with caching capabilities:
+   - Implemented a Cache class with TTL (Time-To-Live) support
+   - Added caching for findSimilarWorkTypes method to improve performance
+   - Added caching for getTagsByFrequency method to reduce database load
+   - Implemented proper cache invalidation when work types are updated
+   - Added debug logging for cache hits and misses
+
+2. Created database migrations for improved data integrity:
+   - Added pg_trgm extension for similarity search
+   - Added pgvector extension for future vector similarity search
+   - Created migration to add composite unique index on work_type_materials (work_type_id, product_id)
+   - Added index on work_type_materials.product_id for faster lookups
+   - Added CHECK constraints to ensure non-negative numeric values
+
+3. Enhanced documentation and testing:
+   - Created comprehensive OpenAPI documentation for work types API
+   - Added integration tests for cost history endpoints
+   - Created sample data generation scripts for testing
+   - Updated memory bank with Phase B implementation details
+
+**Key Learnings:**
+
+- In-memory caching with TTL significantly improves performance for frequently accessed data
+- Composite unique indexes prevent duplicate materials in work types
+- PostgreSQL extensions like pg_trgm and pgvector provide powerful search capabilities
+- OpenAPI documentation improves API discoverability and usage
+- Proper database constraints ensure data integrity at the database level
+
+---
+
+[2025-05-27 14:30] - **Completed Phase B Work Types Knowledge Base with Costs, Materials, and Safety Tags**
+
+**Tasks Completed:**
+
+1. Implemented comprehensive Phase B enhancements to the work types knowledge base:
+   - Added unit_cost_material, unit_cost_labor, and productivity_unit_per_hr columns to work_types table
+   - Created work_type_materials table for mapping default materials to work types
+   - Created work_type_tags table for safety and permit requirement tracking
+   - Created work_type_cost_history table for tracking cost changes over time with region support
+   - Implemented proper foreign key relationships and indexes for performance
+
+2. Enhanced backend services with new capabilities:
+   - Added updateCosts, addMaterials, removeMaterial, addTags, removeTag methods to workTypeService
+   - Created new materials.service.js for materials-related operations
+   - Enhanced PromptEngine with automatic detection of work types in assessments
+   - Integrated cost and safety information into LLM prompts for better estimate generation
+   - Created seed data files and import scripts for batch cost updating
+
+3. Developed comprehensive frontend components:
+   - Created tabbed WorkTypeDetail view with separate tabs for details, costs, and materials/safety
+   - Implemented CostEditor component with cost analysis calculations
+   - Created MaterialsTab component for managing materials and safety tags
+   - Developed SafetyTagChip component with color-coding based on risk category
+   - Enhanced work-types.service.js with new methods for the Phase B endpoints
+
+**Key Learnings:**
+
+- Cost history tracking with region support enables valuable trend analysis in the future
+- Integrating cost data with the PromptEngine significantly improves estimate accuracy
+- Safety tags with color-coding provide clear visual indicators of risk factors
+- Transaction-based operations are essential for maintaining data integrity in complex object relationships
+- Including materials with quantity calculations enables more detailed estimate generation
+- Visual cost analysis in the UI helps users understand material vs. labor cost ratios
+
+---
+
+[2025-05-26 11:45] - **Enhanced Work Types Knowledge Base with Database Improvements (Phase A)**
+
+**Tasks Completed:**
+
+1. Implemented comprehensive database improvements for the work types knowledge base:
+   - Converted raw SQL migration to Sequelize format for CI parity and better transaction handling
+   - Changed measurement_type to PostgreSQL ENUM with proper validation constraints
+   - Added name_vec column (VECTOR(384)) for future semantic similarity search
+   - Added revision tracking and audit columns for change management
+   - Fixed Unicode narrow-no-break space issues in "Mobile-Home" entries
+   - Enhanced duplicate detection with trigram similarity (threshold 0.85)
+   - Aligned search parameters for consistency across the application
+
+2. Enhanced service implementation with improved validation:
+   - Added transaction handling for better data consistency
+   - Implemented proper error handling with detailed messages
+   - Added rate limiting (300ms) for similarity search API
+   - Fixed frontend-backend parameter alignment (using 'q' parameter)
+
+**Key Learnings:**
+
+- Using PostgreSQL ENUMs with check constraints provides stronger validation than string fields
+- Trigram similarity with 0.85 threshold effectively prevents near-duplicate entries
+- Transaction handling is critical for operations that might need to be rolled back
+- Adding placeholder vector columns now simplifies future semantic search implementation
+- Consistency in API parameter naming improves developer experience
+
+---
+
+[2025-05-25 10:30] - **Implemented Work Types Knowledge Base for Mobile-Home Repair Tasks**
+
+**Tasks Completed:**
+
+1. Created comprehensive work types knowledge base for mobile-home repair tasks:
+   - Designed database schema with PostgreSQL and Sequelize ORM integration
+   - Implemented similarity search using pg_trgm extension
+   - Created RESTful API endpoints for managing work types
+   - Developed frontend interface for browsing and managing work types
+   - Structured 80 common work types into five parent buckets
+   - Standardized measurement types (area, linear, quantity) with appropriate units
+
+2. Set up automation and integration:
+   - Created setup script for database migration and data seeding
+   - Implemented Vue component with filtering and search capabilities
+   - Developed merge script for component management
+   - Added router integration for navigation
+   - Created comprehensive documentation for usage and expansion
+
+3. Implemented two-phase development approach:
+   - Phase A (complete): Basic taxonomy and measurement standardization
+   - Phase B (planned): Cost data, productivity rates, materials, and safety tags
+
+**Key Learnings:**
+
+- Standardized work types taxonomy significantly improves AI estimate generation accuracy
+- Parent bucket organization helps visualize and organize diverse repair tasks
+- Measurement type standardization ensures consistent units across the application
+- PostgreSQL's pg_trgm extension provides efficient similarity search without additional services
+- Breaking large Vue components into logical parts improves maintainability
+- Two-phase approach allows immediate value while planning for future enhancements
+
+---
+
+[2025-05-23 09:45] - **Completed Vector Search Implementation for Catalog Matching**
+
+**Tasks Completed:**
+
+1. Implemented vector search functionality for improved catalog matching:
+   - Installed pgvector extension in PostgreSQL database
+   - Added embedding column to products table with migration
+   - Created vector similarity search capabilities using existing DeepSeek API
+   - Set up automatic embedding generation for new catalog products
+   - Implemented confidence-based matching system (high, medium, low)
+
+2. Integrated with existing DeepSeek service:
+   - Used existing OpenAI-compatible API for embedding generation
+   - Leveraged the same API key already configured in the system
+   - Added environment variable for embedding model configuration
+
+3. Created comprehensive test and implementation tools:
+   - Added catalog service smoke test for trigram matching
+   - Created Docker-compatible embedding backfill script
+   - Added detailed documentation with setup and monitoring instructions
+
+**Key Learnings:**
+
+- Combined trigram and vector similarity provides more comprehensive matching than either alone
+- Leveraging existing API infrastructure simplifies embedding implementation
+- Confidence-based matching tiers (85%+ automatic, 60-85% review, <60% new) balance automation with user control
+- Automated embedding generation during product creation ensures consistent catalog management
+- Database-level similarity search is significantly faster than application-level implementations
+
+---
+
+[2025-05-22 16:30] - **Implemented Smart AI Conversation and Catalog Deduplication**
+
+**Tasks Completed:**
+
+1. Implemented a complete solution for smarter AI conversation workflow:
+   - Created PromptEngine.js to handle two-phase approach (Scope Scan → Draft Items)
+   - Built a three-step UI wizard (Assessment → Clarifications → Review)
+   - Implemented robust validation with Zod schemas for structured responses
+   - Added timeouts and fallbacks for reliable operation
+
+2. Developed the catalog deduplication system:
+   - Created CatalogService with tiered confidence levels for matching
+   - Implemented both pg_trgm and optional pgvector similarity methods
+   - Built an interactive UI for reviewing and selecting potential matches
+   - Added bulk creation capability for truly new products
+
+3. Added proper documentation and setup tools:
+   - Created comprehensive documentation in docs/estimate-wizard-v2.md
+   - Added feature flagging for controlled rollout
+   - Created a database migration for vector column addition
+   - Implemented an embedding backfill script for existing products
+
+**Key Learnings:**
+
+- Two-phase approach significantly improves AI response quality by preventing hallucination
+- Database-level similarity matching is much faster than application-level implementations
+- The combination of trigram and vector similarity provides more comprehensive matching
+- Feature flags enable low-risk rollout of significant new functionality
+- Consistent confidence thresholds help balance automatic matching vs. user decision
+
+---
+
+[2025-05-21 14:45] - **Installed pgvector and pg_trgm for Enhanced Similarity Matching**
+
+**Tasks Completed:**
+
+1. Successfully installed pgvector and pg_trgm PostgreSQL extensions in Docker container:
+   - Connected to existing PostgreSQL container without creating a new one
+   - Installed necessary build tools in Alpine-based container
+   - Built pgvector from source and installed in the proper directories
+   - Added pg_trgm extension which is included in PostgreSQL by default
+   - Verified both extensions work correctly
+
+2. Set foundation for the new AI-driven conversation workflow:
+   - Identified pattern for smarter inspection-to-estimate conversion
+   - Planned approach for quick assessment of missing measurements or details
+   - Designed workflow for automatic generation with minimum user input
+
+3. Prepared for catalog deduplication implementation:
+   - Researched trigram-based fuzzy text matching for handling typos and wording variations
+   - Researched vector-based semantic similarity for handling synonyms and related concepts
+   - Drafted approach for multi-level confidence scoring system:
+     - High confidence (>0.8): Automatic linking to existing product
+     - Medium confidence (0.5-0.8): Interactive user decision
+     - Low confidence (<0.5): Add as new product
+
+**Key Learnings:**
+
+- PostgreSQL extensions can be added to existing containers without rebuilding
+- pgvector provides powerful semantic search capabilities within the database
+- pg_trgm offers efficient fuzzy text matching directly in SQL
+- Combining both technologies allows for a comprehensive approach to product deduplication
+- Database-level similarity calculations offer better performance than application-level calculations
+
+---
+
+[2025-05-03 10:30] - **Fixed LLM Estimate Generator Redundant Data Entry**
+
+**Issues Identified:**
+
+1. LLM Estimate Generator was asking for information already collected during assessment phase:
+   - The generator would request measurements that were already available in the assessment data
+   - Users had to re-enter information they'd already provided
+   - No visual indication of which assessment data was being used
+   - Inconsistent handling of the projectId parameter across implementations
+
+**Root Cause Analysis:**
+
+1. Multiple structural issues identified:
+   - The frontend wasn't properly checking for existing measurements in assessment data
+   - The assessment data wasn't being formatted optimally for the LLM
+   - The API payload structure differed between the working and new implementations
+   - The projectId wasn't being consistently included in the required locations
+
+**Solution Implemented:**
+
+1. Enhanced frontend components to detect existing measurements:
+   - Added helper functions to check if measurements already exist in assessment data
+   - Added computed properties to separate existing vs. missing measurements
+   - Implemented visual indicators showing which measurements are being used from assessments
+   - Only requested information that's truly missing from the assessment
+
+2. Improved data handling and API integration:
+   - Updated `analyzeScope` method to properly format assessment data
+   - Enhanced payload structure to ensure consistent projectId handling
+   - Added explicit measurement and condition formatting for the LLM
+   - Fixed the `required_services` field being blank in the API response
+
+3. Improved backend processing:
+   - Updated controller to handle the new request structure
+   - Enhanced logging for better visibility into the data flow
+   - Improved parameter validation and extraction
+
+**Key Learnings:**
+
+- Smart data reuse dramatically improves user experience by eliminating redundant data entry
+- Consistent data structures between frontend and backend are critical for complex workflows
+- Visual indicators help users understand what data is being used and what's still needed
+- Proper projectId inclusion is essential for maintaining context throughout the estimate generation process
+
+---
+
 [2025-05-02 16:45] - **Working on Assessment to Estimate Conversion Project ID Issue**
 
 **Issues Identified:**
@@ -799,6 +1107,42 @@
 - Including related models in API responses allows frontend to show relationship context
 
 ---
+[2025-04-23 15:30] - **Implemented Database Schema Management System**
+
+**Tasks Completed:**
+
+1. Implemented comprehensive database schema management system:
+   - Created ViewManager utility class for handling database view dependencies
+   - Implemented DependencyAnalyzer for identifying object dependencies
+   - Developed MigrationChecker for pre-migration validation
+   - Created ModelSchemaComparer and ModelSyncTool for model-database alignment
+   - Implemented testing framework with automatic backup/restore
+   - Built automated documentation generator for database schema
+
+2. Fixed critical database issues:
+   - Resolved issue with `payment_terms` column type change in `clients` table
+   - Created transaction-based migration to safely modify columns referenced by views
+   - Implemented view registry in `viewDefinitions.js` for consistent view recreation
+   - Fixed view dependency error by properly dropping and recreating dependent views
+
+3. Improved database migration process:
+   - Created scripts to test migrations before production deployment
+   - Implemented pre-migration checks to identify potential issues
+   - Added backup/restore functionality for safe migration testing
+   - Developed comprehensive documentation in `/docs/database/README.md`
+
+**Key Learnings:**
+
+- PostgreSQL prevents altering columns referenced by views without dropping the view first
+- Transaction-based migrations ensure atomicity (all operations succeed or fail together)
+- View dependencies can be identified using PostgreSQL's system catalogs
+- Model-schema alignment is crucial for preventing similar issues in the future
+- Automated documentation keeps schema information current and accurate
+- Proper error handling with transaction rollback prevents database inconsistency
+- Testing migrations in isolation prevents production issues
+
+---
+
 # Progress Log
 
 [2025-04-15 23:45] - **Fixed Vue Component Tag Syntax and Client Display in Edit Forms**
@@ -1125,6 +1469,90 @@
 
 ---
 
+
+[2025-04-16 17:00] - **Unified LLM Estimate Generator Implementation Completed**
+
+**Assessment of Current Implementation:**
+1. Core component structure implemented successfully:
+   - `EstimateGeneratorContainer.vue` with mode toggle functionality
+   - Mode-specific components (`BuiltInAIMode.vue` and `ExternalPasteMode.vue`)
+   - Common components (`AssessmentContext.vue`, `ItemsList.vue`, `CatalogActions.vue`)
+   - State management using Vue 3's Composition API with provide/inject pattern
+
+2. Dual-mode interface working with consistent UI styling:
+   - Toggle between built-in AI and external paste modes
+   - Shared item display and editing capabilities
+   - Assessment data handling across both modes
+
+3. Catalog integration partially implemented:
+   - Frontend service (`catalog-matcher.service.js`) for similarity checking
+   - Visual indicators for potential duplicates in `ItemsList.vue`
+   - Item editing with catalog match warnings
+   - Backend endpoints defined but implementation needed
+
+**Implementation Completed Successfully:**
+1. API endpoint issues resolved:
+   - Fixed endpoint mismatch by implementing correct routes and controller methods
+   - Implemented missing catalog similarity endpoints (`/api/estimates/llm/similarity-check` and `/api/estimates/llm/catalog-eligible`)
+   - Added controller methods and proper error handling
+
+2. Integration improvements implemented:
+   - Enhanced communication between `ItemsList` and `CatalogActions` components via state management
+   - Added item selection for batch catalog operations
+   - Implemented visual indicators showing catalog match confidence with percentage scores
+   - Added "Use Catalog Item" direct replacement option for individual items
+
+3. Service Enhancements:
+   - Implemented bulk product creation in the products service
+   - Added robust error handling in the similarity checking controllers
+   - Optimized product matching to provide relevant results with proper scoring
+
+**Key Enhancements:**
+- Visual similarity indicators now show exact match percentage
+- Item selection and batch operations for catalog integration
+- Improved error handling throughout with user-friendly messages
+- Direct workflow to create final estimate with processed items
+
+**Key Learnings:**
+- Component architecture with mode-specific and shared components provides excellent flexibility
+- Provide/inject pattern works well for sharing state between related components
+- Catalog integration requires both frontend UI indicators and backend similarity services
+- LLM generation processes need robust error handling with timeouts and clear user feedback
+- String similarity algorithms require proper threshold tuning for effective catalog matching
+
+---
+
+[2025-04-16 15:45] - **Fixed LLM Estimate Generator and Created Implementation Plan**
+
+**Issues Identified and Fixed:**
+1. LLM estimate generator failing with error: "llmEstimateService.analyzeScope is not a function"
+   - Error occurring in `estimates.controller.js` when trying to call the method
+   - Root cause: `analyzeScope` method incorrectly nested inside `generateEstimateFromAssessment`
+   - Secondary issue: Using non-existent `complete` method instead of `generateChatCompletion`
+
+**Solution Implemented:**
+1. Fixed method nesting in `llmEstimateService.js`:
+   - Moved `analyzeScope` method outside of `generateEstimateFromAssessment` to be a standalone method
+   - Updated method to use `generateChatCompletion` instead of non-existent `complete` method
+   - Fixed response parsing to handle the correct structure from chat completion API
+
+2. Updated controller parameter handling in `estimates.controller.js`:
+   - Changed from passing `description` to `scope: description` to match method signature
+   - Added better error handling for parameter validation
+
+3. Created comprehensive implementation plan for unified LLM estimate generator:
+   - Added `llmEST.md` to memory-bank with detailed implementation roadmap
+   - Designed dual-mode interface (built-in AI and external paste)
+   - Outlined catalog integration with similarity checking
+   - Planned assessment context utilization and item management
+
+**Key Learnings:**
+- Method placement and nesting can cause critical functionality failures
+- API integration requires careful attention to method signatures and response formats
+- Unified interfaces can significantly improve UX for similar functionality
+- Similarity checking is essential for preventing duplicate catalog items
+
+---
 
 [2025-04-14 00:45] - **Fixed Estimate Display in Project Creation Forms**
 

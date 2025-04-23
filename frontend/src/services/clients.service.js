@@ -14,7 +14,7 @@ class ClientsService {
     try {
       // Convert camelCase to snake_case for backend
       const snakeCaseData = toSnakeCase(clientData);
-      const response = await apiService.post('/clients', snakeCaseData);
+      const response = await apiService.post('/api/clients', snakeCaseData);
 
       if (response.success && response.data) {
         return {

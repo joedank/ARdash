@@ -1,0 +1,847 @@
+openapi: 3.0.0
+info:
+  title: Work Types API
+  description: API for managing work types, including costs, materials, and safety tags
+  version: 1.0.0
+  
+servers:
+  - url: /api
+    description: API base URL
+    
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      
+  schemas:
+    WorkType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the work type
+        name:
+          type: string
+          description: Name of the work type
+        parent_bucket:
+          type: string
+          description: Parent bucket category
+          enum: [Interior-Structural, Interior-Finish, Exterior-Structural, Exterior-Finish, Mechanical]
+        measurement_type:
+          type: string
+          description: Type of measurement
+          enum: [area, linear, quantity]
+        suggested_units:
+          type: string
+          description: Suggested units for measurement
+        unit_cost_material:
+          type: number
+          format: decimal
+          description: Material cost per unit
+        unit_cost_labor:
+          type: number
+          format: decimal
+          description: Labor cost per unit
+        productivity_unit_per_hr:
+          type: number
+          format: decimal
+          description: Productivity units per hour
+        revision:
+          type: integer
+          description: Revision number
+        materials:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkTypeMaterial'
+          description: Associated materials
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkTypeTag'
+          description: Associated safety tags
+      required:
+        - name
+        - parent_bucket
+        - measurement_type
+        - suggested_units
+        
+    WorkTypeMaterial:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the material
+        work_type_id:
+          type: string
+          format: uuid
+          description: ID of the associated work type
+        product_id:
+          type: string
+          format: uuid
+          description: ID of the associated product
+        qty_per_unit:
+          type: number
+          format: decimal
+          description: Quantity per unit
+        unit:
+          type: string
+          description: Unit of measurement
+        product:
+          $ref: '#/components/schemas/Product'
+      required:
+        - product_id
+        - qty_per_unit
+        - unit
+        
+    WorkTypeTag:
+      type: object
+      properties:
+        work_type_id:
+          type: string
+          format: uuid
+          description: ID of the associated work type
+        tag:
+          type: string
+          description: Tag name
+      required:
+        - tag
+        
+    WorkTypeCostHistory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the cost history record
+        work_type_id:
+          type: string
+          format: uuid
+          description: ID of the associated work type
+        region:
+          type: string
+          description: Region for the cost data
+        unit_cost_material:
+          type: number
+          format: decimal
+          description: Material cost per unit
+        unit_cost_labor:
+          type: number
+          format: decimal
+          description: Labor cost per unit
+        captured_at:
+          type: string
+          format: date-time
+          description: When the cost was captured
+        updated_by:
+          type: string
+          format: uuid
+          description: ID of the user who updated the cost
+      required:
+        - work_type_id
+        - region
+        - captured_at
+        
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the product
+        name:
+          type: string
+          description: Product name
+        sku:
+          type: string
+          description: Stock keeping unit
+        
+    StandardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+        message:
+          type: string
+          description: Message describing the result
+        data:
+          type: object
+          description: Response data
+      required:
+        - success
+        
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Always false for errors
+        message:
+          type: string
+          description: Error message
+        data:
+          type: object
+          description: Additional error details
+      required:
+        - success
+        - message
+        
+security:
+  - bearerAuth: []
+  
+paths:
+  /work-types:
+    get:
+      summary: Get all work types
+      description: Returns a list of all work types with optional filtering
+      parameters:
+        - name: parent_bucket
+          in: query
+          description: Filter by parent bucket
+          schema:
+            type: string
+        - name: measurement_type
+          in: query
+          description: Filter by measurement type
+          schema:
+            type: string
+            enum: [area, linear, quantity]
+        - name: include_materials
+          in: query
+          description: Include materials in response
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkType'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+    post:
+      summary: Create a new work type
+      description: Creates a new work type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkType'
+      responses:
+        '201':
+          description: Work type created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkType'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: Work type ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+          
+    get:
+      summary: Get a work type by ID
+      description: Returns a single work type by ID
+      parameters:
+        - name: include_materials
+          in: query
+          description: Include materials in response
+          schema:
+            type: boolean
+        - name: include_tags
+          in: query
+          description: Include tags in response
+          schema:
+            type: boolean
+        - name: include_cost_history
+          in: query
+          description: Include cost history in response
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkType'
+        '404':
+          description: Work type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+    put:
+      summary: Update a work type
+      description: Updates an existing work type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkType'
+      responses:
+        '200':
+          description: Work type updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WorkType'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Work type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+    delete:
+      summary: Delete a work type
+      description: Deletes a work type
+      responses:
+        '200':
+          description: Work type deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '404':
+          description: Work type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/{id}/costs:
+    parameters:
+      - name: id
+        in: path
+        description: Work type ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+          
+    patch:
+      summary: Update costs for a work type
+      description: Updates the costs for a work type
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                unit_cost_material:
+                  type: number
+                  format: decimal
+                  description: Material cost per unit
+                unit_cost_labor:
+                  type: number
+                  format: decimal
+                  description: Labor cost per unit
+                productivity_unit_per_hr:
+                  type: number
+                  format: decimal
+                  description: Productivity units per hour
+                region:
+                  type: string
+                  description: Region for the cost data
+              minProperties: 1
+      responses:
+        '200':
+          description: Costs updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          workType:
+                            $ref: '#/components/schemas/WorkType'
+                          costHistory:
+                            $ref: '#/components/schemas/WorkTypeCostHistory'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Work type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - requires admin or estimator_manager role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/{id}/costs/history:
+    parameters:
+      - name: id
+        in: path
+        description: Work type ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+          
+    get:
+      summary: Get cost history for a work type
+      description: Returns the cost history for a work type
+      parameters:
+        - name: region
+          in: query
+          description: Filter by region
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of records to return
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkTypeCostHistory'
+        '404':
+          description: Work type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/{id}/materials:
+    parameters:
+      - name: id
+        in: path
+        description: Work type ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+          
+    post:
+      summary: Add materials to a work type
+      description: Adds materials to a work type
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  product_id:
+                    type: string
+                    format: uuid
+                    description: Product ID
+                  qty_per_unit:
+                    type: number
+                    format: decimal
+                    description: Quantity per unit
+                    minimum: 0
+                  unit:
+                    type: string
+                    description: Unit of measurement
+                required:
+                  - product_id
+                  - qty_per_unit
+                  - unit
+      responses:
+        '200':
+          description: Materials added successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkTypeMaterial'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Work type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - requires admin or estimator_manager role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/{id}/materials/{materialId}:
+    parameters:
+      - name: id
+        in: path
+        description: Work type ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: materialId
+        in: path
+        description: Material ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+          
+    delete:
+      summary: Remove a material from a work type
+      description: Removes a material from a work type
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Material removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '404':
+          description: Work type or material not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - requires admin or estimator_manager role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/{id}/tags:
+    parameters:
+      - name: id
+        in: path
+        description: Work type ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+          
+    post:
+      summary: Add tags to a work type
+      description: Adds tags to a work type
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+      responses:
+        '200':
+          description: Tags added successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkTypeTag'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Work type not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - requires admin or estimator_manager role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/{id}/tags/{tag}:
+    parameters:
+      - name: id
+        in: path
+        description: Work type ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: tag
+        in: path
+        description: Tag name
+        required: true
+        schema:
+          type: string
+          
+    delete:
+      summary: Remove a tag from a work type
+      description: Removes a tag from a work type
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tag removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '404':
+          description: Work type or tag not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - requires admin or estimator_manager role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/tags/frequency:
+    get:
+      summary: Get tags grouped by frequency
+      description: Returns tags grouped by frequency
+      parameters:
+        - name: min_count
+          in: query
+          description: Minimum count to include a tag
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            tag:
+                              type: string
+                              description: Tag name
+                            count:
+                              type: integer
+                              description: Number of work types with this tag
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /work-types/similar:
+    get:
+      summary: Find similar work types
+      description: Returns work types similar to the provided name
+      parameters:
+        - name: q
+          in: query
+          description: Work type name to search
+          required: true
+          schema:
+            type: string
+        - name: threshold
+          in: query
+          description: Similarity threshold (0-1)
+          schema:
+            type: number
+            format: float
+            default: 0.3
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/WorkType'
+                            - type: object
+                              properties:
+                                score:
+                                  type: number
+                                  format: float
+                                  description: Similarity score (0-1)
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

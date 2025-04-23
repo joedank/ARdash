@@ -12,10 +12,12 @@ const settingsRoutes = require('./settings.routes');
 const uploadRoutes = require('./upload.routes');
 const projectsRoutes = require('./projects.routes');
 const llmPromptRoutes = require('./llmPrompt.routes');
-const assessmentRoutes = require('./assessment.routes');
+const assessmentsRoutes = require('./assessments.routes');
 const estimateItemPhotosRoutes = require('./estimateItemPhotos.routes');
 const estimateItemAdditionalWorkRoutes = require('./estimateItemAdditionalWork.routes');
 const communitiesRoutes = require('./communities.routes');
+const workTypesRoutes = require('./workTypes.routes');
+const materialsRoutes = require('./materials.routes');
 
 const router = express.Router();
 
@@ -45,7 +47,7 @@ router.use('/projects', projectsRoutes);
 router.use('/llm-prompts', llmPromptRoutes);
 
 // Assessment routes
-router.use('/assessment', assessmentRoutes);
+router.use('/assessments', assessmentsRoutes);
 
 // Estimate item photos routes
 router.use('/api', estimateItemPhotosRoutes);
@@ -55,5 +57,11 @@ router.use('/api', estimateItemAdditionalWorkRoutes);
 
 // Communities and ad types routes
 router.use('/communities', communitiesRoutes);
+
+// Work types routes for mobile-home repair tasks
+router.use('/work-types', workTypesRoutes);
+
+// Materials routes for work type materials
+router.use('/materials', materialsRoutes);
 
 module.exports = router;

@@ -11,6 +11,7 @@ function formatAssessmentToMarkdown(assessment) {
     date,
     inspector,
     projectId,
+    projectName,
     scope,
     measurements = [],
     materials = [],
@@ -23,6 +24,7 @@ function formatAssessmentToMarkdown(assessment) {
   // === Metadata ===
   lines.push("## ASSESSMENT DATA\n");
   lines.push("### Metadata");
+  lines.push(`- Project: ${projectName || 'Unknown Project'}`);
   lines.push(`- Date: ${date}`);
   lines.push(`- Inspector: ${inspector}`);
   lines.push(`- Project ID: ${projectId}\n`);
@@ -37,7 +39,7 @@ function formatAssessmentToMarkdown(assessment) {
 
   // === Measurements ===
   lines.push("### MEASUREMENTS");
-  if (measurements.length === 0) {
+  if (!measurements || measurements.length === 0) {
     lines.push("- No measurements recorded.");
   } else {
     // Group measurements by type for better organization
@@ -50,7 +52,32 @@ function formatAssessmentToMarkdown(assessment) {
     if (areaItems.length > 0) {
       lines.push("#### Area Measurements (sq ft)");
       for (const m of areaItems) {
-        const base = `- ${m.label}: ${m.value} ${m.unit}`;
+        // Get dimensions from either direct properties or dimensions object
+        let length, width, value;
+        
+        // Try to get dimensions from the dimensions object first
+        if (m.dimensions) {
+          length = m.dimensions.length;
+          width = m.dimensions.width;
+          value = parseFloat(length) * parseFloat(width);
+        } else {
+          // Then try direct properties
+          length = m.length;
+          width = m.width;
+          value = m.value || (parseFloat(length) * parseFloat(width));
+        }
+        
+        // Format the value
+        const formattedValue = value ? `${value} ${m.unit || 'sq ft'}` : '';
+        
+        // Format dimensions
+        const dimensionsText = (length && width) ? ` (${length} × ${width})` : '';
+        
+        // Create the base measurement line
+        const description = m.description || m.label || 'Area';
+        const base = `- ${description}${dimensionsText}: ${formattedValue}`;
+        
+        // Add recommendation tag if present
         const tag = m.recommendation ? ` → ${m.recommendation}` : "";
         lines.push(`${base}${tag}`);
       }
@@ -61,7 +88,27 @@ function formatAssessmentToMarkdown(assessment) {
     if (linearItems.length > 0) {
       lines.push("#### Linear Measurements (ln ft)");
       for (const m of linearItems) {
-        const base = `- ${m.label}: ${m.value} ${m.unit}`;
+        // Get length from either direct properties or dimensions object
+        let length, value;
+        
+        // Try dimensions object first
+        if (m.dimensions) {
+          length = m.dimensions.length;
+          value = length;
+        } else {
+          // Then try direct properties
+          length = m.length;
+          value = m.value || length;
+        }
+        
+        // Format the value
+        const formattedValue = value ? `${value} ${m.unit || 'ln ft'}` : '';
+        
+        // Create the base measurement line
+        const description = m.description || m.label || 'Linear';
+        const base = `- ${description}: ${formattedValue}`;
+        
+        // Add recommendation tag if present
         const tag = m.recommendation ? ` → ${m.recommendation}` : "";
         lines.push(`${base}${tag}`);
       }
@@ -72,7 +119,18 @@ function formatAssessmentToMarkdown(assessment) {
     if (quantityItems.length > 0) {
       lines.push("#### Quantity Measurements");
       for (const m of quantityItems) {
-        const base = `- ${m.label}: ${m.value} ${m.unit}`;
+        // Get quantity
+        const quantity = m.quantity || m.value || '';
+        const unit = m.quantityUnit || m.unit || 'each';
+        
+        // Format the value
+        const formattedValue = quantity ? `${quantity} ${unit}` : '';
+        
+        // Create the base measurement line
+        const description = m.description || m.label || 'Item';
+        const base = `- ${description}: ${formattedValue}`;
+        
+        // Add recommendation tag if present
         const tag = m.recommendation ? ` → ${m.recommendation}` : "";
         lines.push(`${base}${tag}`);
       }
@@ -83,7 +141,18 @@ function formatAssessmentToMarkdown(assessment) {
     if (otherItems.length > 0) {
       lines.push("#### Other Measurements");
       for (const m of otherItems) {
-        const base = `- ${m.label}: ${m.value} ${m.unit}`;
+        // Get value and unit
+        const value = m.value || '';
+        const unit = m.unit || '';
+        
+        // Format the value
+        const formattedValue = value ? `${value} ${unit}` : '';
+        
+        // Create the base measurement line
+        const description = m.description || m.label || 'Measurement';
+        const base = `- ${description}: ${formattedValue}`;
+        
+        // Add recommendation tag if present
         const tag = m.recommendation ? ` → ${m.recommendation}` : "";
         lines.push(`${base}${tag}`);
       }

@@ -60,8 +60,8 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     payment_terms: {
-      // Use TEXT instead of STRING to avoid type conversion issues
-      type: DataTypes.TEXT,
+      // Use STRING to match existing database structure
+      type: DataTypes.STRING,
       allowNull: true,
       field: 'payment_terms'
     },

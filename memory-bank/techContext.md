@@ -1,6 +1,36 @@
 # Technical Context: Construction Management Web Application
 
 ## Technologies Used
+### Database Extensions
+- **work_type_materials**: Bidirectional mapping between work types and material products
+  - Maps work types to their required materials with quantity calculations
+  - Stores quantity per unit and measurement unit information
+  - Enables detailed material lists for estimating
+  - Integrated with the product catalog for consistent material references
+- **work_type_tags**: Safety and permit requirements for work types
+  - Stores flexible tag assignments for safety, permitting, and licensing requirements
+  - Enables colored visual indicators based on risk level (red for high risk, amber for permit, etc.)
+  - Allows filtering and searching for work types by safety requirements
+  - Integrates with PromptEngine to provide safety guidance in LLM prompts
+- **work_type_cost_history**: Historical cost tracking with region support
+  - Records cost changes over time with timestamps and user attribution
+  - Supports region-specific cost data to account for geographic variations
+  - Enables trend analysis and cost tracking for business intelligence
+  - Serves as an audit trail for cost changes
+- **pgvector**: Vector similarity search extension for PostgreSQL enabling semantic similarity matching
+  - Used for vector embeddings storage and similarity search
+  - Creates 384-dimensional vector column in products and work_types tables
+  - Provides efficient cosine similarity operations via `<=>` operator
+  - Used with `ivfflat` index for optimized performance
+  - Configured for future expansion with name_vec columns
+- **pg_trgm**: Trigram matching extension for PostgreSQL enabling fuzzy text search and string similarity
+  - Used for text-based similarity matching
+  - Handles typos and small wording variations
+  - Activated with `%%` operator and `similarity()` function
+  - Provides duplicate protection with configurable threshold (0.85 for work types)
+  - Implemented with GIN index on text columns for performance
+  - Complements vector search for comprehensive matching
+
 ### Frontend
 - **Vue.js**: Progressive JavaScript framework for building user interfaces
 - **Pinia**: State management for Vue applications
@@ -115,6 +145,10 @@ Dependencies are managed through package.json files in both frontend and backend
 - **Docker Compatibility**: Special configuration for Puppeteer in containerized environments
 - **File System Access**: Proper directory structure and permissions for file operations
 - **Database Migration**: Strategies for migrating from SQLite to PostgreSQL with proper data conversion
+- **View Management**: Transaction-based view handling for safe schema modifications
+- **Dependency Analysis**: Database object dependency checking before modifications
+- **Model-Schema Alignment**: Tools to identify and fix discrepancies between models and database
+- **Documentation Generation**: Automated database documentation from actual schema
 
 ## WebSocket Security
 - **HTTPS Compatibility**: WebSocket connections must use secure protocol (wss://) when the application is accessed over HTTPS
@@ -140,6 +174,59 @@ Dependencies are managed through package.json files in both frontend and backend
 - **Backup Strategy**: Creating database backups before and after migration
 - **Column Renaming**: Handling column name changes to match model definitions
 - **Post-Migration Verification**: Testing API endpoints to ensure proper functionality
+- **View Dependency Management**: Transaction-based approach to handle dependent views during schema changes
+- **Migration Testing**: Framework for safely testing migrations in isolated environments
+- **Schema Documentation**: Automated generation of schema, view, relationship, and index documentation
+
+## Database Schema Management Tools
+
+### ViewManager Class
+- Handles database views during schema changes and migrations
+- Safely drops and recreates views within transactions
+- Retrieves view definitions when needed
+- Identifies dependent views for any table
+
+### DependencyAnalyzer Class
+- Analyzes database object dependencies using PostgreSQL system catalogs
+- Finds all dependent objects (views, tables, indexes, triggers) for any table
+- Identifies specific column dependencies for precise impact analysis
+- Maps PostgreSQL type codes to readable names
+
+### MigrationChecker Class
+- Performs pre-migration checks to identify potential issues
+- Checks for column dependencies before migration
+- Generates migration code with proper handling of dependencies
+- Makes recommendations based on identified issues
+
+### ModelSchemaComparer Class
+- Compares Sequelize models to actual database schema
+- Identifies mismatches in column types, nullability, and existence
+- Maps Sequelize types to PostgreSQL types
+- Works with virtual fields and field aliases
+
+### ModelSyncTool Class
+- Generates migrations to fix model-schema mismatches
+- Creates transaction-based migrations that handle dependencies
+- Handles breaking and recreating database views
+- Generates appropriate rollback (down) functions
+
+### MigrationTester Class
+- Provides utilities for testing migrations in isolation
+- Creates and restores database backups
+- Tests migrations with Sequelize CLI commands
+- Recovers from failed migrations
+
+### DatabaseVerifier Class
+- Verifies that all views are valid after migrations
+- Checks for data integrity issues like orphaned foreign keys
+- Tests each view with sample queries
+- Identifies potentially problematic dependencies
+
+### DocumentationGenerator Class
+- Generates Markdown documentation of database schema
+- Documents tables, columns, relationships, and indexes
+- Creates complete view documentation with definitions and dependencies
+- Automatically updates documentation when schema changes
 
 ## Tech Context
 
@@ -149,3 +236,6 @@ Dependencies are managed through package.json files in both frontend and backend
 - Sequelize ORM for database
 - PDF generation for estimates
 - Standard RESTful API patterns
+- Transaction-based schema modifications
+- View registry for consistent recreation
+- Database documentation generation

@@ -1,0 +1,26 @@
+work_type_id,product_id,product_name,qty_per_unit,unit
+f8b1f6e8-daa4-4eb5-af91-d4fe8e34e9d9,a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6,OSB 3/4-in Subfloor Sheet,0.03125,sheet
+f8b1f6e8-daa4-4eb5-af91-d4fe8e34e9d9,b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7,Construction Adhesive,0.0625,tube
+f8b1f6e8-daa4-4eb5-af91-d4fe8e34e9d9,c3d4e5f6-g7h8-i9j0-k1l2-m3n4o5p6q7r8,Flooring Nails,0.125,lb
+a7f93e1c-b426-4178-9d1b-3e02b8b3a882,d4e5f6g7-h8i9-j0k1-l2m3-n4o5p6q7r8s9,Drywall Sheet 4x8,0.0125,sheet
+a7f93e1c-b426-4178-9d1b-3e02b8b3a882,e5f6g7h8-i9j0-k1l2-m3n4-o5p6q7r8s9t0,Drywall Screws,0.05,lb
+a7f93e1c-b426-4178-9d1b-3e02b8b3a882,f6g7h8i9-j0k1-l2m3-n4o5-p6q7r8s9t0u1,Joint Compound,0.01,gallon
+a7f93e1c-b426-4178-9d1b-3e02b8b3a882,g7h8i9j0-k1l2-m3n4-o5p6-q7r8s9t0u1v2,Drywall Tape,0.2,roll
+4b9c1542-e913-4f2a-9c8d-890d8c7a5723,h8i9j0k1-l2m3-n4o5-p6q7-r8s9t0u1v2w3,Roof Shingles,0.33,bundle
+4b9c1542-e913-4f2a-9c8d-890d8c7a5723,i9j0k1l2-m3n4-o5p6-q7r8-s9t0u1v2w3x4,Roofing Nails,0.15,lb
+4b9c1542-e913-4f2a-9c8d-890d8c7a5723,j0k1l2m3-n4o5-p6q7-r8s9-t0u1v2w3x4y5,Roofing Underlayment,0.01,roll
+6e7d3f2a-9b8c-4d1e-8f7g-6h5j4k3l2m1n,k1l2m3n4-o5p6-q7r8-s9t0-u1v2w3x4y5z6,Vinyl Siding Panels,0.17,panel
+6e7d3f2a-9b8c-4d1e-8f7g-6h5j4k3l2m1n,l2m3n4o5-p6q7-r8s9-t0u1-v2w3x4y5z6a7,J-Channel,0.2,piece
+6e7d3f2a-9b8c-4d1e-8f7g-6h5j4k3l2m1n,m3n4o5p6-q7r8-s9t0-u1v2-w3x4y5z6a7b8,Vinyl Siding Nails,0.1,lb
+5a6b7c8d-9e0f-1a2b-3c4d-5e6f7g8h9i0j,n4o5p6q7-r8s9-t0u1-v2w3-x4y5z6a7b8c9,Window Insert,1,unit
+5a6b7c8d-9e0f-1a2b-3c4d-5e6f7g8h9i0j,o5p6q7r8-s9t0-u1v2-w3x4-y5z6a7b8c9d0,Window Sealant,0.5,tube
+5a6b7c8d-9e0f-1a2b-3c4d-5e6f7g8h9i0j,p6q7r8s9-t0u1-v2w3-x4y5-z6a7b8c9d0e1,Window Screws,0.1,box
+1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p,q7r8s9t0-u1v2-w3x4-y5z6-a7b8c9d0e1f2,Door Slab,1,unit
+1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p,r8s9t0u1-v2w3-x4y5-z6a7-b8c9d0e1f2g3,Door Hinges,3,pair
+1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p,s9t0u1v2-w3x4-y5z6-a7b8-c9d0e1f2g3h4,Door Handle Set,1,set
+7g8h9i0j-1k2l-3m4n-5o6p-7q8r9s0t1u2v,t0u1v2w3-x4y5-z6a7-b8c9-d0e1f2g3h4i5,Bathroom Vanity,1,unit
+7g8h9i0j-1k2l-3m4n-5o6p-7q8r9s0t1u2v,u1v2w3x4-y5z6-a7b8-c9d0-e1f2g3h4i5j6,Vanity Faucet,1,unit
+7g8h9i0j-1k2l-3m4n-5o6p-7q8r9s0t1u2v,v2w3x4y5-z6a7-b8c9-d0e1-f2g3h4i5j6k7,Plumbing Connectors,2,set
+3m4n5o6p-7q8r-9s0t-1u2v-3w4x5y6z7a8b,w3x4y5z6-a7b8-c9d0-e1f2-g3h4i5j6k7l8,Countertop Material,1,sq ft
+3m4n5o6p-7q8r-9s0t-1u2v-3w4x5y6z7a8b,x4y5z6a7-b8c9-d0e1-f2g3-h4i5j6k7l8m9,Edge Trim,0.1,piece
+3m4n5o6p-7q8r-9s0t-1u2v-3w4x5y6z7a8b,y5z6a7b8-c9d0-e1f2-g3h4-i5j6k7l8m9n0,Silicone Sealant,0.05,tube

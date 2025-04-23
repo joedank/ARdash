@@ -246,7 +246,7 @@ class EstimateService extends BaseService {
       if (!primarySucceeded) {
         try {
           // For the legacy endpoint, explicitly include /api prefix
-          const fallbackEndpoint = `/api/assessment/for-project/${projectId}`;
+          const fallbackEndpoint = `/api/assessments/for-project/${projectId}`;
           console.log(`Trying fallback endpoint: ${fallbackEndpoint}`);
 
           response = await apiService.get(fallbackEndpoint);

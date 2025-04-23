@@ -1,294 +1,203 @@
 <template>
-  <div class="p-4 border rounded-lg shadow-lg bg-white dark:bg-gray-800 relative z-50 mt-16">
-    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Service Matching</h3>
+  <div class="product-match-review p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Review Generated Items</h3>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-8">
-      <svg class="animate-spin h-8 w-8 text-indigo-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <!-- Loading state -->
+    <div v-if="loading" class="flex items-center justify-center h-64">
+      <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
-      <p class="mt-4 text-gray-600 dark:text-gray-400">{{ loadingMessage }}</p>
+      <p class="ml-3 text-gray-600 dark:text-gray-400">{{ loadingMessage }}</p>
     </div>
 
-    <!-- Error State -->
-    <div v-else-if="error" class="text-red-600 dark:text-red-400 p-4">
-      <p><strong>Error:</strong> {{ error }}</p>
-      <button @click="$emit('back')" class="mt-4 px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">
-        Go Back
+    <!-- Error state -->
+    <div v-else-if="error" class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900 rounded-md">
+      <p class="text-red-700 dark:text-red-300">{{ error }}</p>
+      <button
+        @click="retryMatching"
+        class="mt-2 px-3 py-1 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
+      >
+        Retry
       </button>
     </div>
 
-    <!-- Main Content - Product Matching Review -->
-    <div v-else-if="matchResults && matchResults.lineItems" class="space-y-6">
-      <!-- Match Summary -->
-      <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
-        <h4 class="font-medium text-md text-gray-800 dark:text-gray-200 mb-2">Match Summary</h4>
-        <div class="flex space-x-4 text-sm">
-          <div class="flex flex-col items-center justify-center p-2 rounded bg-white dark:bg-gray-800">
-            <span class="font-bold text-lg">{{ matchResults.summary?.totalItems || 0 }}</span> {/* camelCase */}
-            <span class="text-gray-500 dark:text-gray-400">Total Items</span>
-          </div>
-          <div class="flex flex-col items-center justify-center p-2 rounded bg-green-50 dark:bg-green-900">
-            <span class="font-bold text-lg text-green-600 dark:text-green-400">{{ matchResults.summary?.matchedItems || 0 }}</span> {/* camelCase */}
-            <span class="text-green-500 dark:text-green-400">Matched</span>
-          </div>
-          <div class="flex flex-col items-center justify-center p-2 rounded bg-amber-50 dark:bg-amber-900">
-            <span class="font-bold text-lg text-amber-600 dark:text-amber-400">{{ matchResults.summary?.unmatchedItems || 0 }}</span> {/* camelCase */}
-            <span class="text-amber-500 dark:text-amber-400">Unmatched</span>
-          </div>
-        </div>
+    <!-- Main content -->
+    <div v-else>
+      <div class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+        <p class="text-blue-800 dark:text-blue-300 text-sm">
+          <strong>{{ lineItems.length }}</strong> items generated. Please review and make any necessary adjustments.
+        </p>
       </div>
 
-      <!-- Line Items List -->
-      <div v-for="(item, index) in matchResults.lineItems" :key="index"
-           class="border rounded-md p-4 transition-all duration-200"
-           :class="{
-             'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20': item.matchStatus === 'CONFIDENT_MATCH',
-             'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20': item.matchStatus === 'POSSIBLE_MATCH',
-             'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20': item.matchStatus === 'WEAK_MATCH' || item.matchStatus === 'NO_MATCH'
-           }">
-
-        <!-- Original Line Item -->
-        <div class="flex justify-between items-start mb-3">
-          <div>
-            <h5 class="text-md font-semibold">{{ item.original.productName }}</h5>
-            <div class="text-sm text-gray-600 dark:text-gray-400">
-              <p>{{ item.original.quantity || 0 }} {{ item.original.unit || 'each' }} × ${{ parseFloat(item.original.unitPrice || item.original.price || 0).toFixed(2) }} = ${{ (parseFloat(item.original.quantity || 0) * parseFloat(item.original.unitPrice || item.original.price || 0)).toFixed(2) }}</p>
-              <p class="text-xs mt-1 text-gray-500 dark:text-gray-500">{{ item.original.description }}</p>
-            </div>
-          </div>
-          <div class="text-xs px-2 py-1 rounded-full"
-               :class="{
-                 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200': item.matchStatus === 'CONFIDENT_MATCH',
-                 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200': item.matchStatus === 'POSSIBLE_MATCH',
-                 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200': item.matchStatus === 'WEAK_MATCH',
-                 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200': item.matchStatus === 'NO_MATCH'
-               }">
-            {{ formatMatchStatus(item.matchStatus) }}
-          </div>
-        </div>
-
-        <!-- Service Matches -->
-        <div v-if="item.matches && item.matches.length > 0" class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3">
-          <h6 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Service Matches</h6>
-
-          <!-- Match Selection Radio Group -->
-          <div class="space-y-2">
-            <div v-for="(match, matchIndex) in item.matches" :key="matchIndex"
-                 class="flex items-start p-2 rounded-md cursor-pointer"
-                 :class="{
-                   'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800': selectedMatches[index] === matchIndex,
-                   'hover:bg-gray-50 dark:hover:bg-gray-700/50': selectedMatches[index] !== matchIndex
-                 }"
-                 @click="selectMatch(index, matchIndex)">
-
-              <input type="radio"
-                     :id="`match-${index}-${matchIndex}`"
-                     :name="`product-match-${index}`"
-                     :value="matchIndex"
-                     v-model="selectedMatches[index]"
-                     class="mr-3 mt-1"
-                     @click.stop>
-
-              <label :for="`match-${index}-${matchIndex}`" class="flex-grow cursor-pointer">
-                <div class="flex justify-between">
-                  <span class="font-medium">{{ match.service?.name || match.product?.name || 'Unknown Service' }}</span>
-                  <span class="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full text-gray-600 dark:text-gray-400">
-                    Score: {{ (parseFloat(match.score || 0) * 100).toFixed(0) }}%
-                  </span>
+      <!-- Items table -->
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead class="bg-gray-50 dark:bg-gray-800">
+            <tr>
+              <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <div class="flex items-center">
+                  <input
+                    type="checkbox"
+                    :checked="allSelected"
+                    @change="toggleSelectAll"
+                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span class="ml-2">Description</span>
                 </div>
-                <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {/* Assuming service/product objects within matches are also camelCased */}
-                  <p>Unit: {{ match.service?.unit || match.product?.unit || 'each' }} | Rate: ${{ parseFloat(match.service?.rate || match.service?.price || match.product?.price || 0).toFixed(2) }}/{{ match.service?.unit || match.product?.unit || 'each' }}</p>
-                  <p v-if="match.service?.description || match.product?.description" class="text-xs mt-1 text-gray-500 dark:text-gray-500">{{ match.service?.description || match.product?.description }}</p>
+              </th>
+              <th scope="col" class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Quantity
+              </th>
+              <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Unit
+              </th>
+              <th scope="col" class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Unit Price
+              </th>
+              <th scope="col" class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Total
+              </th>
+              <th scope="col" class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Match
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tr
+              v-for="(item, index) in lineItems"
+              :key="index"
+              class="hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              <td class="px-3 py-2 whitespace-normal text-sm text-gray-900 dark:text-gray-200">
+                <div class="flex items-start">
+                  <input
+                    type="checkbox"
+                    v-model="selectedItems"
+                    :value="index"
+                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+                  />
+                  <div class="ml-2">
+                    {{ item.description }}
+                    <div v-if="item.sourceType" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Source: {{ formatSourceType(item.sourceType) }}
+                    </div>
+                  </div>
                 </div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Create New Service Option -->
-          <div class="mt-3 flex items-start p-2 rounded-md cursor-pointer"
-               :class="{
-                 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800': selectedMatches[index] === 'new',
-                 'hover:bg-gray-50 dark:hover:bg-gray-700/50': selectedMatches[index] !== 'new'
-               }"
-               @click="selectMatch(index, 'new')">
-
-            <input type="radio"
-                   :id="`match-${index}-new`"
-                   :name="`product-match-${index}`"
-                   value="new"
-                   v-model="selectedMatches[index]"
-                   class="mr-3 mt-1"
-                   @click.stop>
-
-            <label :for="`match-${index}-new`" class="flex-grow cursor-pointer">
-              <div class="font-medium text-green-600 dark:text-green-400">Create New Service</div>
-              <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Add this as a new service to your catalog
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- No Matches Found -->
-        <div v-else class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3">
-          <p class="text-sm text-gray-600 dark:text-gray-400">No matching services found in your catalog.</p>
-
-          <!-- Auto-select Create New Service -->
-          <div class="mt-3 flex items-start p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-            <input type="radio"
-                   :id="`match-${index}-new-auto`"
-                   :name="`product-match-${index}`"
-                   value="new"
-                   v-model="selectedMatches[index]"
-                   class="mr-3 mt-1"
-                   checked>
-
-            <label :for="`match-${index}-new-auto`" class="flex-grow">
-              <div class="font-medium text-green-600 dark:text-green-400">Create New Service</div>
-              <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Add this as a new service to your catalog
-              </div>
-            </label>
-          </div>
-        </div>
+              </td>
+              <td class="px-3 py-2 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-200">
+                {{ item.quantity }}
+              </td>
+              <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                {{ item.unit }}
+              </td>
+              <td class="px-3 py-2 whitespace-nowrap text-sm text-right text-gray-900 dark:text-gray-200">
+                {{ formatCurrency(item.unit_price) }}
+              </td>
+              <td class="px-3 py-2 whitespace-nowrap text-sm text-right font-medium text-gray-900 dark:text-gray-200">
+                {{ formatCurrency(item.total) }}
+              </td>
+              <td class="px-3 py-2 whitespace-nowrap text-sm text-right">
+                <span v-if="catalogMatches[index] && catalogMatches[index].length > 0" class="text-yellow-500 dark:text-yellow-400">
+                  {{ catalogMatches[index].length }} match(es)
+                </span>
+                <span v-else class="text-gray-400 dark:text-gray-500">No matches</span>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot class="bg-gray-50 dark:bg-gray-800">
+            <tr>
+              <td colspan="4" class="px-3 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-200">
+                Subtotal:
+              </td>
+              <td class="px-3 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-200">
+                {{ formatCurrency(subtotal) }}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
 
-      <!-- New Service Forms (shown when "Create New Service" is selected) -->
-      <div v-if="showNewProductForms" class="mt-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
-        <h4 class="text-md font-semibold mb-3 text-gray-800 dark:text-gray-200">New Services</h4>
+      <!-- Catalog match section -->
+      <div v-if="hasSelectedItems" class="mt-6">
+        <h4 class="text-base font-medium mb-3 text-gray-800 dark:text-gray-200">Catalog Matches for Selected Items</h4>
 
-        <div v-for="(item, index) in matchResults.lineItems" :key="`new-${index}`"
-             v-show="selectedMatches[index] === 'new'"
-             class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-md shadow-sm">
+        <div v-if="selectedItemsWithMatches.length === 0" class="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-800">
+          <p class="text-yellow-800 dark:text-yellow-300 text-sm">
+            No catalog matches found for selected items.
+          </p>
+        </div>
 
-          <h5 class="font-medium mb-3">New Service: {{ item.original.productName }}</h5>
-
-          <div class="space-y-3">
-            <div>
-              <label :for="`new-product-name-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-               Service Name
-              </label>
-              <input
-                :id="`new-product-name-${index}`"
-                type="text"
-                v-model="newProducts[index].name"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-200 sm:text-sm"
-                required
-              />
-            </div>
-
-            <div class="grid grid-cols-3 gap-3">
+        <div v-else class="space-y-4">
+          <div v-for="(item, itemIndex) in selectedItemsWithMatches" :key="itemIndex" class="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+            <div class="flex justify-between items-start mb-2">
               <div>
-                <label :for="`new-product-price-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Price
-                </label>
-                <input
-                  :id="`new-product-price-${index}`"
-                  type="number"
-                  v-model.number="newProducts[index].price"
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-200 sm:text-sm"
-                  step="0.01"
-                  min="0"
-                  required
-                />
+                <p class="font-medium text-gray-800 dark:text-gray-200">{{ item.description }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  {{ item.quantity }} {{ item.unit }} at {{ formatCurrency(item.unit_price) }}
+                </p>
               </div>
-
               <div>
-                <label :for="`new-product-unit-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Unit
-                </label>
-                <input
-                  :id="`new-product-unit-${index}`"
-                  type="text"
-                  v-model="newProducts[index].unit"
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-200 sm:text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label :for="`new-product-type-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Type
-                </label>
-                <select
-                  :id="`new-product-type-${index}`"
-                  v-model="newProducts[index].type"
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-200 sm:text-sm"
-                  required
-                  disabled
+                <button
+                  @click="useOriginal(item.index)"
+                  class="text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
                 >
-                  <option value="service">Service</option>
-                </select>
+                  Use as is
+                </button>
               </div>
             </div>
 
-            <div>
-              <label :for="`new-product-description-${index}`" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-               Service Description
-              </label>
-              <textarea
-                :id="`new-product-description-${index}`"
-                v-model="newProducts[index].description"
-                rows="2"
-                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-200 sm:text-sm"
-              ></textarea>
+            <div class="mt-2 space-y-2">
+              <div v-for="(match, matchIndex) in catalogMatches[item.index]" :key="matchIndex" class="p-2 border border-gray-200 dark:border-gray-600 rounded-md flex justify-between items-center">
+                <div>
+                  <p class="font-medium text-gray-800 dark:text-gray-200">{{ match.name }}</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">
+                    {{ formatCurrency(match.price) }} per {{ match.unit }}
+                  </p>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs px-2 py-1 rounded-full" :class="getSimilarityClass(match.similarity)">
+                    {{ formatSimilarity(match.similarity) }}
+                  </span>
+                  <button
+                    @click="useMatch(item.index, match)"
+                    class="px-2 py-1 bg-blue-600 text-white rounded-md text-xs hover:bg-blue-700"
+                  >
+                    Use
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div class="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+      <!-- Action buttons -->
+      <div class="mt-6 flex justify-between">
         <button
           @click="$emit('back')"
-          class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
         >
-          Go Back
+          Back
         </button>
-
-        <div>
-          <button
-            v-if="showNewProductForms"
-            @click="showNewProductForms = false"
-            class="inline-flex items-center px-4 py-2 mr-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Back to Matches
-          </button>
-
-          <button
-            v-if="hasNewProducts && !showNewProductForms"
-            @click="showNewProductForms = true"
-            class="inline-flex items-center px-4 py-2 mr-3 border border-indigo-300 dark:border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-700 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-800/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Review New Services ({{ newProductCount }})
-          </button>
-
-          <button
-            @click="finalizeMatches"
-            :disabled="loading"
-            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span v-if="loading">Processing...</span>
-            <span v-else>{{ showNewProductForms ? 'Save & Continue' : 'Use Selected Matches' }}</span>
-          </button>
-        </div>
+        <button
+          @click="finishReview"
+          class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-indigo-700 dark:hover:bg-indigo-600"
+        >
+          Continue to Estimate
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { toCamelCase, toSnakeCase } from '@/utils/casing';
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useToast } from 'vue-toastification';
-import estimatesService from '@/services/estimates.service.js';
+import productsService from '@/services/products.service.js';
+import { formatCurrency } from '@/utils/estimate-formatter.js';
 
-const toast = useToast();
-
-// Props
 const props = defineProps({
   lineItems: {
     type: Array,
@@ -296,203 +205,195 @@ const props = defineProps({
   }
 });
 
-// Emits
 const emit = defineEmits(['back', 'finished']);
 
+const toast = useToast();
+
 // State
-const loading = ref(false);
-const loadingMessage = ref('Matching products...');
+const loading = ref(true);
+const loadingMessage = ref('Checking catalog matches...');
 const error = ref(null);
-const matchResults = ref(null);
-const selectedMatches = ref({});
-const newProducts = ref({});
-const showNewProductForms = ref(false);
+const selectedItems = ref([]);
+const catalogMatches = ref({});
+const processedItems = ref([]);
 
-// Computed properties
-const hasNewProducts = computed(() => {
-  return Object.values(selectedMatches.value).some(match => match === 'new');
+// Computed
+const allSelected = computed(() => {
+  return selectedItems.value.length === props.lineItems.length;
 });
 
-const newProductCount = computed(() => {
-  return Object.values(selectedMatches.value).filter(match => match === 'new').length;
+const subtotal = computed(() => {
+  return props.lineItems.reduce((sum, item) => {
+    return sum + (parseFloat(item.total) || 0);
+  }, 0);
 });
 
-// Initialize component
-onMounted(async () => {
-  if (props.lineItems && props.lineItems.length > 0) {
-    await matchProducts();
-  } else {
-    error.value = 'No line items provided for matching.';
-  }
+const hasSelectedItems = computed(() => {
+  return selectedItems.value.length > 0;
 });
 
-// Method to format match status for display
-const formatMatchStatus = (status) => {
-  switch(status) {
-    case 'CONFIDENT_MATCH': return 'Strong Match';
-    case 'POSSIBLE_MATCH': return 'Possible Match';
-    case 'WEAK_MATCH': return 'Weak Match';
-    case 'NO_MATCH': return 'No Match';
-    default: return status;
+const selectedItemsWithMatches = computed(() => {
+  return selectedItems.value
+    .map(index => {
+      const item = props.lineItems[index];
+      return {
+        ...item,
+        index
+      };
+    })
+    .filter(item => catalogMatches.value[item.index] && catalogMatches.value[item.index].length > 0);
+});
+
+// Methods
+const formatSourceType = (sourceType) => {
+  switch (sourceType) {
+    case 'assessment':
+      return 'Assessment Data';
+    case 'llm':
+      return 'AI Generated';
+    case 'manual':
+      return 'Manually Added';
+    case 'catalog':
+      return 'Catalog Item';
+    default:
+      return sourceType;
   }
 };
 
-// Match products using backend service
-const matchProducts = async () => {
+const formatSimilarity = (similarity) => {
+  if (similarity >= 0.9) {
+    return 'Very similar';
+  } else if (similarity >= 0.7) {
+    return 'Similar';
+  } else {
+    return 'Somewhat similar';
+  }
+};
+
+const getSimilarityClass = (similarity) => {
+  if (similarity >= 0.9) {
+    return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+  } else if (similarity >= 0.7) {
+    return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+  } else {
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  }
+};
+
+const toggleSelectAll = () => {
+  if (allSelected.value) {
+    selectedItems.value = [];
+  } else {
+    selectedItems.value = props.lineItems.map((_, index) => index);
+  }
+};
+
+const checkCatalogMatches = async () => {
   loading.value = true;
+  loadingMessage.value = 'Checking catalog matches...';
   error.value = null;
-  loadingMessage.value = 'Matching products to your catalog...';
 
   try {
-    const response = await estimatesService.matchProductsToLineItems(props.lineItems);
+    // Get descriptions from all line items
+    const descriptions = props.lineItems.map(item => item.description);
 
-    if (response.success && response.data) {
-      // Convert response data to camelCase
-      matchResults.value = toCamelCase(response.data);
+    // Check for catalog matches in batches to avoid overwhelming the API
+    const batchSize = 10;
+    const batches = [];
 
-      // Initialize selected matches (default to first match or 'new' if no matches)
-      matchResults.value.lineItems.forEach((item, index) => {
-        // Use camelCase isPrimary
-        if (item.matches && item.matches.length > 0 && item.matches.some(m => m.isPrimary)) {
-          // Find index of primary match
-          const primaryIndex = item.matches.findIndex(m => m.isPrimary);
-          selectedMatches.value[index] = primaryIndex;
-        } else {
-          // No matches or no primary match, default to 'new'
-          selectedMatches.value[index] = 'new';
-        }
+    for (let i = 0; i < descriptions.length; i += batchSize) {
+      batches.push(descriptions.slice(i, i + batchSize));
+    }
 
-        // Initialize new product data from original line item (using camelCase)
-        newProducts.value[index] = {
-          name: item.original.productName || '',
-          price: item.original.unitPrice || 0,
-          unit: item.original.unit || '', // unit seems consistent
-          description: item.original.description || '',
-          type: 'service' // Default new items to 'service' as per guidelines
-        };
-      });
+    // Process each batch
+    for (let i = 0; i < batches.length; i++) {
+      const batchDescriptions = batches[i];
+      const startIndex = i * batchSize;
 
-      toast.success('Product matching completed.');
-    } else {
-      error.value = response.message || 'Failed to match products.';
-      toast.error(error.value);
+      // Get catalog matches for this batch
+      const response = await productsService.findSimilarProducts(batchDescriptions);
+
+      if (response.success && response.data) {
+        // Map the results to the correct indices
+        response.data.forEach((matches, batchIndex) => {
+          const itemIndex = startIndex + batchIndex;
+          catalogMatches.value[itemIndex] = matches;
+        });
+      }
+    }
+
+    // Pre-select items with high-similarity matches
+    const itemsWithHighSimilarity = Object.entries(catalogMatches.value)
+      .filter(([_, matches]) => matches.some(match => match.similarity >= 0.9))
+      .map(([index]) => parseInt(index));
+
+    if (itemsWithHighSimilarity.length > 0) {
+      selectedItems.value = itemsWithHighSimilarity;
+      toast.info(`${itemsWithHighSimilarity.length} items have high-similarity catalog matches`);
     }
   } catch (err) {
-    console.error('Error calling product matching API:', err);
-    error.value = err.response?.data?.message || err.message || 'An unexpected error occurred during product matching.';
-    toast.error(error.value);
+    console.error('Error checking catalog matches:', err);
+    error.value = 'Failed to check catalog matches. Please try again.';
   } finally {
     loading.value = false;
   }
 };
 
-// Select a match for a line item
-const selectMatch = (lineItemIndex, matchIndex) => {
-  selectedMatches.value[lineItemIndex] = matchIndex;
+const retryMatching = () => {
+  checkCatalogMatches();
 };
 
-// Finalize matches and proceed
-const finalizeMatches = async () => {
-  // If showing new product forms, validate and save new products
-  if (showNewProductForms && hasNewProducts) {
-    // Validate new product forms
-    const invalidProducts = [];
+const useOriginal = (index) => {
+  // Mark this item as processed with the original values
+  processedItems.value[index] = {
+    ...props.lineItems[index],
+    processed: true,
+    useOriginal: true
+  };
 
-    Object.entries(selectedMatches.value).forEach(([lineItemIndex, matchValue]) => {
-      if (matchValue === 'new') {
-        const product = newProducts.value[lineItemIndex];
-        if (!product.name || !product.price || !product.unit) {
-          invalidProducts.push(parseInt(lineItemIndex));
-        }
-      }
-    });
-
-    if (invalidProducts.length > 0) {
-      const itemNumbers = invalidProducts.map(i => i + 1).join(', ');
-      toast.error(`Please complete all required fields for new product(s) ${itemNumbers}.`);
-      return;
-    }
-
-    // Create new products
-    loading.value = true;
-    loadingMessage.value = 'Creating new products...';
-
-    try {
-      // Prepare array of new products to create
-      const productsToCreate = [];
-
-      Object.entries(selectedMatches.value).forEach(([lineItemIndex, matchValue]) => {
-        if (matchValue === 'new') {
-          productsToCreate.push(newProducts.value[lineItemIndex]);
-        }
-      });
-
-      if (productsToCreate.length > 0) {
-        const response = await estimatesService.createProductsFromLineItems(productsToCreate);
-
-        if (response.success && response.data) {
-          toast.success(`Successfully created ${response.data.length} new products.`);
-
-          // Update the finalData with newly created product IDs
-          // This would require matching new products back to their line items
-          // For now, just toggle back to matches view to continue
-          showNewProductForms.value = false;
-        } else {
-          error.value = response.message || 'Failed to create new products.';
-          toast.error(error.value);
-          return;
-        }
-      }
-    } catch (err) {
-      console.error('Error creating new products:', err);
-      error.value = err.response?.data?.message || err.message || 'An unexpected error occurred while creating products.';
-      toast.error(error.value);
-      return;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Prepare finalized data for creating estimate (using camelCase internally)
-  const finalizedLineItemsCamel = matchResults.value.lineItems.map((item, index) => {
-    const matchIndex = selectedMatches.value[index];
-
-    // If using existing product (assume selectedProduct is camelCase)
-    if (matchIndex !== 'new' && item.matches && item.matches[matchIndex]) {
-      const selectedProduct = item.matches[matchIndex].product || item.matches[matchIndex].service; // Handle both product/service matches
-      return {
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-        quantity: item.original.quantity,
-        unit: selectedProduct.unit,
-        unitPrice: selectedProduct.price || selectedProduct.rate, // Use price or rate
-        description: item.original.description || selectedProduct.description || '',
-        notes: item.original.notes || ''
-      };
-    }
-    // If creating new product
-    else {
-      return {
-        productId: null, // Will be populated after product creation
-        productName: newProducts.value[index].name,
-        quantity: item.original.quantity,
-        unit: newProducts.value[index].unit,
-        unitPrice: newProducts.value[index].price,
-        description: newProducts.value[index].description || '',
-        notes: item.original.notes || ''
-      };
-    }
-  });
-  
-  // Convert finalized line items to snake_case before emitting
-  const finalizedLineItemsSnake = finalizedLineItemsCamel.map(item => toSnakeCase(item));
-
-  // Emit finished event with finalized data (snake_case)
-  emit('finished', {
-    lineItems: finalizedLineItemsSnake,
-    // Additional estimate metadata could be included here
-  });
+  toast.success('Using original item');
 };
+
+const useMatch = (index, match) => {
+  // Create a new item based on the catalog match
+  const originalItem = props.lineItems[index];
+
+  processedItems.value[index] = {
+    description: match.name,
+    product_name: match.name,
+    quantity: originalItem.quantity,
+    unit: match.unit,
+    unit_price: match.price,
+    total: originalItem.quantity * match.price,
+    sourceType: 'catalog',
+    sourceId: match.id,
+    product_id: match.id,
+    processed: true,
+    useOriginal: false
+  };
+
+  toast.success('Using catalog item');
+};
+
+const finishReview = () => {
+  // Prepare final line items
+  const finalLineItems = props.lineItems.map((item, index) => {
+    // If this item has been processed, use the processed version
+    if (processedItems.value[index]) {
+      return processedItems.value[index];
+    }
+
+    // Otherwise use the original
+    return item;
+  });
+
+  emit('finished', { lineItems: finalLineItems });
+};
+
+// Initialize on mount
+onMounted(() => {
+  checkCatalogMatches();
+});
 </script>
 
 <style scoped>

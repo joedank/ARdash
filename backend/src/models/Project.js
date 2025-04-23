@@ -5,6 +5,13 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Project extends Model {
     static associate(models) {
+      // Association with AssessmentWorkType
+      if (models.AssessmentWorkType) {
+        Project.hasMany(models.AssessmentWorkType, {
+          foreignKey: 'assessment_id',
+          as: 'workTypeAssociations'
+        });
+      }
       // Association with Client
       Project.belongsTo(models.Client, {
         foreignKey: 'client_id',
@@ -140,6 +147,13 @@ module.exports = (sequelize, DataTypes) => {
       },
       field: 'converted_to_job_id',
       comment: 'Reference to the active job that this assessment was converted to'
+    },
+    work_types: {
+      type: DataTypes.JSONB,
+      defaultValue: [],
+      allowNull: true,
+      field: 'work_types',
+      comment: 'Array of work type UUIDs associated with this assessment'
     }
   }, {
     sequelize,

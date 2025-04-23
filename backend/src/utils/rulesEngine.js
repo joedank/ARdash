@@ -33,16 +33,94 @@ function normalizeLabel(label) {
 }
 
 /**
+ * Gets a measurement value from either direct properties or dimensions object
+ * @param {Object} measurement - The measurement object
+ * @param {string} property - The property to get (e.g., 'length', 'width')
+ * @returns {string|number} - The measurement value
+ */
+function getMeasurementValue(measurement, property) {
+  // First check direct property
+  if (measurement[property] !== undefined && measurement[property] !== '') {
+    return measurement[property];
+  }
+  // Then check in dimensions object
+  if (measurement.dimensions && measurement.dimensions[property] !== undefined) {
+    return measurement.dimensions[property];
+  }
+  // Default to empty string if not found
+  return '';
+}
+
+/**
+ * Extract measurement value based on type
+ * @param {Object} m - Measurement object
+ * @returns {number} - Numeric value
+ */
+function extractMeasurementValue(m) {
+  if (m.measurementType === 'area') {
+    // Area - calculate from length and width
+    const length = parseFloat(getMeasurementValue(m, 'length')) || 0;
+    const width = parseFloat(getMeasurementValue(m, 'width')) || 0;
+    return length * width;
+  } else if (m.measurementType === 'linear') {
+    // Linear - just the length
+    return parseFloat(getMeasurementValue(m, 'length')) || 0;
+  } else if (m.measurementType === 'quantity') {
+    // Quantity - use quantity field
+    return parseFloat(m.quantity) || 0;
+  } else {
+    // Default fallback - use value if exists
+    return parseFloat(m.value) || 0;
+  }
+}
+
+/**
+ * Get unit from measurement based on type
+ * @param {Object} m - Measurement object
+ * @returns {string} - Unit string
+ */
+function extractMeasurementUnit(m) {
+  if (m.measurementType === 'area') {
+    // For area measurements
+    if (m.dimensions && m.dimensions.units) {
+      return m.dimensions.units;
+    } else if (m.units) {
+      return m.units;
+    }
+    return 'sq ft'; // Default for area
+  } else if (m.measurementType === 'linear') {
+    // For linear measurements
+    if (m.dimensions && m.dimensions.units) {
+      return m.dimensions.units;
+    } else if (m.units) {
+      return m.units;
+    }
+    return 'ln ft'; // Default for linear
+  } else if (m.measurementType === 'quantity') {
+    // For quantity measurements
+    return m.quantityUnit || 'each';
+  } else {
+    // Default fallback
+    return m.unit || '';
+  }
+}
+
+/**
  * Applies business rules to raw assessment data:
  * - Tags measurements with "REPLACE" where applicable
  * - Adds condition-based modifiers like "REPAIR", "TREAT"
  * - Links related conditions to measurement locations
+ * - Handles both data structures for measurements (direct props and dimensions object)
  */
 function applyRulesToAssessment(assessment) {
   const measurements = (assessment.measurements || []).map((m, index) => {
-    const value = parseFloat(m.value);
-    const unit = normalizeUnit(m.unit);
-    const label = normalizeLabel(m.label);
+    // Extract description/label for the measurement
+    const label = normalizeLabel(m.description || m.label || `Item ${index + 1}`);
+    
+    // Extract value and unit based on measurement type
+    const value = extractMeasurementValue(m);
+    const unit = normalizeUnit(extractMeasurementUnit(m));
+    
     let recommendation = "";
 
     // Use thresholds from config
@@ -56,6 +134,7 @@ function applyRulesToAssessment(assessment) {
       ...m,
       label, // Use normalized label
       unit, // Use normalized unit 
+      value, // Extracted numeric value
       recommendation,
       sourceType: "measurement",
       sourceId: m.id || `measurement-${index}`
@@ -121,5 +200,8 @@ module.exports = {
   applyRulesToAssessment,
   normalizeUnit,
   normalizeLabel,
-  thresholds
+  thresholds,
+  getMeasurementValue,
+  extractMeasurementValue,
+  extractMeasurementUnit
 };

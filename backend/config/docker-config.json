@@ -1,0 +1,10 @@
+{
+  "development": {
+    "username": "postgres",
+    "password": "postgres",
+    "database": "management_db",
+    "host": "db",
+    "dialect": "postgres",
+    "port": 5432
+  }
+}
