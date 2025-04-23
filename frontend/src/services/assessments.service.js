@@ -24,7 +24,7 @@ class AssessmentsService {
         return [];
       }
 
-      const response = await apiClient.post('/assessments/detect-work-types', {
+      const response = await apiClient.post('/api/assessments/detect-work-types', {
         condition: conditionText
       });
 
