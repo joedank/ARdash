@@ -26,7 +26,7 @@ class WorkTypesService {
       // Convert camelCase filters to snake_case for API
       const snakeCaseFilters = toSnakeCase(filters);
 
-      const response = await apiService.get('/api/work-types', {
+      const response = await apiService.get('/work-types', {
         params: snakeCaseFilters
       });
 
@@ -93,7 +93,7 @@ class WorkTypesService {
       // Convert camelCase data to snake_case for API
       const snakeCaseData = toSnakeCase(data);
 
-      const response = await apiService.post('/api/work-types', snakeCaseData);
+      const response = await apiService.post('/work-types', snakeCaseData);
 
       if (response.success && response.data) {
         return {
@@ -183,7 +183,7 @@ class WorkTypesService {
       }
       this._lastSimilarityRequest = Date.now();
 
-      const response = await apiService.get('/api/work-types/similar', {
+      const response = await apiService.get('/work-types/similar', {
         params: { q: name, threshold } // Use 'q' for compatibility with other search endpoints
       });
 
@@ -455,7 +455,7 @@ class WorkTypesService {
    */
   async getTagsByFrequency(minCount = 1) {
     try {
-      const response = await apiService.get('/api/work-types/tags/frequency', {
+      const response = await apiService.get('/work-types/tags/frequency', {
         params: { min_count: minCount }
       });
 

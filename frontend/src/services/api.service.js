@@ -20,6 +20,9 @@ const apiService = axios.create({
   }
 });
 
+// NOTE: Keep baseURL '' – Nginx/Vite already mount backend at /api.
+// IMPORTANT: Do not prepend '/api/' in individual service calls!
+
 /**
  * Helper function to convert request data to snake_case
  * @param {Object|Array} data - Request data to convert
