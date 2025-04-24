@@ -18,6 +18,7 @@ import ProductsSettings from '../views/settings/ProductsSettings.vue';
 import PdfSettings from '../views/settings/PdfSettings.vue';
 import SystemSettings from '../views/settings/SystemSettings.vue';
 import LLMPromptsSettings from '../views/settings/LLMPromptsSettings.vue';
+import AiProviderSettings from '../views/settings/AiProviderSettings.vue';
 
 // Settings Routes
 export default {
@@ -28,6 +29,20 @@ export default {
     {
       path: '',
       redirect: '/settings/account'
+    },
+    {
+      path: 'ai-provider',
+      name: 'settings-ai-provider',
+      component: AiProviderSettings,
+      meta: { requiresAdmin: true },
+      beforeEnter: (to, from, next) => {
+        const authStore = useAuthStore();
+        if (authStore.user?.role === 'admin') {
+          next();
+        } else {
+          next({ name: 'settings-account' });
+        }
+      }
     },
     {
       path: 'account',
