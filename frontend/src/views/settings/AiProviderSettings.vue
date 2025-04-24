@@ -337,47 +337,101 @@ const loadData = async () => {
   try {
     // Get available provider options
     const optionsResponse = await aiProviderService.getAiProviderOptions();
-    if (optionsResponse.success && optionsResponse.data) {
-      // Set provider options
-      providerOptions.languageModel = optionsResponse.data.data.providers.languageModel;
-      providerOptions.embedding = optionsResponse.data.data.providers.embedding;
+    console.log('AI provider options response:', optionsResponse);
+    
+    if (optionsResponse.success && optionsResponse.data && optionsResponse.data.data) {
+      // Check if providers property exists
+      if (optionsResponse.data.data.providers) {
+        // Set provider options with fallbacks for missing properties
+        providerOptions.languageModel = optionsResponse.data.data.providers.languageModel || [];
+        providerOptions.embedding = optionsResponse.data.data.providers.embedding || [];
+      } else {
+        console.warn('No providers found in API response, using empty defaults');
+        providerOptions.languageModel = [];
+        providerOptions.embedding = [];
+      }
       
-      // Set model options
-      Object.assign(modelOptions.languageModel, optionsResponse.data.data.models.languageModel);
-      Object.assign(modelOptions.embedding, optionsResponse.data.data.models.embedding);
+      // Check if models property exists
+      if (optionsResponse.data.data.models) {
+        // Set model options with fallbacks
+        Object.assign(modelOptions.languageModel, optionsResponse.data.data.models.languageModel || {});
+        Object.assign(modelOptions.embedding, optionsResponse.data.data.models.embedding || {});
+      } else {
+        console.warn('No models found in API response, using empty defaults');
+        modelOptions.languageModel = {};
+        modelOptions.embedding = {};
+      }
+    } else {
+      console.warn('Invalid response format from getAiProviderOptions, using empty defaults');
+      providerOptions.languageModel = [];
+      providerOptions.embedding = [];
+      modelOptions.languageModel = {};
+      modelOptions.embedding = {};
     }
     
     // Get current settings
     const settingsResponse = await aiProviderService.getAiProviderSettings();
-    if (settingsResponse.success && settingsResponse.data) {
+    console.log('AI provider settings response (raw):', settingsResponse);
+    
+    // Display detailed debugging info for troubleshooting
+    if (settingsResponse) {
+      console.log('Response success?', settingsResponse.success);
+      console.log('Response data exists?', !!settingsResponse.data); 
+      if (settingsResponse.data) {
+        console.log('Response data.data exists?', !!settingsResponse.data.data);
+        if (settingsResponse.data.data) {
+          console.log('Response data.data keys:', Object.keys(settingsResponse.data.data));
+          console.log('Settings array exists?', !!settingsResponse.data.data.settings);
+          console.log('Providers object exists?', !!settingsResponse.data.data.providers);
+        }
+      }
+    }
+    
+    if (settingsResponse.success && settingsResponse.data && settingsResponse.data.data) {
       // Extract settings from response
       const dbSettings = settingsResponse.data.data.settings || [];
       
       // Convert settings array to object
       dbSettings.forEach(setting => {
-        settings[setting.key] = setting.value;
+        if (setting && setting.key) {
+          settings[setting.key] = setting.value;
+        }
       });
       
       // Convert string 'true'/'false' to boolean for toggle
-      settings.enable_vector_similarity = settings.enable_vector_similarity === 'true';
+      settings.enable_vector_similarity = String(settings.enable_vector_similarity).toLowerCase() === 'true';
       
-      // Set provider status
-      const providers = settingsResponse.data.data.providers;
-      if (providers?.languageModel?.provider) {
-        settings.language_model_provider = providers.languageModel.provider;
+      // Set provider status if providers data exists
+      if (settingsResponse.data.data.providers) {
+        const providers = settingsResponse.data.data.providers;
+        
+        // Set language model provider settings
+        if (providers.languageModel) {
+          if (providers.languageModel.provider) {
+            settings.language_model_provider = providers.languageModel.provider;
+          }
+          if (providers.languageModel.model) {
+            settings.language_model = providers.languageModel.model;
+          }
+        }
+        
+        // Set embedding provider settings
+        if (providers.embedding) {
+          if (providers.embedding.provider) {
+            settings.embedding_provider = providers.embedding.provider;
+          }
+          if (providers.embedding.model) {
+            settings.embedding_model = providers.embedding.model;
+          }
+          if (providers.embedding.enabled !== undefined) {
+            settings.enable_vector_similarity = Boolean(providers.embedding.enabled);
+          }
+        }
+      } else {
+        console.warn('No providers data found in settings response');
       }
-      if (providers?.languageModel?.model) {
-        settings.language_model = providers.languageModel.model;
-      }
-      if (providers?.embedding?.provider) {
-        settings.embedding_provider = providers.embedding.provider;
-      }
-      if (providers?.embedding?.model) {
-        settings.embedding_model = providers.embedding.model;
-      }
-      if (providers?.embedding?.enabled !== undefined) {
-        settings.enable_vector_similarity = providers.embedding.enabled;
-      }
+    } else {
+      console.warn('Invalid response format from getAiProviderSettings, using default values');
     }
   } catch (error) {
     console.error('Error loading AI provider data:', error);
