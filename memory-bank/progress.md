@@ -1,3 +1,710 @@
+[2025-04-27 15:30] - **Fixed Database Migration Issues with Idempotent Migrations**
+
+**Issues Identified:**
+
+1. Database migrations were failing with various errors:
+   - Error: `relation "work_types" already exists`
+   - Error: `cannot alter type of a column used by a view or rule`
+   - Error: `type "enum_work_types_measurement_type" already exists`
+   - Error: `duplicate key value violates unique constraint`
+   - Docker containers stuck in restart loops due to failed migrations
+
+2. Migration issues with assessment_id to condition transition:
+   - Error: `column "assessment_id" referenced in foreign key constraint does not exist`
+   - Project model still using assessment_id attribute despite database column removal
+   - Circular references between projects causing data integrity issues
+
+**Root Cause Analysis:**
+
+1. Non-idempotent migrations:
+   - Migrations were not checking if objects already existed before creating them
+   - PostgreSQL doesn't support `IF NOT EXISTS` syntax for constraints
+   - Migration order dependencies were not properly handled
+   - Some migrations referenced modules that didn't exist in Docker container
+
+2. Schema evolution issues:
+   - Transition from assessment_id to project_inspections was incomplete
+   - Project model still had assessment_id attribute but database column was removed
+   - Sequelize associations were not updated to match new schema
+
+**Solution Implemented:**
+
+1. Made migrations idempotent with existence checks:
+   - Added checks for tables, columns, constraints, and indices before modifications
+   - Used DO blocks with explicit existence checks for constraints
+   - Created helper functions for checking object existence
+   - Added detailed logging for troubleshooting
+
+2. Fixed assessment_id to condition transition:
+   - Updated Project model to use condition instead of scope
+   - Removed assessment_id attribute from Project model
+   - Implemented Project.hasOne association with ProjectInspection for condition category
+   - Fixed assessment to job conversion to use the new pattern
+   - Created migration to safely transition data
+
+3. Created direct SQL scripts for emergency fixes:
+   - Implemented MIGRATION_FIXES.md with comprehensive documentation
+   - Created WORK_TYPES_FIX.md with specific fixes for work_types tables
+   - Added SQL scripts for fixing database issues when migrations fail
+
+4. Enhanced migration system:
+   - Moved problematic migrations to _archive directory to prevent execution
+   - Fixed client_view migration to remove dependency on non-existent modules
+   - Reordered migrations to handle dependencies properly
+   - Added transaction-based approach for all schema changes
+
+**Key Learnings:**
+
+- Always make migrations idempotent by checking if objects exist before creating or modifying them
+- Use transactions for all schema changes to ensure atomicity
+- Handle view dependencies by dropping and recreating views within the same transaction
+- PostgreSQL requires DO blocks with explicit existence checks for constraints
+- Migration files must be placed in the correct location accessible to Docker containers
+- Schema evolution requires careful handling of both model attributes and database columns
+- Direct SQL scripts provide valuable emergency fixes when migrations fail
+- Detailed documentation is essential for complex migration fixes
+
+**Next Steps:**
+
+1. Implement CI check to ensure all new migrations are idempotent
+2. Create migration testing framework to verify migrations in isolated environments
+3. Enhance documentation with best practices for future migrations
+4. Monitor database performance after schema changes
+
+[2025-04-26 17:15] - **Fixed Docker Configuration for BullMQ Module Resolution**
+
+**Issues Identified:**
+
+1. The backend container was failing with `Cannot find module 'bullmq'` error despite the package being in package.json
+2. The worker containers were also failing due to Redis connection configuration issues with BullMQ
+
+**Root Cause Analysis:**
+
+1. Docker container's node_modules was being hidden by a volume mount:
+   - The `backend_node_modules:/app/node_modules` volume mount was overlaying the image's built-in node_modules directory
+   - The named volume was empty, so Node.js couldn't find the BullMQ module
+
+2. Redis connection configuration incompatibility:
+   - BullMQ requires `maxRetriesPerRequest` to be null
+
+**Solution Implemented:**
+
+1. Modified docker-compose.yml to remove volume mounts that were hiding node_modules:
+   - Removed `backend_node_modules:/app/node_modules` from backend service
+   - Removed the same volume mount from embedding-worker service
+   - Added estimate-worker service with proper configuration
+   - Removed the unused named volumes from the volumes section
+
+2. Successfully started the backend container with access to the installed modules
+
+**Next Steps:**
+
+1. Fix the Redis connection configuration for workers by setting `maxRetriesPerRequest: null`
+2. Start and test the worker containers
+3. Test the estimate jobs API endpoint
+4. Start the frontend service with the optimized configuration
+
+**Key Learnings:**
+
+- Volume mounts in Docker can override image contents, sometimes unintentionally
+- Named volumes persist between container restarts, so if they start empty they'll stay empty
+- BullMQ has specific Redis connection requirements that must be honored
+- Docker compose is more efficient when using the built-in node_modules rather than volume mounts
+
+[2025-04-26 16:30] - **Fixed JobId Mismatch in Embedding Queue Integration**
+
+**Issues Identified:**
+
+1. The embedQueue integration had a JobId mismatch problem in workTypeDetectionService.js
+2. Code was incorrectly destructuring `{ jobId }` from the result of `embedQueue.add()` when BullMQ returns a Job object with the ID as `job.id`
+3. This would cause the embedding feature to fail when trying to access the job ID for waiting on completion
+
+**Solution Implemented:**
+
+1. Updated the code in workTypeDetectionService.js to properly obtain the job ID:
+   - Changed `const { jobId } = await embedQueue.add('embed', { text });` to
+   - `const job = await embedQueue.add('embed', { text });`
+   - `const jobId = job.id;`
+2. Verified that all six pipeline improvements were correctly implemented:
+   - Offloaded embedding calls to BullMQ/Redis
+   - Implemented Redis cache with memory fallback
+   - Added pgvector HNSW index for improved search performance
+   - Reduced vector literal precision from 6 to 4 decimal places
+   - Compacted assessment payloads before sending to the LLM
+   - Implemented asynchronous estimate generation with job queues
+
+**Key Learnings:**
+
+- BullMQ returns a Job object with properties, not a destructurable object with jobId
+- Always review the documentation for third-party libraries to understand their return values
+- Queue-based job processing significantly improves API responsiveness by offloading heavy computations
+- Adding proper fallback mechanisms (like memory cache when Redis is unavailable) improves system resilience
+- Reducing vector precision and compacting payloads can significantly reduce bandwidth and token usage
+
+[2025-04-26 14:45] - **Fixed Work Type Detection in Frontend UI**
+
+**Issues Identified:**
+
+1. Work type suggestions not appearing when typing in the condition field in AssessmentContent.vue
+2. Backend API returning empty arrays despite successful API calls
+3. Console logs showing "Vector similarity failed, using trigram results only" errors
+4. SQL error: "bind message supplies 2 parameters, but prepared statement requires 1"
+
+**Root Cause Analysis:**
+
+1. Multiple issues in workTypeDetectionService.js:
+   - The service wasn't handling typed arrays (Float32Array) from embedding providers
+   - Vector literal formatting lacked precision control
+   - The SQL query had an unreachable branch checking for text type columns
+   - Variable scope issue: vecResults was declared inside an inner try block but referenced outside
+   - SQL query was binding two parameters but the simplified query only needed one
+   - No null check in the score filter
+
+**Solution Implemented:**
+
+1. Fixed typed array handling:
+   - Added support for Float32Array by converting to plain arrays using Array.from()
+   - Added check for ArrayBuffer.isView() to detect typed arrays
+   - Improved error messages for non-iterable embeddings
+
+2. Enhanced vector query and processing:
+   - Added precision control with Number(v.toFixed(6)) to ensure consistent formatting
+   - Simplified the SQL query by removing the unreachable branch
+   - Hoisted vecResults variable to the outer scope for proper access
+   - Updated SQL query binding to only pass the vector literal
+   - Added null check to the score filter to prevent errors with null scores
+
+3. Improved testing and validation:
+   - Verified API endpoint returns work types with real-world condition text
+   - Confirmed vector similarity search is working correctly
+   - Checked logs to ensure no ReferenceError or SQL binding errors
+
+**Key Learnings:**
+
+- Embedding providers may return typed arrays (Float32Array) instead of plain JavaScript arrays
+- Variable scope in nested try/catch blocks needs careful management
+- SQL parameter binding must match the exact number of parameters in the query
+- Precision control is important for consistent vector representation
+- Null checks are essential in filter functions to prevent runtime errors
+- Proper error handling and logging are crucial for diagnosing complex issues
+
+[2025-04-26 11:30] - **Fixed Deprecated DeepSeek Service References**
+
+**Issues Identified:**
+
+1. Backend server failing to start with error: `Cannot find module '../services/deepseekService'`
+2. Error occurring in `estimate.controller.v2.js` which was still importing the deprecated module
+3. Other files still referencing the deprecated service despite moving it to a deprecated folder
+4. Circular dependency between `embeddingProvider.js` and `deepseekService.js`
+
+**Root Cause Analysis:**
+
+1. The project had enhanced `languageModelProvider.js` to check for generic API keys, base URLs, and model names
+2. `LLMEstimateService.js` was updated to use the languageModelProvider instead of directly using deepseekService
+3. `deepseekService.js` was moved to a deprecated folder with an appropriate deprecation notice
+4. However, several files were still directly importing the old path (`../services/deepseekService`)
+
+**Solution Implemented:**
+
+1. Updated `estimate.controller.v2.js` to use languageModelProvider:
+   - Replaced import of `deepseekService` with `languageModelProvider`
+   - Updated API calls to use the provider's interface instead of direct DeepSeek calls
+   - Removed model name parameter as it's now handled by the provider
+
+2. Updated `CatalogService.js` to use embeddingProvider:
+   - Replaced import of `deepseekService` with `embeddingProvider`
+   - Updated `generateEmbedding` method to use `embeddingProvider.embed()`
+   - Simplified error handling and logging
+
+3. Fixed `embeddingProvider.js` to avoid circular dependency:
+   - Updated the DeepSeek provider case to use the OpenAI client directly
+   - Added proper error handling and validation for the response structure
+   - Removed direct import of the deprecated service
+
+4. Updated utility scripts and tests:
+   - Fixed `vectorize-products.js` to use embeddingProvider instead of DeepSeek directly
+   - Updated `deepseek.test.js` to test the language model provider instead
+
+**Key Learnings:**
+
+- Service abstraction patterns should be consistently applied across the codebase
+- When deprecating services, all references should be updated to use the new abstraction
+- Circular dependencies between services should be avoided through proper abstraction
+- Provider pattern allows for flexible configuration while maintaining backward compatibility
+- Tests and utility scripts should be updated when core services are refactored
+
+[2025-04-25 19:45] - **Fixed Vector Dimensionality Mismatch in Work Type Detection**
+
+**Issues Identified:**
+
+1. Work type suggestions not appearing when typing in AssessmentContent.vue condition field
+2. Gemini embedding model producing 3072-dimensional vectors but database column defined as vector(384)
+3. Attempt to store embeddings failing with error "expected 384 dimensions, not 3072"
+
+**Root Cause Analysis:**
+
+1. The `work_types.name_vec` column was defined with 384 dimensions in the database schema
+2. The Gemini embedding model (gemini-embedding-exp-03-07) returns 3072-dimensional vectors
+3. PostgreSQL pgvector type requires exact dimension matching
+4. No dimensionality reduction was being performed in the embeddingProvider service
+
+**Solution Implemented:**
+
+1. Made vector dimension configurable:
+   - Added `EMBEDDING_DIM=1536` environment variable for consistent dimension configuration
+   - Updated `sequelize-datatypes.js` to read EMBEDDING_DIM and use it as default
+   - Removed hardcoded dimensions from the VECTOR utility function
+
+2. Aligned database schema:
+   - Altered `work_types.name_vec` column to use 1536 dimensions
+   - Used direct SQL for immediate compatibility: `ALTER TABLE work_types ALTER COLUMN name_vec TYPE vector(1536) USING NULL;`
+   - Created migration file for future database setups
+
+3. Enhanced embeddingProvider service with dimensionality reduction:
+   - Added dimension check and reduction logic to `embed()` method
+   - Implemented simple striding for reducing 3072 → 1536 dimensions
+   - Added detailed logging of dimension changes
+
+4. Updated WorkType model:
+   - Changed `CustomDataTypes.VECTOR(384)` to `CustomDataTypes.VECTOR()` to use dynamic dimensionality
+
+**Key Learnings:**
+
+- pgvector has a 2000-dimension limit for ivfflat indexes
+- Embedding dimensionality should be configurable, not hardcoded in multiple places
+- Simple dimensionality reduction can preserve most semantic information
+- Environment variables provide a consistent source of truth for critical values
+- IVSFLAT indexes on small datasets can cause low recall warnings but still function
+
+[2025-04-25 17:30] - **Fixed Language Model Provider API Key and Model Selection Issues**
+
+**Issues Identified:**
+
+1. Language model API keys in the settings were being ignored by the code - looking at provider-specific keys only
+2. Language model selection was looking for non-existent settings keys (`language_model_model` and `${provider}_language_model`)
+3. The UI was saving model selection to `language_model` key but the code never checked it
+
+**Root Cause Analysis:**
+
+1. `languageModelProvider.js` was bypassing settings and hardcoding `process.env.DEEPSEEK_API_KEY`
+2. The key naming pattern was inconsistent between UI and backend code
+3. `LLMEstimateService` was directly instantiating `deepSeekService` rather than using the provider abstraction
+
+**Solution Implemented:**
+
+1. Updated `languageModelProvider.js` to check for generic keys first:
+   - For API key: `language_model_api_key` → `{provider}_api_key` → environment vars
+   - For base URL: `language_model_base_url` → `{provider}_base_url` → defaults
+   - For model: `language_model` → `{provider}_model` → defaults
+
+2. Refactored `languageModelProvider.js` with a suffix map pattern for consistent key lookups:
+   ```javascript
+   #suffixMap = {
+     apiKey: 'api_key',
+     baseUrl: 'base_url',
+     model: 'model'
+   };
+   ```
+
+3. Modified `LLMEstimateService.js` to use the provider abstraction:
+   ```javascript
+   // Before
+   const deepSeekServiceInstance = require('./deepseekService');
+   constructor(deepSeekService) {
+     this.deepSeekService = deepSeekService;
+   }
+
+   // After
+   const languageModelProvider = require('./languageModelProvider');
+   constructor() {
+     this.languageProvider = languageModelProvider;
+   }
+   ```
+
+4. Updated `aiProvider.controller.js` to show clearer configuration status in UI:
+   ```javascript
+   languageModel: {
+     provider: languageModelName || 'Not configured',
+     model: languageModel || 'Not configured',
+     status: (languageApiKey || providerSpecificApiKey) ? 'Configured' : 'Missing'
+   }
+   ```
+
+5. Moved `deepseekService.js` to `deprecated` folder with deprecation notice
+
+**Key Learnings:**
+
+- Settings keys should follow consistent naming patterns across the application
+- Always use dependency injection or service abstraction for external services
+- Settings should be properly centralized and honor both generic and specific configurations
+- The UI status indicators should reflect actual configuration state in the database
+- Refactoring to use a suffix map pattern improves maintainability across similar services
+
+[2025-04-25 14:30] - **Fixed DeepSeek API Testing in AI Provider Settings**
+
+**Issues Identified:**
+
+1. DeepSeek and embedding API tests were failing in the frontend UI despite successful backend responses
+2. Errors in console: `TypeError: Cannot read properties of undefined (reading 'model')`
+3. Backend logs showed success but frontend displayed failure messages
+
+**Root Cause Analysis:**
+
+1. Double response unwrapping in `ai-provider.service.js` - returning `response.data` when API service already processed the response
+2. Response structure mismatch between frontend and backend - component expected `response.data.data.model` but received fewer nesting levels
+3. Violation of standard response format convention `{ success, data?, message? }`
+
+**Solution Implemented:**
+
+1. Updated `testLanguageModelConnection()` and `testEmbeddingConnection()` in `ai-provider.service.js`:
+   - Changed both methods to return the complete response object instead of just `response.data`
+   - Made both REST endpoints follow the same response structure pattern
+
+2. Updated `AiProviderSettings.vue` to match the new response structure:
+   - Changed `response.data.data.model` to `response.data.model`
+   - Changed `response.data.data.response` to `response.data.response`
+   - Changed `response.data.data.dimensions` to `response.data.dimensions`
+   - Changed `response.data.data.provider` to `response.data.provider`
+
+**Key Learnings:**
+
+- Consistent response unwrapping is critical - either unwrap at service layer OR component layer, not both
+- Standardized response formats (`{ success, data?, message? }`) must be preserved through all layers
+- Axios response interceptors already process responses, so services should be careful not to unwrap twice
+- Response structure validation with console logging is essential for diagnosing API integration issues
+
+[2025-04-24 23:15] - **Fixed Foreign Key Constraint in source_maps Table and Migration System**
+
+**Issues Identified:**
+
+1. Database initialization was failing with errors:
+   - Error: `insert or update on table "source_maps" violates foreign key constraint "source_maps_estimate_item_id_fkey"`
+   - Error: `syntax error at or near "USING"`
+   - Error: `TypeError: Cannot read properties of undefined (reading 'query')`
+
+2. Root causes identified:
+   - source_maps table rows were being inserted before the referenced estimate_items rows existed
+   - Foreign key constraint was non-deferrable, requiring immediate validation
+   - Migration files in incorrect location, invisible to Docker container
+   - Migrations using incompatible function signatures with Umzug resolver
+   - SQL syntax errors in migrations, particularly with USING clauses
+
+**Root Cause Analysis:**
+
+1. Sequelize-sync was trying to re-define client_type on the clients table at boot with invalid PostgreSQL syntax
+2. The source_maps table contained rows with invalid references to estimate_items that didn't exist
+3. The foreign key constraint was not set as DEFERRABLE INITIALLY DEFERRED, causing immediate validation failures
+4. Migration files were placed in backend/src/migrations, but Docker mounted backend/migrations to /app/migrations
+5. Umzug v4 provides a single context object ({ context: qi }) to migrations, but files used old-style parameters (queryInterface, Sequelize)
+6. PostgreSQL has strict syntax requirements for constraints and USING clauses
+
+**Solution Implemented:**
+
+1. Two-part fix for client_type issue:
+   - Updated initDb.js to use `{ alter: false }` to prevent automatic schema modifications on boot
+   - Removed the problematic `comment` field from Client.js model to prevent Sequelize from generating invalid COMMENT...USING syntax
+   - Created a migration for adding the comment separately with valid PostgreSQL syntax
+
+2. Fixed source_maps foreign key issues:
+   - Created migration 20250431000000-update-source-maps-fk.js with proper placement in backend/migrations directory
+   - Used correct function signature compatible with Umzug resolver: `async up({ context: qi })`
+   - Deleted orphaned source_maps rows that referenced non-existent estimate_items
+   - Added a properly defined foreign key constraint with DEFERRABLE INITIALLY DEFERRED
+   - Used transaction to ensure atomic operations
+
+3. Fixed configuration for Docker environment:
+   - Created .sequelizerc at project root to help with CLI commands
+   - Updated config.json to use the correct host (db instead of localhost) to match Docker networking
+   - Ensured consistent configuration between local and container environments
+
+4. Added verification steps:
+   - Verified the constraint was properly added with correct attributes
+   - Confirmed no orphaned rows exist in the source_maps table
+   - Successfully tested the constraint with SET CONSTRAINTS IMMEDIATE
+   - Validated the server starts without any foreign key constraint errors
+
+**Key Learnings:**
+
+- Foreign key constraints should be DEFERRABLE INITIALLY DEFERRED when bulk inserts might happen in variable order
+- Sequelize sync should use { alter: false } to prevent automatic schema modifications in production
+- Migration files must be placed in the correct location accessible to Docker containers
+- Function signatures in migrations must match the Umzug resolver's expectations ({ context: qi })
+- PostgreSQL requires specific syntax for constraints and USING clauses
+- Database initialization should first check and clean up orphaned records before adding constraints
+- Migrations should handle both data cleanup and schema changes in transactions for atomicity
+- Docker networking requires configuration files to use container names (db) instead of localhost
+- Schema changes should go through migrations rather than relying on Sequelize's auto-sync feature
+
+[2025-04-24 21:15] - **Fixed Database Column Type Migration Issue with View Dependency**
+
+**Issues Identified:**
+
+1. Database initialization was failing with the error:
+   - Error: `cannot alter type of a column used by a view or rule`
+   - Detail: `rule *RETURN on view client*view depends on column "payment_terms"`
+   - PostgreSQL was preventing modification of the `payment_terms` column because it was referenced by the `client_view` view
+
+2. PostgreSQL error when trying to change the column type:
+   ```sql
+   ALTER TABLE "clients" ALTER COLUMN "payment_terms" DROP NOT NULL;
+   ALTER TABLE "clients" ALTER COLUMN "payment_terms" DROP DEFAULT;
+   ALTER TABLE "clients" ALTER COLUMN "payment_terms" TYPE VARCHAR(255);
+   ```
+
+3. Secondary issue with circular JSON references in the logger when trying to fix the first issue
+
+**Root Cause Analysis:**
+
+1. PostgreSQL prevents altering columns that are referenced by views or rules
+2. The `client_view` view depends on the `payment_terms` column in the `clients` table
+3. Sequelize was trying to automatically alter the column during model sync
+4. A migration file was created to fix this but wasn't being run before the sync operation
+5. The logger had issues with circular JSON references when logging Sequelize objects
+
+**Solution Implemented:**
+
+1. Enhanced database migration runner and fixed circular JSON issues:
+   - Added `safeStringify()` function to safely handle objects with circular references
+   - Updated error logging to use template literals with just error messages
+   - Created custom logger for Umzug that safely handles complex objects
+   - Added try/catch blocks around JSON.stringify operations
+
+2. Fixed view dependency issue in multiple layers:
+   - Modified initDb.js to use `{ alter: false }` option to prevent automatic schema modifications
+   - Enhanced initDb.js to check for and handle view dependencies before syncing models
+   - Added specific error handling for the `client_view` and `payment_terms` column
+   - Created safety net to drop views before sync and recreate them after
+
+3. Implemented multiple fallback mechanisms:
+   - Updated Docker entrypoint script to properly set up database configuration
+   - Enhanced migration runner to attempt migration via Umzug first
+   - Added direct fallback to manually fix columns if migrations fail
+
+**Key Learnings:**
+
+- PostgreSQL views create dependencies that must be handled carefully during schema changes
+- Proper sequence is critical: views must be dropped before modifying columns they reference
+- Circular references in objects can cause errors when logging or stringifying
+- The ViewManager utility provides the right approach for handling view dependencies
+- Multiple layers of protection help ensure database initialization succeeds even if primary approach fails
+- Sequelize's automatic model synchronization should be used cautiously with `alter: false` in production
+- Transaction-based changes ensure that view operations maintain database consistency
+
+# Progress Log
+
+[2025-04-24 22:45] - **Fixed AI Provider Settings Component and Response Format Handling**
+
+**Issues Identified:**
+
+1. AI Provider Settings page was not loading properly with errors in the console:
+   - Error: `[vue/compiler-sfc] Missing catch or finally clause. (97:2)` in `AiProviderSettings.vue`
+   - Console errors: `Invalid response format from getAiProviderOptions, using empty defaults`
+   - API responses returning unexpected data format
+   - Response structure mismatch between frontend expectations and backend data
+   - Settings not being displayed in the UI despite being present in the database
+   - Console showing: `Found 0 settings in the response` despite 9 settings in the database
+
+**Root Cause Analysis:**
+
+1. JavaScript syntax error in the `loadData` function in `AiProviderSettings.vue`
+2. Missing `catch` or `finally` clause in a `try` block causing compilation failure
+3. Data structure mismatch between what the component expected and what the API returned
+4. Large monolithic function making error handling and debugging difficult
+5. Service methods not handling different possible response structures from the API
+6. Component not properly processing different data structures in the response
+
+**Solution Implemented:**
+
+1. Refactored `AiProviderSettings.vue` to fix the syntax error:
+   - Restructured the monolithic `loadData` function into smaller, focused functions
+   - Added proper `try`/`catch`/`finally` blocks for error handling
+   - Improved defensive data validation with more robust checks for undefined/null values
+   - Added better console logging for debugging response structure issues
+2. Refactored `ai-provider.service.js` to better handle API response formats:
+   - Added proper response structure validation with multiple structure support
+   - Implemented fallback data structures for error cases
+   - Enhanced error handling to prevent UI breakage when response format is unexpected
+   - Added support for different response structures with explicit conditions
+   - Implemented detailed logging to trace API responses at each stage
+3. Enhanced component data processing:
+   - Created flexible data structure handling in `processSettingsData` function
+   - Added support for both array and object response structures
+   - Implemented proper fallbacks for missing or undefined values
+   - Added detailed logging to trace data flow through the application
+4. Updated backend controller with more detailed logging:
+   - Added debug logging for settings being returned
+   - Enhanced error handling with proper error messages
+   - Improved response structure for better frontend compatibility
+
+**Key Learnings:**
+
+- Complex component logic should be broken down into smaller, focused functions
+- Always ensure proper try/catch/finally block structure in async functions
+- Add defensive programming techniques to handle unexpected API response formats
+- Implement gradual fallback mechanisms rather than failing completely
+- Use component restructuring to improve both stability and maintainability
+- Response format validation should happen at the service layer to isolate components from API changes
+- Service methods should handle multiple possible response structures with explicit conditions
+- Component-side processing should be flexible to accommodate different data structures
+- Detailed logging is essential for diagnosing complex data flow issues
+- Default values should be provided for all expected properties to prevent undefined errors
+
+[2025-04-24 22:30] - **Fixed Database Column Type Change Error with ViewManager Utility**
+
+**Issues Identified:**
+1. PostgreSQL errors when trying to change the column type of `payment_terms` in `clients` table:
+   - Error: `cannot alter type of a column used by a view or rule`
+   - Detail: `rule _RETURN on view client_view depends on column "payment_terms"`
+   - Multiple attempts to change the column type failing with the same error
+   - Database initialization errors during startup related to this issue
+
+**Root Cause Analysis:**
+1. PostgreSQL prevents altering columns that are referenced by views
+2. The `payment_terms` column is referenced by the `client_view` view
+3. The migration was trying to change the column type without properly handling this dependency
+4. No systematic approach existed for handling view dependencies during schema changes
+
+**Solution Implemented:**
+1. Created a robust `ViewManager` utility class to handle view dependencies:
+   - Implemented methods to identify dependent views for tables and columns
+   - Created functions to safely drop and recreate views within transactions
+   - Added support for retrieving view definitions from the database
+   - Implemented transaction-based view handling for atomicity
+2. Fixed the specific column type change issue:
+   - Created a migration using the ViewManager to safely change the column type
+   - Implemented the transaction-based approach to ensure consistent results
+   - Successfully changed the column type while preserving the view
+3. Created a centralized view definitions registry:
+   - Stored view definitions in one place for consistency
+   - Made it easier to recreate views with the correct definition
+4. Added comprehensive documentation:
+   - Created detailed docs explaining the problem and solution
+   - Added usage examples and best practices
+   - Created a migration rollback guide
+
+**Key Learnings:**
+- PostgreSQL views create dependencies that must be handled during schema changes
+- Transaction-based approaches ensure atomicity (all operations succeed or fail together)
+- Centralized view definitions help maintain consistency across the application
+- Utility classes for common database operations improve maintainability
+- Always check for view dependencies before making schema changes
+
+[2025-04-25 10:15] - **Completed API Prefix Duplication Fix**
+
+**Issues Identified:**
+1. Many frontend service files still had hard-coded `/api/` prefixes causing doubled prefixes in requests
+   - Files affected: `work-types.service.js`, `estimatesV2.service.js`, `assessment.service.js`, `admin.service.js`, and others
+   - API requests were resolving to `/api/api/*` paths, causing errors
+   - Authentication and data calls failing due to invalid routes
+
+**Root Cause Analysis:**
+1. Previous fix updated `api.service.js` to use `/api` as the baseURL but didn't update all service files
+2. Hard-coded prefixes in 15 frontend service files needed to be removed
+3. No ESLint rule or convention enforcement existed to prevent regressions
+
+**Solution Implemented:**
+1. Successfully ran the automated script to fix all affected files
+   - Used `scripts/stripApiPrefix.js` to scan service files and remove duplicate prefixes
+   - Script fixed 15 files with duplicate API prefixes using regex pattern matching
+   - Manually fixed remaining instances in `community.service.js` that weren't caught by the script
+2. Verified the custom ESLint rule was properly configured
+   - Confirmed `.eslint-rules/no-hardcoded-api.js` rule flags any strings starting with `/api/`
+   - Verified ESLint configuration includes the custom rule
+3. Confirmed documentation in README.md
+   - Verified clear API path prefixing convention documentation
+   - Confirmed instructions for using the fix script
+
+**Verification:**
+- Restarted the frontend service to apply the changes
+- Verified login functionality works correctly
+- Confirmed communities page loads properly
+- Checked browser network tab to ensure requests use correct paths
+
+**Key Learnings:**
+- Path prefixing must be consistently handled at a single point (baseURL in api.service.js)
+- Automated tools like ESLint rules are essential to prevent regression
+- Clear conventions and documentation help maintain consistency
+- Regular code audits can help identify and fix similar issues across the codebase
+
+[2025-04-24 15:30] - **Addressing Further API Prefix Duplication Issues**
+
+**Issues Identified:**
+1. Many frontend service files still had hard-coded `/api/` prefixes causing doubled prefixes in requests
+   - Files affected: `work-types.service.js`, `estimatesV2.service.js`, and others
+   - API requests were resolving to `/api/api/*` paths, causing errors
+   - Authentication and data calls failing due to invalid routes
+
+**Root Cause Analysis:**
+1. Previous fix updated `api.service.js` to use `/api` as the baseURL but didn't update all service files
+2. Hard-coded prefixes in ~15 frontend service files needed to be removed
+3. No ESLint rule or convention enforcement existed to prevent regressions
+
+**Solution Implementation In Progress:**
+1. Created custom ESLint rule to prevent hard-coded `/api/` prefixes
+   - Added `.eslint-rules/no-hardcoded-api.js` rule to flag any strings starting with `/api/`
+   - Updated ESLint configuration to include the custom rule
+2. Created automated script for removing duplicate prefixes
+   - Implemented `scripts/stripApiPrefix.js` to scan service files and remove duplicate prefixes
+   - Script uses regex pattern matching to fix all occurrences at once
+3. Manually fixed critical service files
+   - Updated `work-types.service.js` to use proper relative paths without `/api/` prefix
+4. Added documentation in README.md
+   - Included clear API path prefixing convention
+   - Added instructions for using the fix script
+
+**Next Steps:**
+- Complete the fix by running script against all affected files
+- Implement automated check in CI pipeline to detect regressions
+- Verify fixed services in development environment
+
+**Key Learnings:**
+- Path prefixing must be consistently handled at a single point (baseURL in api.service.js)
+- Automated tools like ESLint rules are essential to prevent regression
+- Clear conventions and documentation help maintain consistency
+
+---
+
+[2025-04-23 20:15] - **Fixed API Prefix Duplication in Frontend Services**
+
+**Issues Identified and Fixed:**
+1. Work type detection and suggestions weren't appearing in the assessment UI due to 404 errors:
+   - The frontend service (`assessments.service.js`) was trying to access `/assessments/detect-work-types` but getting 404 errors
+   - Console showed errors: `POST http://localhost:5173/assessments/detect-work-types 404 (Not Found)`
+
+**Root Cause Analysis:**
+1. API prefix issues identified:
+   - Vite only proxies paths that start with **/api** to the backend service
+   - The API service (`api.service.js`) was designed with an empty baseURL
+   - This caused API requests to hit frontend server (port 5173) instead of backend (port 3000)
+   - Services were using paths without `/api/` prefix, which didn't get proxied correctly
+
+**Solution Implemented:**
+1. Updated `api.service.js` to use `/api` as baseURL:
+   ```javascript
+   const apiService = axios.create({
+     baseURL: '/api',     // Dev proxy & prod routing share this prefix
+     timeout: 360000,
+     withCredentials: true,
+     // Other settings...
+   });
+   ```
+2. Added clear documentation in `api.service.js` to prevent future issues:
+   ```javascript
+   // NOTE: baseURL is set to '/api' - Vite proxies this to backend in dev, Nginx routes it properly in prod.
+   // IMPORTANT: Do not prepend '/api/' in individual service calls!
+   ```
+3. Verified no instances of `/api/` prefixing remained in service call endpoints
+4. Confirmed no `api/api` double prefixing exists in the codebase
+
+**Key Learnings:**
+- Single source of truth for API path prefixing is essential
+- The baseURL in api.service.js should include the `/api` prefix to match Vite's proxy configuration
+- Documentation in the API service is critical to prevent regression
+- This fix ensures proper work types detection and suggestions in assessment UI
+- The correction allows proper integration of assessments with work types
+- The fix works consistently across both development and production environments
+
+---
 [2025-05-29 14:30] - **Integrated Frontend with Work Types Database**
 
 **Tasks Completed:**
@@ -1142,8 +1849,6 @@
 - Testing migrations in isolation prevents production issues
 
 ---
-
-# Progress Log
 
 [2025-04-15 23:45] - **Fixed Vue Component Tag Syntax and Client Display in Edit Forms**
 

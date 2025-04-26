@@ -19,10 +19,10 @@
   - Serves as an audit trail for cost changes
 - **pgvector**: Vector similarity search extension for PostgreSQL enabling semantic similarity matching
   - Used for vector embeddings storage and similarity search
-  - Creates 384-dimensional vector column in products and work_types tables
+  - Creates configurable dimension vector columns (now 1536 dimensions) in products and work_types tables
   - Provides efficient cosine similarity operations via `<=>` operator
-  - Used with `ivfflat` index for optimized performance
-  - Configured for future expansion with name_vec columns
+  - Used with `ivfflat` index for optimized performance (limited to 2000 dimensions)
+  - Supports Gemini embeddings through dimension reduction (3072 → 1536)
 - **pg_trgm**: Trigram matching extension for PostgreSQL enabling fuzzy text search and string similarity
   - Used for text-based similarity matching
   - Handles typos and small wording variations
@@ -38,7 +38,9 @@
 - **Axios**: Promise-based HTTP client
 - **Vite**: Modern frontend build tool and development server with HMR (Hot Module Replacement)
 - **Tailwind CSS**: Utility-first CSS framework for responsive design
+- **Gemini API**: Integration for vector embeddings with dimension reduction (3072→1536)
 - **OpenAI API**: Integration for AI-assisted estimate generation from assessment data
+- **DeepSeek API**: *Deprecated* - Being phased out in favor of more flexible provider abstraction
 - **Chart.js**: JavaScript charting library for data visualization
 - **ESLint**: Static code analysis for identifying problematic patterns
 - **Prettier**: Code formatter for consistent style
@@ -141,6 +143,7 @@ Dependencies are managed through package.json files in both frontend and backend
 - **Component Structure**: Single-file components with script, template, and style sections
 - **State Management**: Composition API with ref and reactive for local state
 - **Entity ID Handling**: Dual property pattern (id and entityId) for backward compatibility
+- **Provider Abstraction**: Flexible provider pattern for external services with consistent interfaces
 - **PDF Generation**: Robust error handling with fallbacks for undefined values
 - **Docker Compatibility**: Special configuration for Puppeteer in containerized environments
 - **File System Access**: Proper directory structure and permissions for file operations
@@ -149,6 +152,34 @@ Dependencies are managed through package.json files in both frontend and backend
 - **Dependency Analysis**: Database object dependency checking before modifications
 - **Model-Schema Alignment**: Tools to identify and fix discrepancies between models and database
 - **Documentation Generation**: Automated database documentation from actual schema
+
+## Database Constraints
+
+### Deferrable Foreign Key Constraints
+
+When managing tables with bidirectional relationships or when data insertion order matters:
+
+```sql
+ALTER TABLE source_maps
+ADD CONSTRAINT source_maps_estimate_item_id_fkey
+  FOREIGN KEY (estimate_item_id)
+  REFERENCES estimate_items(id)
+  DEFERRABLE INITIALLY DEFERRED;
+```
+
+This pattern:
+- Allows inserting data in any order within a transaction
+- Defers foreign key validation until transaction commit
+- Prevents violations during bulk operations
+- Works with Sequelize migrations using direct SQL
+
+Implementation considerations:
+- Always clean orphaned records first to ensure data integrity
+- Use transactions for all bulk operations
+- Avoid `sequelize.sync({ alter: true })` in production
+- Schema changes should go through migrations
+- Migration files must be placed in the correct directory accessible to Docker containers
+- Test with `SET CONSTRAINTS IMMEDIATE` to verify constraint integrity
 
 ## WebSocket Security
 - **HTTPS Compatibility**: WebSocket connections must use secure protocol (wss://) when the application is accessed over HTTPS
@@ -177,6 +208,11 @@ Dependencies are managed through package.json files in both frontend and backend
 - **View Dependency Management**: Transaction-based approach to handle dependent views during schema changes
 - **Migration Testing**: Framework for safely testing migrations in isolated environments
 - **Schema Documentation**: Automated generation of schema, view, relationship, and index documentation
+- **Idempotent Migrations**: Making migrations safe to run multiple times with existence checks
+- **Migration Order Management**: Handling dependencies between migrations with proper ordering
+- **Schema Evolution**: Safely transitioning from old patterns (assessment_id) to new patterns (project_inspections)
+- **Migration Troubleshooting**: Direct SQL scripts to fix database issues when migrations fail
+- **Constraint Management**: Using DO blocks with IF NOT EXISTS checks for constraints in PostgreSQL
 
 ## Database Schema Management Tools
 
@@ -228,14 +264,82 @@ Dependencies are managed through package.json files in both frontend and backend
 - Creates complete view documentation with definitions and dependencies
 - Automatically updates documentation when schema changes
 
+## Provider Abstraction Pattern
+
+The application uses a flexible provider abstraction pattern for external services, particularly for language models and embedding services:
+
+### Language Model Provider
+
+- **Centralized Configuration**: Uses a single `languageModelProvider.js` service that abstracts away specific provider implementations
+- **Configuration Hierarchy**:
+  1. First checks for generic settings (`language_model_api_key`, `language_model_base_url`, `language_model`)
+  2. Falls back to provider-specific settings (`{provider}_api_key`, `{provider}_base_url`, `{provider}_model`)
+  3. Finally falls back to environment variables
+- **Consistent Interface**: Provides a unified interface for all language model operations:
+  - `generateChatCompletion(messages, options)` - For chat-based completions
+  - `generateCompletion(prompt, options)` - For text completions
+- **Provider Selection**: Dynamically selects the appropriate provider based on configuration
+- **Error Handling**: Implements robust error handling with detailed logging
+- **Suffix Map Pattern**: Uses a suffix map for consistent key lookups:
+  ```javascript
+  #suffixMap = {
+    apiKey: 'api_key',
+    baseUrl: 'base_url',
+    model: 'model'
+  };
+  ```
+
+### Embedding Provider
+
+- **Vector Embedding Service**: Abstracts embedding generation across different providers
+- **Dimension Management**: Handles different embedding dimensions with automatic reduction
+- **Provider Compatibility**: Works with OpenAI, DeepSeek, Gemini, and other compatible APIs
+- **Caching**: Implements optional caching for frequently used embeddings
+- **Fallback Mechanisms**: Provides fallbacks when primary embedding service is unavailable
+
+### Benefits
+
+- **Provider Flexibility**: Easily switch between different AI providers without changing application code
+- **Centralized Configuration**: Single point for managing API keys, base URLs, and model selection
+- **Consistent Interface**: Standardized methods regardless of underlying provider
+- **Backward Compatibility**: Maintains compatibility with existing code through consistent interfaces
+- **Simplified Testing**: Easier to mock for testing purposes
+- **Reduced Circular Dependencies**: Avoids circular dependencies between services
+
 ## Tech Context
 
 - Node.js backend (Express)
 - Vue.js frontend
-- LLM integration (DeepSeek/OpenAI)
+- LLM integration with provider abstraction pattern
 - Sequelize ORM for database
 - PDF generation for estimates
 - Standard RESTful API patterns
 - Transaction-based schema modifications
 - View registry for consistent recreation
 - Database documentation generation
+
+## Vue.js Best Practices
+
+### Component Structure
+- Break large components into smaller, focused components
+- Use single-file components with clear separation of concerns
+- Implement props validation for all component inputs
+- Create reusable base components (BaseButton, BaseInput, etc.)
+
+### JavaScript Patterns
+- Divide complex functions into single-responsibility helper functions
+- Use proper try/catch/finally blocks in all async functions
+- Implement defensive programming with null/undefined checks
+- Follow Vue 3 Composition API patterns for reactive state management
+
+### Error Handling
+- Add fallback data structures for handling unexpected API responses
+- Implement service layer error handling to isolate UI components
+- Use computed properties to provide safe access to potentially undefined data
+- Add detailed logging for debugging complex component logic
+
+### Data Flow
+- Standardize API request/response handling with consistent services
+- Validate service responses at the service layer before passing to components
+- Use the apiAdapter for consistent camelCase/snake_case conversion
+- Implement loading states and error states for all async operations

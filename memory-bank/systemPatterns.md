@@ -2,6 +2,105 @@
 
 ## Frontend Integration Patterns
 
+### API Path Prefixing Enforcement Pattern
+
+- **Problem**: Hard-coded `/api/` prefixes in service files creating doubled URL paths (`/api/api/...`) when baseURL is already set to `/api`
+- **Pattern**: Automated enforcement with ESLint rule and batch fix script
+- **Solution**: Create custom ESLint rule and correction script to maintain consistent path prefixing
+
+```javascript
+// 1. Custom ESLint rule to prevent hard-coded prefixes
+module.exports = {
+  meta: { type: 'problem' },
+  create: context => ({
+    Literal(node) {
+      if (typeof node.value === 'string' && /^[\/]api\//.test(node.value)) {
+        context.report({
+          node: node,
+          message: 'Path already prefixed by baseURL; drop /api/.'
+        });
+      }
+    }
+  })
+};
+
+// 2. Auto-fix script to clean up existing prefix issues
+import { promises as fs } from 'fs';
+import fg from 'fast-glob';
+const files = await fg('frontend/src/services/**/*.js');
+for (const f of files) {
+  const t = await fs.readFile(f,'utf8');
+  const nt = t.replace(/(['"\`])\/api\/([^'"\`]+)/g,'$1/$2');
+  if (t!==nt){
+    await fs.writeFile(f,nt);
+    console.log('fixed',f);
+  }
+}
+
+// 3. Clear documentation in README.md
+/**
+ * API Path Prefixing Convention
+ *
+ * - In api.service.js, the baseURL is set to '/api'
+ * - All service calls should use paths relative to this base URL
+ * - Example: Use '/auth/login' instead of '/api/auth/login'
+ *
+ * If you encounter any doubled prefixes (e.g., '/api/api/auth/login'),
+ * run the provided script: node scripts/stripApiPrefix.js
+ */
+```
+
+- **Key Aspects**:
+  - Custom ESLint rule (`no-hardcoded-api`) flags any string literals starting with `/api/`
+  - Automated fix script with regex pattern matching (`scripts/stripApiPrefix.js`)
+  - Clear documentation pattern in README.md to explain the convention
+  - Prevention of regression through build-time validation
+  - Consistent API path handling across all service files
+  - Manual verification of edge cases that might not be caught by the script
+  - Regular code audits to identify similar issues across the codebase
+
+- **Implementation Details**:
+  - The script successfully fixed 15 service files with duplicate API prefixes
+  - Some instances in community.service.js required manual fixing
+  - The fix was verified by testing login and communities page functionality
+  - The browser network tab confirmed requests use correct paths without duplication
+
+### API Path Prefixing Implementation
+
+- **Problem**: Inconsistent API path handling causing 404 errors when Vite doesn't properly proxy requests
+- **Pattern**: Single source of truth for API path prefixing
+- **Solution**: Include `/api` in baseURL of API service client to ensure proper proxy routing
+
+```javascript
+// 1. API Service Configuration
+const apiService = axios.create({
+  baseURL: '/api',  // Dev proxy & prod routing share this prefix
+  timeout: 360000,
+  withCredentials: true,
+  // Other axios configuration
+});
+
+// 2. Documentation to prevent regression
+// NOTE: baseURL is set to '/api' - Vite proxies this to backend in dev, Nginx routes it properly in prod.
+// IMPORTANT: Do not prepend '/api/' in individual service calls!
+
+// 3. Correct service method implementation
+async detectWorkTypes(conditionText) {
+  // No '/api/' prefix - already added by baseURL setting
+  const response = await apiClient.post('/assessments/detect-work-types', {
+    condition: conditionText
+  });
+  // Response handling
+}
+```
+
+- **Key Aspects**:
+  - API service uses `/api` in baseURL to ensure all requests are properly proxied in development
+  - Vite proxy configuration routes /api/* requests to the backend server
+  - Services use routes without `/api/` prefix since it's already in the baseURL
+  - Clear documentation prevents reintroduction of the issue
+  - Consistent approach across all service files
+
 ### Work Types Frontend Integration Pattern
 
 - **Problem**: Completed backend work types knowledge base (Phase B) needed frontend components for user management
@@ -44,15 +143,15 @@
 // 2. Contextual component styling based on content
 const tagClasses = computed(() => {
   const lowerTag = props.tag.toLowerCase();
-  
+
   if (lowerTag.includes('hazard') || lowerTag.includes('danger')) {
     return 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200';
   }
-  
+
   if (lowerTag.includes('permit') || lowerTag.includes('license')) {
     return 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200';
   }
-  
+
   // Default styling
   return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
 });
@@ -102,13 +201,13 @@ module.exports = {
         'DROP VIEW IF EXISTS client_view;',
         { transaction }
       );
-      
+
       // Now alter the column type (since it's already nullable with no default)
       await queryInterface.sequelize.query(
         'ALTER TABLE "clients" ALTER COLUMN "payment_terms" TYPE TEXT;',
         { transaction }
       );
-      
+
       // Recreate the view with the exact same definition
       await queryInterface.sequelize.query(
         `CREATE OR REPLACE VIEW client_view AS
@@ -141,36 +240,36 @@ class ViewManager {
   async dropAndRecreateView(viewName, viewDefinition, transaction) {
     // Drop the view if it exists
     await this.queryInterface.sequelize.query(
-      `DROP VIEW IF EXISTS ${viewName};`, 
+      `DROP VIEW IF EXISTS ${viewName};`,
       { transaction }
     );
-    
+
     // Recreate the view with the provided definition
     await this.queryInterface.sequelize.query(
-      viewDefinition, 
+      viewDefinition,
       { transaction }
     );
-    
+
     return true;
   }
 
   async getDependentViews(tableName) {
     const query = `
       SELECT dependent_view.relname AS view_name
-      FROM pg_depend 
-      JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid 
-      JOIN pg_class as dependent_view ON pg_rewrite.ev_class = dependent_view.oid 
-      JOIN pg_class as source_table ON pg_depend.refobjid = source_table.oid 
+      FROM pg_depend
+      JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid
+      JOIN pg_class as dependent_view ON pg_rewrite.ev_class = dependent_view.oid
+      JOIN pg_class as source_table ON pg_depend.refobjid = source_table.oid
       WHERE source_table.relname = '${tableName}'
       AND dependent_view.relkind = 'v'
       GROUP BY dependent_view.relname;
     `;
-    
+
     const result = await this.queryInterface.sequelize.query(
       query,
       { type: this.queryInterface.sequelize.QueryTypes.SELECT }
     );
-    
+
     return result.map(row => row.view_name);
   }
 }
@@ -185,6 +284,77 @@ class ViewManager {
   - OOP approach with ViewManager class for encapsulating view operations
   - Error handling with transaction rollback when issues occur
 
+### Idempotent Migration Pattern
+
+- **Problem**: Database migrations fail when run multiple times or when database state doesn't match expectations
+- **Pattern**: Make migrations idempotent by checking for existing objects before modifications
+- **Solution**: Implement checks for tables, columns, constraints, and indices before attempting to create or modify them
+
+```javascript
+// 1. Check if table exists before creating it
+const tableExists = await queryInterface.sequelize.query(
+  `SELECT EXISTS (
+    SELECT FROM information_schema.tables
+    WHERE table_name = 'work_types'
+  );`,
+  { type: Sequelize.QueryTypes.SELECT }
+);
+
+if (tableExists[0].exists) {
+  console.log('work_types table already exists, skipping creation');
+  return; // Exit early if the table already exists
+}
+
+// 2. Check if column exists before adding it
+const columnExists = async (tableName, columnName) => {
+  try {
+    const tableInfo = await queryInterface.describeTable(tableName);
+    return !!tableInfo[columnName];
+  } catch (error) {
+    return false;
+  }
+};
+
+if (!(await columnExists('invoices', 'client_id'))) {
+  console.log('Adding client_id column to invoices table...');
+  await queryInterface.addColumn('invoices', 'client_id', {
+    type: Sequelize.UUID,
+    allowNull: true,
+    references: {
+      model: 'clients',
+      key: 'id'
+    }
+  });
+}
+
+// 3. Check if constraint exists before adding it (using DO blocks)
+await queryInterface.sequelize.query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conname = 'check_unit_cost_material_non_negative'
+    ) THEN
+      ALTER TABLE work_types
+      ADD CONSTRAINT check_unit_cost_material_non_negative
+      CHECK (unit_cost_material IS NULL OR unit_cost_material >= 0);
+    END IF;
+  END $$;
+`);
+```
+
+- **Key Aspects**:
+  - Always check if objects exist before creating or modifying them
+  - Use `queryInterface.describeTable()` to check for column existence
+  - Use `information_schema.tables` to check for table existence
+  - Use `pg_constraint` to check for constraint existence
+  - Use `pg_indexes` to check for index existence
+  - Use DO blocks with IF NOT EXISTS checks for constraints (PostgreSQL doesn't support IF NOT EXISTS for constraints)
+  - Add detailed logging to help diagnose issues
+  - Make down migrations safe by checking for object existence before dropping
+  - Follow one-migration-per-change rule to prevent duplicate operations
+  - Use transaction-based migrations for atomicity
+
 ### Model-Schema Reconciliation Pattern
 
 - **Problem**: Sequelize model definitions can drift from actual database schema during development
@@ -196,35 +366,35 @@ class ViewManager {
 async compareModelToTable(model) {
   const tableName = model.getTableName();
   const modelAttributes = model.getAttributes();
-  
+
   // Get table columns from database
   const columnsResult = await this.queryInterface.sequelize.query(
-    `SELECT column_name, data_type, is_nullable, column_default 
-     FROM information_schema.columns 
+    `SELECT column_name, data_type, is_nullable, column_default
+     FROM information_schema.columns
      WHERE table_name = '${tableName}';`,
     { type: this.queryInterface.sequelize.QueryTypes.SELECT }
   );
-  
+
   const results = {
     model: model.name,
     tableName,
     matches: [],
     mismatches: []
   };
-  
+
   // Check each model attribute against table columns
   for (const [attrName, attrOptions] of Object.entries(modelAttributes)) {
     // Skip virtual fields
     if (attrOptions.type && attrOptions.type.key === 'VIRTUAL') {
       continue;
     }
-    
+
     // Get the actual column name (accounting for field option)
     const columnName = attrOptions.field || attrName;
-    
+
     // Find matching column in database
     const column = columnsResult.find(col => col.column_name === columnName);
-    
+
     if (!column) {
       results.mismatches.push({
         field: attrName,
@@ -233,10 +403,10 @@ async compareModelToTable(model) {
       });
       continue;
     }
-    
+
     // Compare types and other attributes...
   }
-  
+
   return results;
 }
 
@@ -244,21 +414,21 @@ async compareModelToTable(model) {
 async generateFixMigration() {
   // Get comparison results
   const comparison = await this.comparer.compareAll();
-  
+
   let migrationContent = `'use strict';\n\n`;
   migrationContent += `const ViewManager = require('../utils/viewManager');\n`;
   migrationContent += `const viewDefinitions = require('../config/viewDefinitions');\n\n`;
-  
+
   migrationContent += `module.exports = {\n`;
   migrationContent += `  up: async (queryInterface, Sequelize) => {\n`;
   migrationContent += `    return queryInterface.sequelize.transaction(async (transaction) => {\n`;
   migrationContent += `      const viewManager = new ViewManager(queryInterface);\n\n`;
-  
+
   // Process each table with mismatches
   for (const mismatch of comparison.mismatches) {
     // Generate SQL operations to handle dependencies and changes
   }
-  
+
   // Write migration file
   return { created: true, path: filePath, mismatches: comparison.mismatches };
 }
@@ -284,26 +454,26 @@ async generateFixMigration() {
 async generateSchemaDoc() {
   const tables = await this.getTables();
   const filePath = path.join(this.outputDir, 'schema.md');
-  
+
   let content = `# Database Schema Documentation\n\n`;
   content += `Generated on: ${new Date().toISOString()}\n\n`;
-  
+
   for (const table of tables) {
     content += `## ${table.table_name}\n\n`;
-    
+
     // Get table columns
     const columns = await this.getTableColumns(table.table_name);
-    
+
     content += `| Column | Type | Nullable | Default | Description |\n`;
     content += `|--------|------|----------|---------|-------------|\n`;
-    
+
     for (const column of columns) {
       content += `| ${column.column_name} | ${column.data_type} | ${column.is_nullable} | ${column.column_default || 'NULL'} | ${column.description || ''} |\n`;
     }
-    
+
     content += `\n`;
   }
-  
+
   fs.writeFileSync(filePath, content);
   return filePath;
 }
@@ -312,22 +482,22 @@ async generateSchemaDoc() {
 async generateViewsDoc() {
   const views = await this.getViews();
   const filePath = path.join(this.outputDir, 'views.md');
-  
+
   let content = `# Database Views Documentation\n\n`;
   content += `Generated on: ${new Date().toISOString()}\n\n`;
-  
+
   for (const view of views) {
     content += `## ${view.viewname}\n\n`;
-    
+
     // Get view definition
     const definition = await this.getViewDefinition(view.viewname);
-    
+
     content += `### Definition\n\n`;
     content += `\`\`\`sql\n${definition}\n\`\`\`\n\n`;
-    
+
     // Get dependencies and generate documentation
   }
-  
+
   fs.writeFileSync(filePath, content);
   return filePath;
 }
@@ -342,6 +512,90 @@ async generateViewsDoc() {
   - Relationship documentation showing foreign keys and referenced tables
   - Index documentation with type and covered columns
   - Completely automated with no manual intervention required
+
+## Settings Management Patterns
+
+### Unified Settings Provider Pattern
+
+- **Problem:** Settings retrieval was inconsistent across different services and keys were checked in different orders
+- **Pattern:** Implement a standardized settings retrieval pattern with consistent fallback chains
+- **Solution:** Unified suffix map for consistent key lookups with abstracted helper methods
+
+```javascript
+// Map for suffix conversion
+#suffixMap = {
+  apiKey: 'api_key',
+  baseUrl: 'base_url',
+  model: 'model'
+};
+
+// Generic settings getter with consistent fallback pattern
+async _getSetting(providerName, settingType, defaultValue = '') {
+  const suffix = this.#suffixMap[settingType];
+  if (!suffix) {
+    throw new Error(`Invalid setting type: ${settingType}`);
+  }
+
+  // Try generic key first
+  const genericKey = settingType === 'model' ? 'language_model' : `language_model_${suffix}`;
+  const genericValue = await settingsService.getSettingValue(genericKey, null);
+  if (genericValue) {
+    return genericValue;
+  }
+
+  // Fallback to provider-specific key
+  const specificKey = `${providerName.toLowerCase()}_${suffix}`;
+  const envKey = `${providerName.toUpperCase()}_${suffix.toUpperCase()}`;
+
+  return await settingsService.getSettingValue(specificKey, process.env[envKey] || defaultValue);
+}
+```
+
+- **Key Aspects:**
+  - Private suffix map with camelCase to snake_case mappings
+  - Generic method for all setting types that follows consistent pattern
+  - Prioritizes generic settings over provider-specific ones
+  - Environment variable fallback for each setting
+  - Default values based on provider type
+  - Consistent error handling for all setting types
+  - Clear debugging logs for tracing settings resolution
+  - Special handling for non-standard naming patterns
+
+### Provider Abstraction Pattern
+
+- **Problem:** Service implementations hard-code specific providers, causing maintenance issues
+- **Pattern:** Abstract provider selection and instantiation behind uniform interface
+- **Solution:** Provider factory pattern with standardized methods and fallbacks
+
+```javascript
+class LanguageModelProvider {
+  constructor() {
+    this._initialized = false;
+    this._provider = null;
+    this._client = null;
+    this._initPromise = this._initialize();
+  }
+
+  async generateChatCompletion(messages, options = {}) {
+    // Ensure provider is initialized
+    if (!this._initialized) {
+      await this._initPromise;
+    }
+
+    // Common implementation with provider-specific handling
+    // ...
+  }
+}
+```
+
+- **Key Aspects:**
+  - Asynchronous initialization with caching for performance
+  - Runtime provider selection based on settings
+  - Interface that hides implementation details
+  - Consistent error handling and recovery
+  - Transparent reinitialize capability for configuration changes
+  - Settings-driven dependency injection
+  - Isolated API client instances for each provider
 
 ## API and Data Patterns
 
@@ -359,7 +613,7 @@ module.exports = {
     await queryInterface.sequelize.query(
       `CREATE TYPE enum_work_types_measurement_type AS ENUM ('area', 'linear', 'quantity');`
     );
-    
+
     // Create the work_types table
     await queryInterface.createTable('work_types', {
       id: {
@@ -398,17 +652,17 @@ module.exports = {
       created_at: Sequelize.DATE,
       updated_at: Sequelize.DATE
     });
-    
+
     // Add check constraint for units based on measurement type
     await queryInterface.sequelize.query(`
-      ALTER TABLE work_types ADD CONSTRAINT check_suggested_units 
+      ALTER TABLE work_types ADD CONSTRAINT check_suggested_units
       CHECK (
         (measurement_type = 'area' AND suggested_units IN ('sq ft', 'sq yd', 'sq m')) OR
         (measurement_type = 'linear' AND suggested_units IN ('ft', 'in', 'yd', 'm')) OR
         (measurement_type = 'quantity' AND suggested_units IN ('each', 'job', 'set'))
       );
     `);
-    
+
     // Trigram index for similarity search
     await queryInterface.sequelize.query(`
       CREATE INDEX idx_work_types_name ON work_types USING gin (name gin_trgm_ops);
@@ -419,7 +673,7 @@ module.exports = {
 // Enhanced service with duplicate protection using transactions
 async createWorkType(data) {
   const transaction = await sequelize.transaction();
-  
+
   try {
     // Check for duplicates using trigram similarity
     const similar = await this.findSimilarWorkTypes(data.name, 0.85);
@@ -428,12 +682,12 @@ async createWorkType(data) {
         `A similar work type already exists: "${similar[0].name}" (${similar[0].score.toFixed(2)} similarity)`
       );
     }
-    
+
     // Clean up name for consistency
     if (data.name) {
       data.name = data.name.replace(/\u202F/g, '-'); // Fix Unicode issues
     }
-    
+
     const workType = await WorkType.create(data, { transaction });
     await transaction.commit();
     return workType;
@@ -446,17 +700,17 @@ async createWorkType(data) {
 // Enhanced frontend service with rate limiting
 async findSimilarWorkTypes(name, threshold = 0.3) {
   // Rate limit - add delay between requests
-  if (this._lastSimilarityRequest && 
+  if (this._lastSimilarityRequest &&
       Date.now() - this._lastSimilarityRequest < 300) {
     await new Promise(resolve => setTimeout(resolve, 300));
   }
   this._lastSimilarityRequest = Date.now();
-  
+
   try {
     const response = await apiService.get('/work-types/similar', {
       params: { q: name, threshold } // Use 'q' for consistency
     });
-    
+
     // Return similar work types with scores
     return response.success ? response.data : [];
   } catch (error) {
@@ -767,15 +1021,15 @@ const missingData = computed(() => {
 // Extract potential work type names and find matching work types with costs/tags
 async buildDraft(scopedAssessment, opts = {}) {
   // ... existing code ...
-  
+
   // Extract work type names from the assessment
   const workTypeNames = this.extractWorkTypeNames(userContent);
-  
+
   // Find matching work types with costs and safety tags
   const references = await Promise.all(
     workTypeNames.map(name => this.findMatchingWorkTypes(name))
   );
-  
+
   // Add cost and safety guidance to the system prompt
   if (validReferences.length > 0) {
     // Add cost references
@@ -783,11 +1037,11 @@ async buildDraft(scopedAssessment, opts = {}) {
       if (ref.unit_cost_material !== null || ref.unit_cost_labor !== null) {
         systemContent += `\n\nFor "${ref.name}" (${ref.measurement_type}):\n"reference_cost": { ... }`;
       }
-      
+
       // Add safety tags if available
       if (ref.tags && ref.tags.length > 0) {
         systemContent += `\n"safety_tags": [${ref.tags.map(tag => `"${tag}"`).join(', ')}]`;
-        
+
         // Add specific safety guidance for certain tags
         const safetyGuidance = [];
         if (ref.tags.includes('asbestos')) {
@@ -819,11 +1073,11 @@ async buildDraft(scopedAssessment, opts = {}) {
 // Transaction-protected material addition
 async addMaterials(workTypeId, materials) {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const workType = await WorkType.findByPk(workTypeId, { transaction });
     // ... validation ...
-    
+
     const results = [];
     for (const material of materials) {
       // Check for existing material
@@ -831,14 +1085,14 @@ async addMaterials(workTypeId, materials) {
         where: { work_type_id: workTypeId, product_id: material.product_id },
         transaction
       });
-      
+
       if (existingMaterial) {
         // Update existing material
         await existingMaterial.update({
           qty_per_unit: material.qty_per_unit || existingMaterial.qty_per_unit,
           unit: material.unit || existingMaterial.unit
         }, { transaction });
-        
+
         results.push(existingMaterial);
       } else {
         // Create new material
@@ -849,11 +1103,11 @@ async addMaterials(workTypeId, materials) {
           qty_per_unit: material.qty_per_unit || 1,
           unit: material.unit || 'each'
         }, { transaction });
-        
+
         results.push(newMaterial);
       }
     }
-    
+
     // Increment revision counter
     await workType.update({ revision: workType.revision + 1 }, { transaction });
     await transaction.commit();
@@ -884,45 +1138,45 @@ async addMaterials(workTypeId, materials) {
 // Update costs and record in history
 async updateCosts(id, costData, userId, region = 'default') {
   const transaction = await sequelize.transaction();
-  
+
   try {
     // ... validation ...
-    
+
     const workType = await WorkType.findByPk(id, { transaction });
-    
+
     // Update the work type costs
     const updateData = {
       revision: (workType.revision || 0) + 1,
       updated_by: userId
     };
-    
+
     if (costData.unit_cost_material !== undefined) {
       updateData.unit_cost_material = costData.unit_cost_material;
     }
-    
+
     if (costData.unit_cost_labor !== undefined) {
       updateData.unit_cost_labor = costData.unit_cost_labor;
     }
-    
+
     if (costData.productivity_unit_per_hr !== undefined) {
       updateData.productivity_unit_per_hr = costData.productivity_unit_per_hr;
     }
-    
+
     await workType.update(updateData, { transaction });
-    
+
     // Record in cost history
     await WorkTypeCostHistory.create({
       id: uuidv4(),
       work_type_id: id,
       region,
-      unit_cost_material: costData.unit_cost_material !== undefined ? 
+      unit_cost_material: costData.unit_cost_material !== undefined ?
                          costData.unit_cost_material : workType.unit_cost_material,
-      unit_cost_labor: costData.unit_cost_labor !== undefined ? 
+      unit_cost_labor: costData.unit_cost_labor !== undefined ?
                      costData.unit_cost_labor : workType.unit_cost_labor,
       captured_at: new Date(),
       updated_by: userId
     }, { transaction });
-    
+
     await transaction.commit();
     return workType;
   } catch (error) {
@@ -947,7 +1201,7 @@ async updateCosts(id, costData, userId, region = 'default') {
 - **Pattern**: Hierarchical component architecture with container, mode-specific, and shared components
 - **Solution**: Implement a container component with mode toggle and shared component reuse
 
-```
+```text
 EstimateGenerator/
 ├── EstimateGeneratorContainer.vue (Container with state management)
 │   ├── State: activeMode, generatedItems, assessmentData
@@ -1029,17 +1283,17 @@ const draftPrompt = {
 async upsertOrMatch(draftItem, { hard = 0.85, soft = 0.60 } = {}) {
   // Find similar products using trigram similarity
   const trgmHits = await this.findByTrgm(draftItem.name);
-  
+
   // High confidence (>85%) - automatic match
   if (trgmHits[0]?.score >= hard) {
     return { kind: 'match', productId: trgmHits[0].id };
   }
-  
+
   // Medium confidence (60-85%) - suggest for review
   if (trgmHits[0]?.score >= soft) {
     return { kind: 'review', matches: trgmHits };
   }
-  
+
   // Low confidence (<60%) - create new product
   const created = await Product.create({ name: draftItem.name });
   return { kind: 'created', productId: created.id };
@@ -1097,24 +1351,24 @@ async upsertOrMatch(draftItem, { hard = 0.85, soft = 0.60 } = {}) {
   try {
     // First try trigram matching for text similarity
     const trgmHits = await this.findByTrgm(draftItem.name);
-    
+
     // High confidence (>85%) - automatic match
     if (trgmHits[0]?.score >= hard) {
       return { kind: 'match', productId: trgmHits[0].id };
     }
-    
+
     // Medium confidence (60-85%) - suggest for review
     if (trgmHits[0]?.score >= soft) {
       return { kind: 'review', matches: trgmHits };
     }
-    
+
     // Low confidence (<60%) - create new product
     const created = await Product.create({ name: draftItem.name });
-    
+
     // Auto-generate embedding for new product
     this.generateAndStoreEmbedding(created.id, created.name)
       .catch(err => logger.error(`Embedding generation failed: ${err.message}`));
-    
+
     return { kind: 'created', productId: created.id };
   } catch (error) {
     logger.error(`Error in upsertOrMatch: ${error.message}`);
@@ -1162,27 +1416,27 @@ async checkCatalogSimilarityWithTrgm(descriptions) {
   const results = [];
   for (const description of descriptions) {
     const matches = await sequelize.query(`
-      SELECT 
-        id, 
-        name, 
-        similarity(name, :description) as similarity 
-      FROM products 
-      WHERE 
-        type = 'service' 
-        AND deleted_at IS NULL 
-        AND similarity(name, :description) > 0.3 
-      ORDER BY similarity DESC 
+      SELECT
+        id,
+        name,
+        similarity(name, :description) as similarity
+      FROM products
+      WHERE
+        type = 'service'
+        AND deleted_at IS NULL
+        AND similarity(name, :description) > 0.3
+      ORDER BY similarity DESC
       LIMIT 3
     `, {
       replacements: { description },
       type: sequelize.QueryTypes.SELECT
     });
-    
+
     if (matches.length > 0) {
       results.push(...matches);
     }
   }
-  
+
   return results;
 }
 
@@ -1190,19 +1444,19 @@ async checkCatalogSimilarityWithTrgm(descriptions) {
 async checkCatalogSimilarityWithVector(description, embedding) {
   // Using pgvector for semantic similarity via cosine distance
   const matches = await sequelize.query(`
-    SELECT 
-      id, 
-      name, 
-      1 - (embedding <=> :embedding) as similarity 
-    FROM products 
-    WHERE type = 'service' AND deleted_at IS NULL 
-    ORDER BY embedding <=> :embedding 
+    SELECT
+      id,
+      name,
+      1 - (embedding <=> :embedding) as similarity
+    FROM products
+    WHERE type = 'service' AND deleted_at IS NULL
+    ORDER BY embedding <=> :embedding
     LIMIT 5
   `, {
     replacements: { embedding },
     type: sequelize.QueryTypes.SELECT
   });
-  
+
   return matches;
 }
 ```
@@ -1248,6 +1502,163 @@ async checkCatalogSimilarityWithVector(description, embedding) {
   - Never place HTML comments inside attribute areas (`<!-- comment -->` should be on separate lines)
   - Use proper indentation to improve readability
   - Ensure all required props are provided to prevent Vue console warnings
+
+### API Response Format Handling Pattern
+
+- **Problem**: API response structures may vary, especially after database migrations or when accessed through different environments
+- **Pattern**: Flexible response handling with fallbacks and enhanced debugging
+- **Solution**: Implement service methods that handle different response structures with robust error handling
+
+### Consistent API Response Unwrapping Pattern
+
+- **Problem**: Double unwrapping of API responses can lead to missing properties and broken UI components
+- **Pattern**: Standardized response processing with consistent unwrapping strategy
+- **Solution**: Choose a single layer (service OR component) to unwrap API responses, with clear documentation
+
+```javascript
+// BAD APPROACH - Double unwrapping
+// 1. First unwrap in api.service.js via axios interceptor
+axiomInstance.interceptors.response.use(response => {
+  // First unwrapping happens here
+  return response.data;
+});
+
+// 2. Second unwrap in ai-provider.service.js
+async testLanguageModelConnection() {
+  try {
+    const response = await apiService.post('/ai-provider/test-language-model');
+    // Second unwrapping - BAD! The success flag is lost
+    return response.data;
+  } catch (error) {
+    // Error handling
+  }
+}
+
+// GOOD APPROACH - Choose one unwrapping strategy
+// Option 1: No interceptor unwrapping, explicit service unwrapping
+async testLanguageModelConnection() {
+  try {
+    const response = await apiService.post('/ai-provider/test-language-model');
+    return response.data; // Single unwrapping point
+  } catch (error) {
+    // Error handling
+  }
+}
+
+// Option 2: Interceptor unwrapping, service preserves structure
+async testLanguageModelConnection() {
+  try {
+    const response = await apiService.post('/ai-provider/test-language-model');
+    return response; // No additional unwrapping - PREFERRED
+  } catch (error) {
+    // Error handling
+  }
+}
+```
+
+- **Key Aspects**:
+  - Choose a consistent unwrapping strategy across the entire application
+  - Document the chosen strategy clearly in `api.service.js`
+  - Include clear comments in service methods about response structure expectations
+  - Use debug logging to validate response structures during development
+  - Handle different possible response structures with explicit conditions
+  - Preserve the standard `{ success, data?, message? }` wrapper convention
+  - Ensure component access patterns align with the chosen unwrapping strategy
+  - Use defensive programming with optional chaining for property access
+
+```javascript
+// Enhanced response handling in service methods with multiple structure support
+async getAiProviderSettings() {
+  try {
+    const response = await apiService.get('/ai-provider');
+
+    // Enhanced response structure handling with better debugging
+    console.log('Raw AI provider settings response:', response);
+
+    // Check for different possible response structures
+    if (response?.success && response?.data) {
+      // Direct response from apiService
+      return {
+        success: true,
+        data: response.data
+      };
+    } else if (response?.data?.success && response?.data?.data) {
+      // Nested response structure
+      return {
+        success: true,
+        data: response.data.data
+      };
+    } else if (response?.data) {
+      // Response with just data property
+      return {
+        success: true,
+        data: response.data
+      };
+    } else {
+      console.warn('Response from AI provider settings endpoint has unexpected format:', response);
+      return {
+        success: false,
+        message: 'Invalid response format from API',
+        data: {
+          settings: [],
+          providers: {
+            languageModel: { provider: null, model: null },
+            embedding: { provider: null, model: null, enabled: false }
+          }
+        }
+      };
+    }
+  } catch (error) {
+    console.error('Error getting AI provider settings:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Failed to get AI provider settings',
+      error
+    };
+  }
+}
+
+// Component-side handling of response structures
+const processSettingsData = (settingsData) => {
+  // Add more detailed logging to understand the structure
+  console.log('Processing settings data:', settingsData);
+
+  // Handle different possible data structures
+  let dbSettings = [];
+  let providers = {};
+
+  // Check if settingsData has a settings array
+  if (Array.isArray(settingsData.settings)) {
+    dbSettings = settingsData.settings;
+  } else if (Array.isArray(settingsData)) {
+    // If settingsData itself is an array, it might be the settings
+    dbSettings = settingsData;
+  }
+
+  console.log(`Found ${dbSettings.length} settings in the response`);
+
+  // Apply database settings to the form
+  dbSettings.forEach(setting => {
+    if (setting && setting.key && setting.key in settings) {
+      console.log(`Setting ${setting.key} = ${setting.value}`);
+      settings[setting.key] = setting.value;
+    }
+  });
+
+  // Additional processing...
+};
+```
+
+- **Key Aspects**:
+  - Service methods check for multiple possible response structures with explicit conditions
+  - Detailed logging helps identify the exact structure of API responses at each stage
+  - Fallback mechanisms ensure the UI remains functional even with unexpected responses
+  - Default values provided for all expected properties to prevent undefined errors
+  - Consistent error handling with appropriate error messages and error objects
+  - Comprehensive structure validation with optional chaining (`?.`) for safe property access
+  - Component-side processing with flexible data structure handling
+  - Defensive programming with null/undefined checking at all levels
+  - Clear debugging information to trace data flow through the application
 
 ### Form State Reset Pattern
 
@@ -1905,6 +2316,191 @@ async getUpcomingProjects(limit = 5) {
   - Use try/catch blocks to handle unexpected errors
   - Frontend components handle null and empty array returns properly
 
+### Vector Dimensionality Adaptation Pattern
+
+- **Problem**: Different embedding models produce vectors of varying dimensions, incompatible with database columns of fixed dimension
+- **Pattern**: Environment-driven dimension configuration with automatic dimensionality reduction
+- **Solution**: Implement a configurable dimension system with runtime adaptation
+
+```javascript
+// 1. Environment-based dimension configuration
+const EMBED_DIM = parseInt(process.env.EMBEDDING_DIM || '1536', 10);
+
+// 2. Dynamic vector dimension in models
+this.VECTOR = () => `vector(${EMBED_DIM})`; // No hardcoded dimensions
+
+// 3. Runtime dimensionality reduction
+if (embedding.length > targetDim) {
+  logger.info(`Reducing embedding dimensions from ${embedding.length} to ${targetDim}`);
+  // Simple striding approach for dimension reduction
+  const ratio = embedding.length / targetDim;
+  const reducedEmbedding = new Array(targetDim);
+  for (let i = 0; i < targetDim; i++) {
+    reducedEmbedding[i] = embedding[Math.floor(i * ratio)];
+  }
+  return reducedEmbedding;
+}
+```
+
+- **Key Aspects**:
+  - Environment variable as single source of truth for vector dimensions
+  - Database column type auto-adapts to environment setting
+  - Model definitions use dynamic dimension function without hardcoding
+  - Automatic dimensionality reduction for oversized vectors
+  - Simple striding approach preserves semantic information
+  - Database migration ensures schema compatibility
+  - Compatible with pgvector's 2000-dimension limit for ivfflat indexes
+
+## AI Provider Management Pattern
+
+- **Problem**: AI features require flexible provider integrations for language tasks and embeddings with clean abstractions
+- **Pattern**: Provider-agnostic services with dependency injection and settings-based configuration
+- **Solution**: Create abstraction layers for language and embedding services with provider interfaces
+
+```javascript
+// Embedding provider with support for multiple providers
+class EmbeddingProvider {
+  constructor() {
+    this._initialized = false;
+    this._provider = null;
+    this._client = null;
+    this._lastApiKey = null;
+    this._lastBaseUrl = null;
+    this._lastModelName = null;
+    this._initPromise = this._initialize();
+  }
+
+  async _initialize() {
+    // Load provider settings from database or environment variables
+    const providerName = await settingsService.getSettingValue(
+      'embedding_provider',
+      process.env.EMBEDDING_PROVIDER || 'deepseek'
+    );
+
+    // Load API key, base URL, and model name for the provider
+    const apiKey = await this._getApiKey(providerName);
+    const baseUrl = await this._getBaseUrl(providerName);
+    const modelName = await this._getModelName(providerName);
+
+    // Initialize the appropriate client based on provider
+    if (providerName === 'openai' || providerName === 'gemini') {
+      this._client = new OpenAI({
+        apiKey: apiKey,
+        baseURL: baseUrl,
+      });
+    }
+
+    this._provider = providerName;
+    this._initialized = true;
+  }
+
+  // Generate embedding with the configured provider
+  async embed(text) {
+    // Ensure provider is initialized
+    if (!this._initialized) {
+      await this._initPromise;
+    }
+
+    // Check if embedding is enabled
+    const isEnabled = await this.isEnabled();
+    if (!isEnabled) {
+      return null;
+    }
+
+    // Generate embedding based on provider
+    if (this._provider === 'openai' || this._provider === 'gemini') {
+      const resp = await this._client.embeddings.create({
+        model: this._lastModelName,
+        input: text,
+      });
+      return resp.data[0].embedding;
+    } else if (this._provider === 'deepseek') {
+      // Use the DeepSeek service for this provider
+      const deepseekService = require('./deepseekService');
+      return await deepseekService.generateEmbedding(text);
+    }
+
+    return null;
+  }
+
+  // Force reinitialization of the provider (used after settings changes)
+  async reinitialize() {
+    this._initialized = false;
+    this._provider = null;
+    this._client = null;
+    await this._initialize();
+  }
+}
+
+// Frontend settings component for AI provider configuration
+<BaseFormGroup
+  label="Embedding Provider"
+  input-id="embeddingProvider"
+  helper-text="Select the provider for vector embeddings"
+>
+  <BaseSelect
+    id="embeddingProvider"
+    v-model="settings.embedding_provider"
+    :options="providerOptions.embedding"
+    @change="onEmbeddingProviderChange"
+  />
+</BaseFormGroup>
+
+// API endpoint for testing connections
+async testEmbeddingConnection(req, res) {
+  try {
+    // Check if embedding is enabled
+    const isEnabled = await embeddingProvider.isEnabled();
+    if (!isEnabled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Embedding is disabled in settings'
+      });
+    }
+
+    // Try to generate an embedding
+    const embedding = await embeddingProvider.embed('This is a test');
+
+    if (!embedding) {
+      return res.status(500).json({
+        success: false,
+        message: 'Embedding generation failed'
+      });
+    }
+
+    // Return success with embedding details
+    return res.status(200).json({
+      success: true,
+      message: 'Embedding connection test successful',
+      data: {
+        provider: await embeddingProvider.getProviderName(),
+        model: await embeddingProvider.getModelName(),
+        dimensions: embedding.length
+      }
+    });
+  } catch (error) {
+    logger.error('Error testing embedding connection:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Embedding connection test failed',
+      error: error.message
+    });
+  }
+}
+```
+
+- **Key Aspects**:
+  - Provider-agnostic interfaces for language models and embeddings
+  - Settings-based configuration with database storage and environment variable fallbacks
+  - Support for multiple providers (DeepSeek, OpenAI, Gemini) through a consistent API
+  - Settings UI for managing API keys, base URLs, and model selection
+  - Connection testing capabilities to verify API credentials
+  - Just-in-time provider initialization to reduce startup overhead
+  - Support for runtime provider switching with reinitialize method
+  - Seamless integration with existing services (workTypeDetectionService)
+  - Error handling and logging throughout the provider lifecycle
+  - Admin-only access controls for sensitive API configuration
+
 ### Vue Component Data Initialization Pattern
 
 - **Problem**: Vue components can throw "Cannot read properties of undefined (reading 'length')" errors when accessing properties of data that hasn't been loaded yet
@@ -2115,3 +2711,102 @@ class CommunityService {
   - The UI provides separate sections for community info, ad specialist contacts, and ad types
   - Modal interfaces handle all CRUD operations with proper data validation
   - Standardized services ensure proper case conversion between frontend and backend
+
+## Vector Embeddings and Similarity Search Patterns
+
+### Vector Embedding Generation Pattern
+
+- **Problem:** Need consistent vector embeddings for text similarity search that works with different embedding providers
+- **Pattern:** Standardized embedding generation with typed array support
+- **Solution:** Create a unified interface for embedding generation with proper error handling and type conversion
+
+```javascript
+// Embedding generation with provider abstraction
+async function generateEmbedding(text) {
+  // Get the configured provider
+  const provider = await embeddingProviderFactory.getProvider();
+
+  try {
+    // Generate embedding using the provider
+    const embedding = await provider.embed(text);
+
+    // Handle typed arrays (Float32Array, etc.)
+    if (ArrayBuffer.isView(embedding)) {
+      return Array.from(embedding);
+    }
+
+    // Validate the embedding
+    if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
+      logger.warn('Invalid embedding returned from provider');
+      return null;
+    }
+
+    return embedding;
+  } catch (error) {
+    logger.error(`Error generating embedding: ${error.message}`);
+    return null;
+  }
+}
+```
+
+- **Key Aspects:**
+  - Provider abstraction allows switching embedding models without changing code
+  - Support for both plain arrays and typed arrays (Float32Array) from different providers
+  - Type checking with ArrayBuffer.isView() to detect typed arrays
+  - Consistent error handling with detailed logging
+  - Embedding validation ensures downstream processes receive valid data
+  - Null return for invalid embeddings allows graceful fallbacks
+  - Configuration from environment variables or database settings
+
+### Vector Similarity Search Pattern
+
+- **Problem:** Need efficient vector similarity search in PostgreSQL
+- **Pattern:** Properly formatted vector literals with pgvector
+- **Solution:** Convert JavaScript arrays to pgvector-compatible format with proper casting
+
+```javascript
+// Convert embedding to pgvector literal format
+function formatVectorForPgVector(vec) {
+  // Accept plain arrays or typed arrays
+  if (!Array.isArray(vec)) {
+    if (ArrayBuffer.isView(vec)) vec = Array.from(vec);
+    else {
+      logger.warn(`Embedding is not iterable: ${typeof vec}`);
+      return null;
+    }
+  }
+
+  // Format with controlled precision for consistent representation
+  return '[' + vec.map(v => Number(v.toFixed(6))).join(',') + ']';
+}
+
+// Use in SQL query with proper casting
+const vectorQuery = `
+  SELECT id, name, 1 - (name_vec <=> $1::vector) AS score
+  FROM work_types
+  WHERE name_vec IS NOT NULL
+  ORDER BY score DESC
+  LIMIT 10;
+`;
+
+// Execute query with proper binding
+const results = await sequelize.query(vectorQuery, {
+  bind: [vectorLiteral], // Pass vector as string literal with proper casting
+  type: sequelize.QueryTypes.SELECT,
+  raw: true
+});
+
+// Filter results with null check
+const filteredResults = results
+  .filter(r => r.score !== null && r.score > 0.60)
+  .slice(0, 5);
+```
+
+- **Key Aspects:**
+  - Proper handling of typed arrays (Float32Array) common in ML libraries
+  - Precision control with toFixed(6) for consistent vector representation
+  - Explicit ::vector casting in SQL to ensure proper type conversion
+  - Proper parameter binding to prevent SQL injection
+  - Null check in filter to prevent runtime errors
+  - Variable scope management for proper access to query results
+  - Fallback to trigram similarity when vector search fails

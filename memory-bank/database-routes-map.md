@@ -119,7 +119,7 @@ This document provides a comprehensive overview of the database structure and AP
 #### Projects
 - **Table**: `projects`
 - **Primary Key**: `id` (UUID)
-- **Key Fields**: `client_id`, `type`, `status`, `scheduled_date`
+- **Key Fields**: `client_id`, `type`, `status`, `scheduled_date`, `condition`
 - **Relationships**:
   - Many-to-One with `clients`
   - Many-to-One with `client_addresses` (via `address_id`)
@@ -127,9 +127,13 @@ This document provides a comprehensive overview of the database structure and AP
   - One-to-Many with `project_inspections`
   - One-to-Many with `project_photos`
   - Self-referential: Assessment to Job conversion (via `converted_to_job_id`)
-  - Self-referential: Job to Assessment reference (via `assessment_id`)
   - Many-to-One with `pre_assessments` (via `pre_assessment_id`)
-- **Notes**: Supports multiple project types and statuses
+  - One-to-One with `project_inspections` (scoped association for condition category)
+- **Notes**:
+  - Supports multiple project types and statuses
+  - The `condition` field replaced the previous `scope` field
+  - The `assessment_id` field has been removed in favor of using `project_inspections` with `category = 'condition'`
+  - Condition-style "assessment" is now a `project_inspections` row where `category = 'condition'`
 
 #### Project Inspections
 - **Table**: `project_inspections`
@@ -219,6 +223,19 @@ This document provides a comprehensive overview of the database structure and AP
 - **Key Fields**: `key`, `value`, `group`
 - **Relationships**: None
 - **Notes**: Stores application configuration
+- **Special Groups**:
+  - `ai_provider`: Stores AI provider configuration settings
+  - `llm_settings`: Stores language model configuration
+  - `embedding_settings`: Stores embedding model configuration
+- **AI Provider Settings**:
+  - `openai_api_key`: API key for OpenAI
+  - `deepseek_api_key`: API key for DeepSeek
+  - `anthropic_api_key`: API key for Anthropic
+  - `language_model_provider`: Selected provider for language model (openai, deepseek, anthropic)
+  - `language_model`: Selected model name for the chosen provider
+  - `embedding_provider`: Selected provider for embeddings (openai, deepseek)
+  - `embedding_model`: Selected model name for embeddings
+  - `embedding_enabled`: Boolean flag to enable/disable embedding functionality
 
 #### LLM Prompts
 - **Table**: `llm_prompts`
@@ -388,6 +405,8 @@ Based on the backend routes file (`backend/src/routes/index.js`), the following 
 
 ### System Configuration
 - `/api/settings` - Application settings
+- `/api/ai-provider` - AI provider configuration and management
+- `/api/ai-provider/options` - Available AI provider options (models, providers)
 - `/api/llm-prompts` - LLM prompt management
 - `/api/upload` - File upload handling
 - `/api/status` - System status checks
@@ -444,12 +463,29 @@ The application now uses a standardized error handling middleware that ensures c
 
 ### Project Relationship Complexity [Improved]
 - **Problem**: Complex and occasionally circular relationships
-  - Self-referential relationships (`assessment_id`, `converted_to_job_id`)
+  - Self-referential relationships (`converted_to_job_id`)
   - Projects can link to both `pre_assessment_id` and `estimate_id`
   - Photo relationships to both projects and inspections add complexity
   - Relationship cascade behaviors not consistently defined
 - **Impact**: Makes queries complex, increases risk of orphaned records, complicates data maintenance
-- **Current Status**: Field names standardized in project-related tables; relationship documentation improved
+- **Current Status**: Field names standardized in project-related tables; relationship documentation improved; assessment_id removed in favor of project_inspections
+
+### Assessment to Condition Transition [Completed]
+- **Problem**: Projects used `assessment_id` to reference assessment projects, creating circular references
+- **Old Pattern**: Projects had an `assessment_id` column that referenced another project
+- **New Pattern**: Condition-style "assessment" is now a `project_inspections` row where `category = 'condition'`
+- **Implementation**:
+  - Removed `assessment_id` attribute from Project model
+  - Renamed `scope` to `condition` to match the database schema
+  - Added scoped association: `Project.hasOne(ProjectInspection, { as: 'condition', scope: { category: 'condition' } })`
+  - Updated all services to use the new pattern
+  - Fixed assessment to job conversion to use the new pattern
+- **Benefits**:
+  - Simplified data model with fewer circular references
+  - More consistent with the inspection-based architecture
+  - Better separation of concerns between project metadata and inspection data
+  - Easier to query and maintain
+- **Current Status**: Fully implemented and tested
 
 ### Route Naming Inconsistencies [Partially Resolved]
 - **Problem**: Inconsistent API route structures
