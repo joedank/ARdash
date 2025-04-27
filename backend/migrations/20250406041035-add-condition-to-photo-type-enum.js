@@ -3,8 +3,19 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    // Add 'condition' to the existing ENUM type in PostgreSQL
-    await queryInterface.sequelize.query(`ALTER TYPE "enum_project_photos_photo_type" ADD VALUE 'condition';`);
+    // Add 'condition' to the existing ENUM type in PostgreSQL, but only if it doesn't exist already
+    await queryInterface.sequelize.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_enum
+          WHERE enumtypid = 'enum_project_photos_photo_type'::regtype
+            AND enumlabel = 'condition'
+        ) THEN
+          ALTER TYPE "enum_project_photos_photo_type" ADD VALUE 'condition';
+        END IF;
+      END$$;
+    `);
   },
 
   async down (queryInterface, Sequelize) {

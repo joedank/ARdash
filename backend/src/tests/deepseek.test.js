@@ -1,19 +1,15 @@
-// Simple script to test DeepSeek API connection directly
+// Simple script to test language model API connection
 
 // Load environment variables from .env file
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
-// Import the service (using CommonJS require) - Corrected casing
-const deepSeekService = require('../services/deepseekService');
+// Import the language model provider service
+const languageModelProvider = require('../services/languageModelProvider');
+const embeddingProvider = require('../services/embeddingProvider');
 const logger = require('../utils/logger'); // Use the same logger for consistency
 
 async function testDeepSeekConnection() {
-  logger.info('Starting DeepSeek API connection test...');
-
-  if (!process.env.DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY === 'YOUR_DEEPSEEK_API_KEY_HERE') {
-    logger.error('DEEPSEEK_API_KEY is not set or is still the placeholder in .env file. Please set it.');
-    return;
-  }
+  logger.info('Starting language model API connection test...');
 
   try {
     const messages = [
@@ -21,22 +17,31 @@ async function testDeepSeekConnection() {
       { role: "user", content: "Hello! Can you confirm you received this message?" }
     ];
 
-    logger.info('Sending test message to DeepSeek API...');
-    const completion = await deepSeekService.generateChatCompletion(messages, 'deepseek-chat');
+    logger.info('Sending test message to language model API...');
+    const completion = await languageModelProvider.generateChatCompletion(messages);
 
     if (completion && completion.choices && completion.choices.length > 0) {
       const responseContent = completion.choices[0].message?.content;
-      logger.info('Successfully received response from DeepSeek:');
+      logger.info('Successfully received response from language model:');
       console.log('--- Response Start ---');
       console.log(responseContent);
       console.log('--- Response End ---');
-      logger.info('DeepSeek API connection test successful!');
+      logger.info('Language model API connection test successful!');
     } else {
-      logger.error('Received an invalid or empty response structure from DeepSeek.');
+      logger.error('Received an invalid or empty response structure from language model.');
       console.error('Full Response:', JSON.stringify(completion, null, 2));
     }
+
+    // Test embedding generation
+    logger.info('Testing embedding generation...');
+    const embeddingResult = await embeddingProvider.embed(
+      'This is a test sentence for embedding generation.'
+    );
+
+    // Just log the length of the embedding vector to avoid cluttering the console
+    logger.info(`Embedding result: Vector of length ${embeddingResult ? embeddingResult.length : 'N/A'}`);
   } catch (error) {
-    logger.error('DeepSeek API connection test failed:');
+    logger.error('Language model API connection test failed:');
     console.error(error); // Log the full error object
   }
 }

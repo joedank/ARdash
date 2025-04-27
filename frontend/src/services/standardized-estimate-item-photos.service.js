@@ -38,7 +38,7 @@ const estimateItemPhotosService = {
 
       // Make API request
       const response = await api.post(
-        `/api/estimate-items/${estimateItemId}/photos`,
+        `/estimate-items/${estimateItemId}/photos`,
         formData,
         {
           headers: {
@@ -69,7 +69,7 @@ const estimateItemPhotosService = {
       }
 
       // Make API request
-      const response = await api.get(`/api/estimate-items/${estimateItemId}/photos`);
+      const response = await api.get(`/estimate-items/${estimateItemId}/photos`);
       return apiAdapter.standardizeResponse(response);
     } catch (error) {
       return apiAdapter.standardizeError(error);
@@ -93,7 +93,7 @@ const estimateItemPhotosService = {
       }
 
       // Make API request
-      const response = await api.get(`/api/estimate-items/${estimateItemId}/photos/${photoId}`);
+      const response = await api.get(`/estimate-items/${estimateItemId}/photos/${photoId}`);
       return apiAdapter.standardizeResponse(response);
     } catch (error) {
       return apiAdapter.standardizeError(error);
@@ -122,7 +122,7 @@ const estimateItemPhotosService = {
 
       // Make API request
       const response = await api.put(
-        `/api/estimate-items/${estimateItemId}/photos/${photoId}`,
+        `/estimate-items/${estimateItemId}/photos/${photoId}`,
         requestData
       );
 
@@ -149,7 +149,7 @@ const estimateItemPhotosService = {
       }
 
       // Make API request
-      const response = await api.delete(`/api/estimate-items/${estimateItemId}/photos/${photoId}`);
+      const response = await api.delete(`/estimate-items/${estimateItemId}/photos/${photoId}`);
       return apiAdapter.standardizeResponse(response);
     } catch (error) {
       return apiAdapter.standardizeError(error);
@@ -173,7 +173,7 @@ const estimateItemPhotosService = {
 
       // Make API request
       // Removed leading /api as it's handled by the base URL in api.service.js
-      const response = await api.get(`/api/estimates/${estimateId}/photos`);
+      const response = await api.get(`/estimates/${estimateId}/photos`);
       return apiAdapter.standardizeResponse(response);
     } catch (error) {
       // Re-throw the error to be handled by the interceptor or calling component

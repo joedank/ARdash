@@ -81,6 +81,40 @@ const workTypes = ref([]);
 const loading = ref(false);
 const error = ref(null);
 
+// Load work types from backend
+const loadWorkTypes = async () => {
+  if (!props.ids || props.ids.length === 0) {
+    workTypes.value = [];
+    return;
+  }
+  
+  loading.value = true;
+  error.value = null;
+  
+  try {
+    // Load work types by ID
+    const results = [];
+    for (const id of props.ids) {
+      try {
+        const workType = await workTypesService.getWorkTypeById(id, true, true);
+        if (workType) {
+          results.push(workType);
+        }
+      } catch (err) {
+        console.error(`Error loading work type ${id}:`, err);
+        // Continue to next ID even if one fails
+      }
+    }
+    
+    workTypes.value = results;
+  } catch (err) {
+    console.error('Error loading work types:', err);
+    error.value = 'Failed to load work types. Please try again.';
+  } finally {
+    loading.value = false;
+  }
+};
+
 // Load work types when ids change
 watch(() => props.ids, async (newIds) => {
   if (newIds && newIds.length > 0) {
@@ -117,40 +151,6 @@ const getTotalCost = (workType) => {
   const materialCost = workType.unit_cost_material ? parseFloat(workType.unit_cost_material) : 0;
   const laborCost = workType.unit_cost_labor ? parseFloat(workType.unit_cost_labor) : 0;
   return materialCost + laborCost;
-};
-
-// Load work types from backend
-const loadWorkTypes = async () => {
-  if (!props.ids || props.ids.length === 0) {
-    workTypes.value = [];
-    return;
-  }
-  
-  loading.value = true;
-  error.value = null;
-  
-  try {
-    // Load work types by ID
-    const results = [];
-    for (const id of props.ids) {
-      try {
-        const workType = await workTypesService.getWorkTypeById(id, true, true);
-        if (workType) {
-          results.push(workType);
-        }
-      } catch (err) {
-        console.error(`Error loading work type ${id}:`, err);
-        // Continue to next ID even if one fails
-      }
-    }
-    
-    workTypes.value = results;
-  } catch (err) {
-    console.error('Error loading work types:', err);
-    error.value = 'Failed to load work types. Please try again.';
-  } finally {
-    loading.value = false;
-  }
 };
 
 // Initial load

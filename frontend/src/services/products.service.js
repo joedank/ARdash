@@ -17,7 +17,7 @@ class ProductsService {
     if (filters.isActive !== undefined) queryParams.append('isActive', filters.isActive);
     if (filters.search) queryParams.append('search', filters.search);
 
-    return apiService.get(`/api/products?${queryParams.toString()}`);
+    return apiService.get(`/products?${queryParams.toString()}`);
   }
 
   /**
@@ -26,7 +26,7 @@ class ProductsService {
    * @returns {Promise} Response data with created product
    */
   async createProduct(productData) {
-    return apiService.post('/api/products', productData);
+    return apiService.post('/products', productData);
   }
 
   /**
@@ -35,7 +35,7 @@ class ProductsService {
    * @returns {Promise} Response data with product details
    */
   async getProduct(id) {
-    return apiService.get(`/api/products/${id}`);
+    return apiService.get(`/products/${id}`);
   }
 
   /**
@@ -45,7 +45,7 @@ class ProductsService {
    * @returns {Promise} Response data with updated product
    */
   async updateProduct(id, productData) {
-    return apiService.put(`/api/products/${id}`, productData);
+    return apiService.put(`/products/${id}`, productData);
   }
 
   /**

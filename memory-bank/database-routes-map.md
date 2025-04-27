@@ -1,3 +1,15 @@
+### Project Association Update
+
+- **Change**: Renamed association from `condition` to `conditionInspection` in Project model
+- **Reason**: To avoid naming collision with existing `condition` column
+- **Files Affected**: 
+  - `Project.js`: Updated association definition
+  - `projectService.js`: Updated include patterns in queries
+- **Access Pattern**:
+  - When queried via `projectService.getProjectWithDetails()`, the condition inspection is now returned with the alias `project.conditionInspection` instead of `project.condition`
+  - The `condition` column in Project model still stores the text data about project conditions
+- **Key Learning**: Sequelize prohibits using the same name for both a database column and an association in the same model
+
 ## Current Implementation Status
 
 ### Current Progress

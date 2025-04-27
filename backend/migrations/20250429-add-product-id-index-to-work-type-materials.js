@@ -4,12 +4,20 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     try {
-      // Add index on product_id column in work_type_materials table
-      await queryInterface.addIndex('work_type_materials', ['product_id'], {
-        name: 'work_type_materials_product_id_idx'
-      });
+      // Check if index already exists
+      const [results] = await queryInterface.sequelize.query(
+        `SELECT 1 FROM pg_indexes WHERE indexname = 'work_type_materials_product_id_idx'`
+      );
       
-      console.log('Successfully added index on work_type_materials.product_id');
+      if (results.length === 0) {
+        // Add index on product_id column in work_type_materials table
+        await queryInterface.addIndex('work_type_materials', ['product_id'], {
+          name: 'work_type_materials_product_id_idx'
+        });
+        console.log('Successfully added index on work_type_materials.product_id');
+      } else {
+        console.log('Index work_type_materials_product_id_idx already exists, skipping creation');
+      }
     } catch (error) {
       console.error('Failed to add index on work_type_materials.product_id:', error);
       throw error;

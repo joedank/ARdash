@@ -1,6 +1,7 @@
-const deepSeekServiceInstance = require('./deepseekService');
+const languageModelProvider = require('./languageModelProvider');
 const logger = require('../utils/logger');
 const { formatAssessmentToMarkdown } = require("./assessmentFormatterService");
+const { compactAssessment } = require('../utils/assessment');
 // Import models
 const { LLMPrompt, Product } = require('../models');
 const { Op } = require('sequelize');
@@ -9,11 +10,8 @@ const stringSimilarity = require('string-similarity');
 // --- Service Implementation ---
 
 class LLMEstimateService {
-  constructor(deepSeekService) {
-    if (!deepSeekService) {
-      throw new Error("DeepSeekService instance is required.");
-    }
-    this.deepSeekService = deepSeekService;
+  constructor() {
+    this.languageProvider = languageModelProvider;
 
     // Cache for prompts to avoid excessive database queries
     this.promptCache = {};
@@ -377,13 +375,30 @@ Format: Return a JSON object matching the service catalog schema.`
       if (!scope || typeof scope !== 'string') {
         throw new Error('Scope description is required');
       }
+      
+      // Compact scope text to reduce token usage, extracting most important sentences
+      const originalLength = scope.length;
+      let compactedScope = scope;
+      
+      // If scope is long, compact it by extracting top sentences
+      if (scope.length > 300) {
+        const { extractTopSentences } = require('../utils/assessment');
+        const topSentences = extractTopSentences(scope, 6);
+        compactedScope = topSentences.join('. ');
+        
+        if (compactedScope && !compactedScope.endsWith('.')) {
+          compactedScope += '.';
+        }
+        
+        console.log(`Compacted scope: ${originalLength} chars -> ${compactedScope.length} chars`);
+      }
 
-      // Use the same prompt as initialAnalysis
-      const prompt = this._getDefaultPrompt('initialAnalysis') + `\n${scope}`;
+      // Use the same prompt as initialAnalysis but with compacted scope
+      const prompt = this._getDefaultPrompt('initialAnalysis') + `\n${compactedScope}`;
       console.log('\nPrompt used (first 200 chars):', prompt.substring(0, 200) + '...');
       
       console.log('\nCalling DeepSeek API...');
-      const llmResponse = await this.deepSeekService.generateChatCompletion([
+      const llmResponse = await this.languageProvider.generateChatCompletion([
         {
           role: "system",
           content: "You are a professional construction estimator. Analyze the project scope and respond with a JSON object."
@@ -519,7 +534,7 @@ Format: Return a JSON object matching the service catalog schema.`
           assessment = {
             id: project.id,
             projectId: project.id,
-            scope: project.scope,
+            scope: project.condition,
             inspections: project.inspections || [],
             photos: project.photos || [],
             date: project.scheduled_date,
@@ -542,9 +557,13 @@ Format: Return a JSON object matching the service catalog schema.`
         formattedMarkdown = assessment.formattedMarkdown;
         logger.info("Using pre-formatted assessment markdown");
       } else {
-        // Otherwise format it now using the Milestone 1 formatter
-        formattedMarkdown = formatAssessmentToMarkdown(assessment);
-        logger.info("Formatted assessment data to markdown");
+        // Compact the assessment data before formatting to reduce token usage
+        const compactedAssessment = compactAssessment(assessment, { maxSentences: 8 });
+        logger.info(`Compacted assessment data: ${assessment.scope?.length || 0} chars -> ${compactedAssessment.scope?.length || 0} chars`);
+        
+        // Format the compacted assessment to markdown
+        formattedMarkdown = formatAssessmentToMarkdown(compactedAssessment);
+        logger.info("Formatted compacted assessment data to markdown");
       }
 
       // Build LLM prompt with the formatted markdown
@@ -560,7 +579,7 @@ Format: Return a JSON object matching the service catalog schema.`
       });
 
       // Call LLM with appropriate parameters
-      const llmResponse = await this.deepSeekService.generateChatCompletion([
+      const llmResponse = await this.languageProvider.generateChatCompletion([
         {
           role: "system",
           content: "You are a professional construction estimator. Respond ONLY with a valid JSON array of line items."
@@ -852,4 +871,4 @@ Format: Return a JSON object matching the service catalog schema.`
   }
 }
 
-module.exports = new LLMEstimateService(deepSeekServiceInstance);
+module.exports = new LLMEstimateService();

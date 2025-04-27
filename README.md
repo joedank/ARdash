@@ -1,5 +1,23 @@
 # Construction Management Web Application
 
+## API Path Prefixing Convention
+
+This application uses a consistent convention for API path prefixing:
+
+- In `api.service.js`, the `baseURL` is set to `/api`
+- All service calls should use paths relative to this base URL
+- Example: Use `/auth/login` instead of `/api/auth/login`
+
+If you encounter any doubled prefixes (e.g., `/api/api/auth/login`), run the provided script:
+
+```
+node scripts/stripApiPrefix.js
+```
+
+This script will scan all service files and remove redundant `/api/` prefixes.
+
+An ESLint rule (`no-hardcoded-api`) is also configured to prevent introducing new hard-coded `/api/` prefixes.
+
 ## Standardized Error Handling
 
 The application implements a comprehensive standardized error handling middleware to ensure consistent error responses across all endpoints. This improves debugging, user experience, and frontend error handling.

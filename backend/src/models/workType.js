@@ -84,7 +84,7 @@ module.exports = (sequelize, DataTypes) => {
       }
     },
     name_vec: {
-      type: CustomDataTypes.VECTOR(384), // Use custom VECTOR type with fallback to TEXT
+      type: CustomDataTypes.VECTOR(), // Use custom VECTOR type with dynamic dimension
       allowNull: true
     },
     revision: {

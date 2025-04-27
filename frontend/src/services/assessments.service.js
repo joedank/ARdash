@@ -1,6 +1,6 @@
 /**
  * Assessments Service
- * 
+ *
  * Service for interacting with assessments API endpoints
  */
 
@@ -24,13 +24,19 @@ class AssessmentsService {
         return [];
       }
 
+      console.log('Sending work type detection request with condition:', conditionText);
       const response = await apiClient.post('/assessments/detect-work-types', {
         condition: conditionText
       });
 
-      if (response.data?.success && Array.isArray(response.data.data)) {
+      console.log('Raw API response:', response);
+
+      if (response.success && Array.isArray(response.data)) {
+        console.log('Work types found, converting to camelCase:', response.data);
         // Convert to camelCase
-        return toCamelCase(response.data.data);
+        return toCamelCase(response.data);
+      } else {
+        console.log('No work types found or invalid response format:', response);
       }
 
       return [];
@@ -54,10 +60,10 @@ class AssessmentsService {
 
     // Create a new array to avoid modifying the original
     const workTypes = Array.isArray(currentWorkTypes) ? [...currentWorkTypes] : [];
-    
+
     // Check if the work type is already in the array
     const index = workTypes.findIndex(id => id === workType.workTypeId);
-    
+
     // Toggle the work type
     if (index !== -1) {
       // Remove the work type
@@ -66,7 +72,7 @@ class AssessmentsService {
       // Add the work type
       workTypes.push(workType.workTypeId);
     }
-    
+
     return workTypes;
   }
 
@@ -78,11 +84,11 @@ class AssessmentsService {
   async getAssessmentForEstimate(estimateId) {
     try {
       const response = await apiClient.get(`/assessment/for-estimate/${estimateId}`);
-      
+
       if (response.data) {
         return toCamelCase(response.data);
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error fetching assessment for estimate:', error);

@@ -70,6 +70,13 @@ module.exports = (sequelize, DataTypes) => {
                 if (!hasValidItem) {
                   throw new Error('Measurements must include at least one item with dimensions and description');
                 }
+                
+                // Validate work_type_id if present
+                for (const item of value.items) {
+                  if (item.work_type_id && !/^[0-9a-f-]{36}$/.test(item.work_type_id)) {
+                    throw new Error('Invalid work_type_id on measurement item');
+                  }
+                }
               } 
               // Support for legacy structure
               else if (!value.dimensions || typeof value.dimensions !== 'object') {

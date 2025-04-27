@@ -11,7 +11,7 @@ class LLMPromptService {
    */
   async getAllPrompts() {
     try {
-      const response = await apiService.get('/api/llm-prompts');
+      const response = await apiService.get('/llm-prompts');
 
       // Convert snake_case to camelCase
       const data = response.data ? toCamelCase(response.data) : null;
@@ -37,7 +37,7 @@ class LLMPromptService {
    */
   async getPromptById(id) {
     try {
-      const response = await apiService.get(`/api/llm-prompts/${id}`);
+      const response = await apiService.get(`/llm-prompts/${id}`);
 
       // Convert snake_case to camelCase
       const data = response.data ? toCamelCase(response.data) : null;
@@ -66,7 +66,7 @@ class LLMPromptService {
       // Convert camelCase to snake_case
       const snakeCasePrompt = toSnakeCase(prompt);
 
-      const response = await apiService.put(`/api/llm-prompts/${prompt.id}`, {
+      const response = await apiService.put(`/llm-prompts/${prompt.id}`, {
         description: snakeCasePrompt.description,
         prompt_text: snakeCasePrompt.prompt_text
       });

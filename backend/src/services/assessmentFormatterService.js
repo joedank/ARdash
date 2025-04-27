@@ -73,9 +73,10 @@ function formatAssessmentToMarkdown(assessment) {
         // Format dimensions
         const dimensionsText = (length && width) ? ` (${length} × ${width})` : '';
         
-        // Create the base measurement line
+        // Create the base measurement line with work type ID if available
         const description = m.description || m.label || 'Area';
-        const base = `- ${description}${dimensionsText}: ${formattedValue}`;
+        const workTypeTag = m.work_type_id ? ` [work-type:${m.work_type_id}]` : '';
+        const base = `- ${description}${dimensionsText}${workTypeTag}: ${formattedValue}`;
         
         // Add recommendation tag if present
         const tag = m.recommendation ? ` → ${m.recommendation}` : "";
@@ -104,9 +105,10 @@ function formatAssessmentToMarkdown(assessment) {
         // Format the value
         const formattedValue = value ? `${value} ${m.unit || 'ln ft'}` : '';
         
-        // Create the base measurement line
+        // Create the base measurement line with work type ID if available
         const description = m.description || m.label || 'Linear';
-        const base = `- ${description}: ${formattedValue}`;
+        const workTypeTag = m.work_type_id ? ` [work-type:${m.work_type_id}]` : '';
+        const base = `- ${description}${workTypeTag}: ${formattedValue}`;
         
         // Add recommendation tag if present
         const tag = m.recommendation ? ` → ${m.recommendation}` : "";
@@ -126,9 +128,10 @@ function formatAssessmentToMarkdown(assessment) {
         // Format the value
         const formattedValue = quantity ? `${quantity} ${unit}` : '';
         
-        // Create the base measurement line
+        // Create the base measurement line with work type ID if available
         const description = m.description || m.label || 'Item';
-        const base = `- ${description}: ${formattedValue}`;
+        const workTypeTag = m.work_type_id ? ` [work-type:${m.work_type_id}]` : '';
+        const base = `- ${description}${workTypeTag}: ${formattedValue}`;
         
         // Add recommendation tag if present
         const tag = m.recommendation ? ` → ${m.recommendation}` : "";
@@ -148,9 +151,10 @@ function formatAssessmentToMarkdown(assessment) {
         // Format the value
         const formattedValue = value ? `${value} ${unit}` : '';
         
-        // Create the base measurement line
+        // Create the base measurement line with work type ID if available
         const description = m.description || m.label || 'Measurement';
-        const base = `- ${description}: ${formattedValue}`;
+        const workTypeTag = m.work_type_id ? ` [work-type:${m.work_type_id}]` : '';
+        const base = `- ${description}${workTypeTag}: ${formattedValue}`;
         
         // Add recommendation tag if present
         const tag = m.recommendation ? ` → ${m.recommendation}` : "";

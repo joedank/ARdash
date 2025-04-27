@@ -1,0 +1,1 @@
+module.exports={meta:{type:'problem'},create:c=>({Literal(n){if(typeof n.value==='string'&&/^[\\/]api\\//.test(n.value))c.report({node:n,message:'Path already prefixed by baseURL; drop /api/.'});}})};

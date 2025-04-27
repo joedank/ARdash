@@ -1,25 +1,25 @@
 {
   "development": {
-    "username": "josephmcmyne",
-    "password": "",
+    "username": "postgres",
+    "password": "postgres",
     "database": "management_db",
-    "host": "localhost",
+    "host": "db",
     "dialect": "postgres",
     "port": 5432
   },
   "test": {
-    "username": "josephmcmyne",
-    "password": "",
+    "username": "postgres",
+    "password": "postgres",
     "database": "management_db_test",
-    "host": "localhost",
+    "host": "db",
     "dialect": "postgres",
     "port": 5432
   },
   "production": {
-    "username": "josephmcmyne",
-    "password": "",
+    "username": "postgres",
+    "password": "postgres",
     "database": "management_db",
-    "host": "localhost",
+    "host": "db",
     "dialect": "postgres",
     "port": 5432,
     "logging": false

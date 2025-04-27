@@ -1,3 +1,247 @@
+[2025-04-27 16:45] - **Implemented Robust Database Restoration Process with Idempotent Migrations**
+
+**Issues Identified:**
+
+1. Database restoration from backup failing due to non-idempotent migrations:
+   - Error: `enum label "rejected" already exists` when running migrations after restore
+   - Error: `null value in column "created_at" of relation "settings" violates not-null constraint`
+   - Error: `CREATE EXTENSION pgvector already exists` when trying to re-create extensions
+
+**Root Cause Analysis:**
+
+1. Multiple idempotency issues across different migration types:
+   - Enum value additions were using direct ALTER TYPE statements without existence checks
+   - Extension creation lacked IF NOT EXISTS clauses in some cases
+   - Older backups contained NULL values in timestamp columns now set as NOT NULL
+   - Index creation statements lacked proper IF NOT EXISTS clauses
+
+**Solution Implemented:**
+
+1. Developed PostgreSQL-specific patterns for idempotent migrations:
+   ```sql
+   DO $
+   BEGIN
+     IF NOT EXISTS (
+       SELECT 1 FROM pg_enum
+       WHERE enumtypid = 'enum_name'::regtype
+         AND enumlabel = 'value_name'
+     ) THEN
+       ALTER TYPE "enum_name" ADD VALUE 'value_name';
+     END IF;
+   END$;
+   ```
+
+2. Created a dedicated timestamp backfill migration:
+   - Added migration to handle NULL timestamps in legacy data
+   - Used PostgreSQL-specific SQL to set defaults and update existing rows
+   ```sql
+   ALTER TABLE settings
+   ALTER COLUMN created_at SET DEFAULT NOW(),
+   ALTER COLUMN updated_at SET DEFAULT NOW();
+   
+   UPDATE settings
+   SET created_at = NOW(), updated_at = NOW()
+   WHERE created_at IS NULL OR updated_at IS NULL;
+   ```
+
+3. Verified and updated other migrations for idempotency:
+   - Fixed `CREATE EXTENSION` statements to use `IF NOT EXISTS`
+   - Enhanced index creation with appropriate `IF NOT EXISTS` checks
+   - Added logging and robustness to migration processes
+
+**Key Learnings:**
+
+- Always make migrations idempotent to support database restoration and CI/CD processes
+- Use PostgreSQL DO blocks with existence checks for safer schema modifications
+- Handle legacy data timestamps explicitly when adding NOT NULL constraints
+- Drop objects first with IF EXISTS before (re)creating them
+- Double-check all migrations for idempotency as part of regular code reviews
+
+**Next Steps:**
+
+- Update migration templates to enforce idempotent patterns by default
+- Add CI check to validate migration idempotency against sample data
+- Document PostgreSQL-specific migration patterns in development guides
+- Consider implementing automated restoration testing as part of CI/CD
+
+[2025-04-28 09:30] - **Fixed Frontend Rollup Module Issues with Multi-Stage Docker Build**
+
+**Issues Identified:**
+
+1. Frontend container was failing to start with the error:
+   - Error: `Cannot find module @rollup/rollup-linux-arm64-musl`
+   - After container startup: `sh: vite: not found`
+
+**Root Cause Analysis:**
+
+1. Multiple interrelated issues identified:
+   - Using `npm ci --omit=dev` was excluding Vite and Rollup from installation (both are devDependencies)
+   - Docker volume mounts for node_modules were interfering with native modules
+   - Incorrect architecture-specific module resolution for ARM64 in Alpine Linux
+   - npm's known issue with optional dependencies (#4828) affecting module resolution in Docker
+
+**Solution Implemented:**
+
+1. Implemented a multi-stage Docker build approach:
+   - Created a `builder` stage that installs ALL dependencies including dev dependencies
+   - Added separate `development`, `build`, and `production` stages
+   - Ensured no volume mounting of node_modules to avoid interference
+   - Pre-ran the fix-imports.js script during image build instead of at runtime
+
+2. Updated docker-compose.yml to align with new multi-stage approach:
+   - Added explicit `target: development` to use the development stage
+   - Reduced volume mounts to only necessary source files
+   - Updated the command to properly run Vite with host configuration
+
+3. Created a test script for rebuilding and verifying:
+   - Added `rebuild-frontend-fixed.sh` to rebuild and test changes
+   - Verified Vite starts correctly in container logs
+
+**Key Learnings:**
+
+- Docker multi-stage builds provide better separation of concerns between development and production
+- Volume mounting node_modules can interfere with native modules and architecture-specific binaries
+- Using `--omit=dev` in Docker is problematic for tools like Vite that are typically in devDependencies
+- Instead of trying to fix individual module issues, restructuring the build approach is more robust
+- For development containers, installing all dependencies (including dev) is necessary
+- The issue was a combination of npm's optional dependency resolution, Alpine musl vs glibc, and Docker volume mounting
+
+**Next Steps:**
+
+- Create a proper production deployment strategy using the production stage
+- Establish clear guidelines for Docker builds across the project
+- Evaluate performance impacts of the multi-stage approach
+- Consider implementing continuous integration using the same Docker build strategy
+
+[2025-04-27 21:15] - **Fixed Database Migration and Association Naming Issues**
+
+**Issues Identified:**
+
+1. Multiple database migration failures prevented application startup:
+   - Error: `relation "idx_settings_group" already exists` when creating index in settings table
+   - Error: `Cannot read properties of undefined (reading 'sequelize')` in migrations using improper function signatures
+   - Error: `column cannot have more than 2000 dimensions for hnsw index` when creating vector indexes
+   - Error: `column "id" is of type integer but expression is of type uuid` in settings seed migration
+   - Error: `Naming collision between attribute 'condition' and association 'condition' on model Project`
+
+**Root Cause Analysis:**
+
+1. Multiple issues identified across different migration files:
+   - Non-idempotent migrations trying to recreate existing indexes without dropping them first
+   - Incorrect function signature pattern `async up({ context: queryInterface })` in legacy migrations
+   - pgvector dimension limits for HNSW and IVFFLAT indexes (max 2000) exceeded by 3072-dimension vectors
+   - Incorrect data type usage in seed migration (trying to use UUID for an INTEGER primary key)
+   - Same name used for both a column (`condition`) and an association in Project model
+
+**Solution Implemented:**
+
+1. Fixed index creation in settings table migration:
+   - Added explicit `DROP INDEX IF EXISTS` statement before creating the index
+   - Used transaction-based approach for atomic operations
+
+2. Fixed function signature pattern in multiple migration files:
+   - Updated from `async up({ context: queryInterface })` to standard `async up(queryInterface, Sequelize)`
+   - Added compatibility layer with `const qi = queryInterface` for consistency
+   - Standardized `down` methods with the same signature pattern
+
+3. Enhanced vector index creation with dimension-aware logic:
+   - Added dimension checking using `vector_dims()` to skip index creation when dimensions > 2000
+   - Improved operator class specification with explicit `vector_l2_ops`
+   - Implemented fallback to IVFFLAT index when HNSW is not available
+   - Added enhanced error handling with clear console messages
+
+4. Fixed seed migration data type issue:
+   - Removed explicit `id` column from INSERT statement to use auto-increment
+   - Maintained all other functionality with correct PostgreSQL syntax
+
+5. Resolved Project model naming collision:
+   - Renamed the association from `condition` to `conditionInspection` to avoid collision with column
+   - Updated all references to this association in projectService.js
+   - Preserved the column name to maintain database compatibility
+
+**Key Learnings:**
+
+- Migrations must be truly idempotent with DROP-before-CREATE pattern for indexes
+- Proper function signatures are crucial for Sequelize/Umzug migration resolution
+- pgvector has strict dimension limits: HNSW and IVFFLAT indexes cannot exceed 2000 dimensions
+- Sequelize forbids same name for both a column and an association in the same model
+- PostgreSQL requires explicit operator classes for advanced index methods like HNSW
+- The DROP-IF-EXISTS pattern is more reliable than Sequelize's `ifNotExists` option
+
+**Next Steps:**
+
+- Create CI check to validate migration function signatures
+- Add dimension checking to future vector column migrations
+- Implement size reduction technique for vectors over 2000 dimensions
+- Create standards document for naming associations vs. columns in models
+- Update model validation in pre-commit hooks to catch potential naming collisions
+
+[2025-04-27 18:30] - **Fixed Vector Dimension and HNSW Index Migration Issues**
+
+**Issues Identified:**
+
+1. Database migration was failing with two critical errors:
+   - Error: `column cannot have more than 2000 dimensions for ivfflat index` when altering name_vec column dimension
+   - Error: `Cannot read properties of undefined (reading 'sequelize')` in settings table creation migration
+
+**Root Cause Analysis:**
+
+1. Multiple issues identified in migrations:
+   - The `20250425060000-alter-name-vec-dimension.js` migration was attempting to resize the vector column to 3072 dimensions but an old ivfflat index was blocking this operation
+   - The `20250426000001-add-name-vec-hnsw-index.js` migration had SQL syntax errors with improper dollar quoting (`DO [2025-04-27 18:30] - **Fixed Vector Dimension and HNSW Index Migration Issues**
+
+**Issues Identified:**
+
+1. Database migration was failing with two critical errors:
+   - Error: `column cannot have more than 2000 dimensions for ivfflat index` when altering name_vec column dimension
+   - Error: `Cannot read properties of undefined (reading 'sequelize')` in settings table creation migration
+
+**Root Cause Analysis:**
+
+1. Multiple issues identified in migrations:
+   - The `20250425060000-alter-name-vec-dimension.js` migration was attempting to resize the vector column to 3072 dimensions but an old ivfflat index was blocking this operation
+ instead of `DO $`)
+   - Multiple migrations were using incorrect function signature pattern `async up({ context: queryInterface })` instead of standard `async up(queryInterface, Sequelize)`
+   - The HNSW index creation wasn't checking for pgvector version compatibility (version >= 0.5 required)
+
+**Solution Implemented:**
+
+1. Fixed vector dimension migration to drop any existing ivfflat index before changing the column size:
+   - Added a DO block to identify and drop any existing ivfflat index on the name_vec column
+   - Used transaction-based approach to ensure both operations succeed or fail together
+   - Enhanced down migration method to simply revert the column size
+
+2. Fixed HNSW index creation in `add-name-vec-hnsw-index.js`:
+   - Added a step to drop any existing HNSW index before re-creating it
+   - Fixed SQL dollar quoting syntax from `DO  to `DO $`
+   - Enhanced version check logic to safely handle older pgvector versions
+
+3. Fixed function signature pattern in multiple migration files:
+   - Updated `async up({ context: queryInterface })` to `async up(queryInterface, Sequelize)`
+   - Added compatibility layer with `const qi = queryInterface` where needed
+   - Made same changes to down methods for consistency
+
+4. Modified setup script to avoid duplicate index creation:
+   - Updated `setup-work-types-db.sh` to skip HNSW index creation since it's now handled by the migration
+   - Added comments explaining why this code is now skipped
+
+**Key Learnings:**
+
+- PostgreSQL pgvector indexes have dimension limitations: ivfflat indexes cannot exceed 2000 dimensions
+- Multiple indexes on the same column can cause conflicts, especially during dimension changes
+- Index creation should be conditional based on database version support (pgvector >= 0.5 for HNSW)
+- Migration function signatures must match the expected pattern for Sequelize/Umzug resolvers
+- SQL dollar quoting syntax requires proper delimitation with paired dollar signs (`$...$`)
+- Setup scripts should avoid duplicating operations that are handled by migrations
+- Dropping existing indexes before recreating them improves reliability of migrations
+
+**Next Steps:**
+
+- Add comprehensive idempotency pattern to all new migrations
+- Implement CI check to validate migration function signatures
+- Review remaining migrations for similar function signature issues
+- Consider adding automated testing for migrations in isolated database instances
+
 [2025-04-27 15:30] - **Fixed Database Migration Issues with Idempotent Migrations**
 
 **Issues Identified:**

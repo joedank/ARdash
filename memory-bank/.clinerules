@@ -1,3 +1,36 @@
+### Docker Multi-Stage Build Pattern
+
+- **Problem:** Docker images mixing development and production dependencies cause issues with architecture-specific modules
+- **Pattern:** Use multi-stage builds to separate development, build, and production concerns
+- **Example Issue:** Rollup module not found in frontend container when using `npm ci --omit=dev`
+- **Solution:** Implement a multi-stage Dockerfile with different targets:
+  ```dockerfile
+  # Stage 1: Builder with all dependencies
+  FROM node:20-alpine AS builder
+  WORKDIR /app
+  COPY package*.json ./
+  RUN npm ci
+  COPY . .
+  
+  # Stage 2: Development
+  FROM builder AS development
+  CMD ["npm", "run", "dev"]
+  
+  # Stage 3: Build production assets
+  FROM builder AS build
+  RUN npm run build
+  
+  # Stage 4: Production with minimal footprint
+  FROM nginx:alpine AS production
+  COPY --from=build /app/dist /usr/share/nginx/html
+  ```
+- **Key Learning:**
+  - Development containers need ALL dependencies including dev dependencies
+  - Volume mounting node_modules can interfere with architecture-specific native modules
+  - Production containers should use a minimal base image with only built assets
+  - Use `target` parameter in docker-compose.yml to specify which stage to use
+  - Prefer pre-building assets during image creation over runtime building
+
 ### Vue Component Tag Structure Pattern
 
 - **Problem:** Improper component tag syntax can cause rendering issues and unexpected behavior

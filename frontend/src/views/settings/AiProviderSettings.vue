@@ -116,8 +116,8 @@
                   Enable vector-based similarity search for enhanced matching
                 </p>
               </div>
-              <BaseToggleSwitch 
-                v-model="settings.enable_vector_similarity" 
+              <BaseToggleSwitch
+                v-model="settings.enable_vector_similarity"
                 @change="onVectorSimilarityToggle"
               />
             </div>
@@ -303,7 +303,7 @@ const onLanguageProviderChange = () => {
   } else {
     settings.language_model = '';
   }
-  
+
   // Reset connection test result
   languageModelTestResult.value = '';
 };
@@ -314,10 +314,12 @@ const onEmbeddingProviderChange = () => {
   const models = getModelsForProvider('embedding', settings.embedding_provider);
   if (models && models.length > 0) {
     settings.embedding_model = models[0].value;
+    console.log(`Setting default embedding model to ${settings.embedding_model} for provider ${settings.embedding_provider}`);
   } else {
     settings.embedding_model = '';
+    console.log('No models available for selected embedding provider');
   }
-  
+
   // Reset connection test result
   embeddingTestResult.value = '';
 };
@@ -327,112 +329,25 @@ const onVectorSimilarityToggle = () => {
   if (!settings.enable_vector_similarity) {
     // Clear embedding test result when disabled
     embeddingTestResult.value = '';
+  } else {
+    // If enabling and no provider is selected, set default provider
+    if (!settings.embedding_provider && providerOptions.embedding.length > 0) {
+      settings.embedding_provider = providerOptions.embedding[0].value;
+      onEmbeddingProviderChange();
+    }
   }
 };
 
 // Load settings and options
 const loadData = async () => {
   loading.value = true;
-  
+
   try {
-    // Get available provider options
-    const optionsResponse = await aiProviderService.getAiProviderOptions();
-    console.log('AI provider options response:', optionsResponse);
-    
-    if (optionsResponse.success && optionsResponse.data && optionsResponse.data.data) {
-      // Check if providers property exists
-      if (optionsResponse.data.data.providers) {
-        // Set provider options with fallbacks for missing properties
-        providerOptions.languageModel = optionsResponse.data.data.providers.languageModel || [];
-        providerOptions.embedding = optionsResponse.data.data.providers.embedding || [];
-      } else {
-        console.warn('No providers found in API response, using empty defaults');
-        providerOptions.languageModel = [];
-        providerOptions.embedding = [];
-      }
-      
-      // Check if models property exists
-      if (optionsResponse.data.data.models) {
-        // Set model options with fallbacks
-        Object.assign(modelOptions.languageModel, optionsResponse.data.data.models.languageModel || {});
-        Object.assign(modelOptions.embedding, optionsResponse.data.data.models.embedding || {});
-      } else {
-        console.warn('No models found in API response, using empty defaults');
-        modelOptions.languageModel = {};
-        modelOptions.embedding = {};
-      }
-    } else {
-      console.warn('Invalid response format from getAiProviderOptions, using empty defaults');
-      providerOptions.languageModel = [];
-      providerOptions.embedding = [];
-      modelOptions.languageModel = {};
-      modelOptions.embedding = {};
-    }
-    
-    // Get current settings
-    const settingsResponse = await aiProviderService.getAiProviderSettings();
-    console.log('AI provider settings response (raw):', settingsResponse);
-    
-    // Display detailed debugging info for troubleshooting
-    if (settingsResponse) {
-      console.log('Response success?', settingsResponse.success);
-      console.log('Response data exists?', !!settingsResponse.data); 
-      if (settingsResponse.data) {
-        console.log('Response data.data exists?', !!settingsResponse.data.data);
-        if (settingsResponse.data.data) {
-          console.log('Response data.data keys:', Object.keys(settingsResponse.data.data));
-          console.log('Settings array exists?', !!settingsResponse.data.data.settings);
-          console.log('Providers object exists?', !!settingsResponse.data.data.providers);
-        }
-      }
-    }
-    
-    if (settingsResponse.success && settingsResponse.data && settingsResponse.data.data) {
-      // Extract settings from response
-      const dbSettings = settingsResponse.data.data.settings || [];
-      
-      // Convert settings array to object
-      dbSettings.forEach(setting => {
-        if (setting && setting.key) {
-          settings[setting.key] = setting.value;
-        }
-      });
-      
-      // Convert string 'true'/'false' to boolean for toggle
-      settings.enable_vector_similarity = String(settings.enable_vector_similarity).toLowerCase() === 'true';
-      
-      // Set provider status if providers data exists
-      if (settingsResponse.data.data.providers) {
-        const providers = settingsResponse.data.data.providers;
-        
-        // Set language model provider settings
-        if (providers.languageModel) {
-          if (providers.languageModel.provider) {
-            settings.language_model_provider = providers.languageModel.provider;
-          }
-          if (providers.languageModel.model) {
-            settings.language_model = providers.languageModel.model;
-          }
-        }
-        
-        // Set embedding provider settings
-        if (providers.embedding) {
-          if (providers.embedding.provider) {
-            settings.embedding_provider = providers.embedding.provider;
-          }
-          if (providers.embedding.model) {
-            settings.embedding_model = providers.embedding.model;
-          }
-          if (providers.embedding.enabled !== undefined) {
-            settings.enable_vector_similarity = Boolean(providers.embedding.enabled);
-          }
-        }
-      } else {
-        console.warn('No providers data found in settings response');
-      }
-    } else {
-      console.warn('Invalid response format from getAiProviderSettings, using default values');
-    }
+    // Load provider options
+    await loadProviderOptions();
+
+    // Load settings
+    await loadProviderSettings();
   } catch (error) {
     console.error('Error loading AI provider data:', error);
     statusMessage.value = 'Failed to load AI provider settings';
@@ -442,21 +357,272 @@ const loadData = async () => {
   }
 };
 
+// Load provider options from API
+const loadProviderOptions = async () => {
+  try {
+    // Get available provider options
+    const optionsResponse = await aiProviderService.getAiProviderOptions();
+    console.log('AI provider options response:', optionsResponse);
+
+    // Enhanced debugging information
+    console.log('Response structure check:', {
+      hasSuccessFlag: !!optionsResponse?.success,
+      hasDataProperty: !!optionsResponse?.data,
+      hasNestedData: !!optionsResponse?.data?.data,
+      responseType: typeof optionsResponse,
+      dataType: optionsResponse?.data ? typeof optionsResponse.data : 'undefined'
+    });
+
+    if (optionsResponse?.success && optionsResponse?.data?.data) {
+      // Get data from response
+      const data = optionsResponse.data.data || {};
+
+      // Process providers with better error handling
+      handleProviders(data);
+
+      // Process models with better error handling
+      handleModels(data);
+    } else if (optionsResponse?.success && optionsResponse?.data) {
+      // Alternative structure - data directly in data property
+      const data = optionsResponse.data || {};
+
+      // Process providers with better error handling
+      handleProviders(data);
+
+      // Process models with better error handling
+      handleModels(data);
+    } else {
+      console.warn('Invalid response format from getAiProviderOptions, using empty defaults');
+      resetProviderOptions();
+    }
+  } catch (error) {
+    console.error('Error loading provider options:', error);
+    resetProviderOptions();
+  }
+};
+
+// Process provider data
+const handleProviders = (data) => {
+  if (data.providers) {
+    // Set provider options with fallbacks for missing properties
+    providerOptions.languageModel = Array.isArray(data.providers.languageModel) ?
+      data.providers.languageModel : [];
+    providerOptions.embedding = Array.isArray(data.providers.embedding) ?
+      data.providers.embedding : [];
+
+    console.log('Found providers:', {
+      languageModelLength: providerOptions.languageModel.length,
+      embeddingLength: providerOptions.embedding.length
+    });
+  } else {
+    console.warn('No providers found in API response, using empty defaults');
+    providerOptions.languageModel = [];
+    providerOptions.embedding = [];
+  }
+};
+
+// Process models data
+const handleModels = (data) => {
+  if (data.models) {
+    // Clear existing models first
+    Object.keys(modelOptions.languageModel).forEach(key => delete modelOptions.languageModel[key]);
+    Object.keys(modelOptions.embedding).forEach(key => delete modelOptions.embedding[key]);
+
+    // Set model options with fallbacks
+    if (data.models.languageModel) {
+      Object.assign(modelOptions.languageModel, data.models.languageModel);
+    }
+    if (data.models.embedding) {
+      Object.assign(modelOptions.embedding, data.models.embedding);
+    }
+
+    console.log('Found models:', {
+      languageModelProviders: Object.keys(modelOptions.languageModel),
+      embeddingProviders: Object.keys(modelOptions.embedding)
+    });
+  } else {
+    console.warn('No models found in API response, using empty defaults');
+    modelOptions.languageModel = {};
+    modelOptions.embedding = {};
+  }
+};
+
+// Reset provider options to defaults
+const resetProviderOptions = () => {
+  providerOptions.languageModel = [];
+  providerOptions.embedding = [];
+  modelOptions.languageModel = {};
+  modelOptions.embedding = {};
+};
+
+// Load provider settings from API
+const loadProviderSettings = async () => {
+  try {
+    // Get current settings
+    const settingsResponse = await aiProviderService.getAiProviderSettings();
+    console.log('AI provider settings response (raw):', settingsResponse);
+
+    // Enhanced debugging information
+    console.log('Settings response structure check:', {
+      hasSuccessFlag: !!settingsResponse?.success,
+      hasDataProperty: !!settingsResponse?.data,
+      dataType: settingsResponse?.data ? typeof settingsResponse.data : 'undefined'
+    });
+
+    // Process settings with better error handling for different response structures
+    if (settingsResponse?.success && settingsResponse?.data) {
+      resetSettingsToDefaults();
+      processSettingsData(settingsResponse.data);
+      validateProviderModelCombinations();
+    } else {
+      console.warn('Invalid response format from getAiProviderSettings, using defaults');
+      resetSettingsToDefaults();
+    }
+  } catch (error) {
+    console.error('Error loading provider settings:', error);
+    resetSettingsToDefaults();
+  }
+};
+
+// Reset settings to default values
+const resetSettingsToDefaults = () => {
+  Object.assign(settings, {
+    language_model_provider: '',
+    language_model: '',
+    language_model_api_key: '',
+    language_model_base_url: '',
+    embedding_provider: '',
+    embedding_model: '',
+    embedding_api_key: '',
+    embedding_base_url: '',
+    enable_vector_similarity: false
+  });
+};
+
+// Process settings data from API response
+const processSettingsData = (settingsData) => {
+  // Add more detailed logging to understand the structure
+  console.log('Processing settings data:', settingsData);
+
+  // Handle different possible data structures
+  let dbSettings = [];
+  let providers = {};
+
+  // Check if settingsData has a settings array
+  if (Array.isArray(settingsData.settings)) {
+    dbSettings = settingsData.settings;
+  } else if (Array.isArray(settingsData)) {
+    // If settingsData itself is an array, it might be the settings
+    dbSettings = settingsData;
+  }
+
+  console.log(`Found ${dbSettings.length} settings in the response`);
+
+  // Apply database settings to the form
+  dbSettings.forEach(setting => {
+    if (setting && setting.key && setting.key in settings) {
+      console.log(`Setting ${setting.key} = ${setting.value}`);
+      // Ensure we don't set undefined or null values
+      if (setting.value !== undefined && setting.value !== null) {
+        settings[setting.key] = setting.value;
+      }
+    }
+  });
+
+  // Convert string 'true'/'false' to boolean for toggle
+  settings.enable_vector_similarity = String(settings.enable_vector_similarity).toLowerCase() === 'true';
+  
+  // Ensure embedding settings are properly initialized
+  // If vector similarity is enabled but no provider is set, set default
+  if (settings.enable_vector_similarity && !settings.embedding_provider && providerOptions.embedding.length > 0) {
+    settings.embedding_provider = providerOptions.embedding[0].value;
+    // And set a default model
+    onEmbeddingProviderChange();
+  }
+
+  // Set provider status if providers data exists
+  if (settingsData.providers) {
+    providers = settingsData.providers;
+  }
+
+  // Set language model provider settings
+  if (providers.languageModel) {
+    const lm = providers.languageModel;
+    if (lm.provider) {
+      console.log(`Setting language provider to ${lm.provider}`);
+      settings.language_model_provider = lm.provider;
+    }
+    if (lm.model) {
+      console.log(`Setting language model to ${lm.model}`);
+      settings.language_model = lm.model;
+    }
+  }
+
+  // Set embedding provider settings
+  if (providers.embedding) {
+    const em = providers.embedding;
+    if (em.provider) {
+      console.log(`Setting embedding provider to ${em.provider}`);
+      settings.embedding_provider = em.provider;
+    }
+    if (em.model) {
+      console.log(`Setting embedding model to ${em.model}`);
+      settings.embedding_model = em.model;
+    }
+    if (em.enabled !== undefined) {
+      const enabled = typeof em.enabled === 'boolean' ? em.enabled : String(em.enabled).toLowerCase() === 'true';
+      console.log(`Setting vector similarity to ${enabled}`);
+      settings.enable_vector_similarity = enabled;
+    }
+  }
+};
+
+// Validate provider/model combinations
+const validateProviderModelCombinations = () => {
+  // Check language model validity
+  const hasValidLanguageModel = settings.language_model_provider && settings.language_model &&
+    modelOptions.languageModel[settings.language_model_provider] &&
+    modelOptions.languageModel[settings.language_model_provider].some(m => m.value === settings.language_model);
+
+  if (!hasValidLanguageModel && settings.language_model_provider && modelOptions.languageModel[settings.language_model_provider]) {
+    // Set to first available model
+    const models = modelOptions.languageModel[settings.language_model_provider];
+    if (models && models.length > 0) {
+      console.log(`Setting default language model for ${settings.language_model_provider} to ${models[0].value}`);
+      settings.language_model = models[0].value;
+    }
+  }
+
+  // Check embedding model validity
+  const hasValidEmbeddingModel = settings.embedding_provider && settings.embedding_model &&
+    modelOptions.embedding[settings.embedding_provider] &&
+    modelOptions.embedding[settings.embedding_provider].some(m => m.value === settings.embedding_model);
+
+  if (!hasValidEmbeddingModel && settings.embedding_provider && modelOptions.embedding[settings.embedding_provider]) {
+    // Set to first available model
+    const models = modelOptions.embedding[settings.embedding_provider];
+    if (models && models.length > 0) {
+      console.log(`Setting default embedding model for ${settings.embedding_provider} to ${models[0].value}`);
+      settings.embedding_model = models[0].value;
+    }
+  }
+};
+
 // Test language model connection
 const testLanguageModel = async () => {
   testingLanguageModel.value = true;
   languageModelTestResult.value = '';
-  
+
   try {
     // Save settings first to ensure we're testing the current config
     await saveSettings(true); // Silent save
-    
+
     // Test the connection
     const response = await aiProviderService.testLanguageModelConnection();
-    
+
     if (response.success) {
       languageModelTestSuccess.value = true;
-      languageModelTestResult.value = `Connection successful! Model ${response.data.data.model} responded: "${response.data.data.response}"`;
+      languageModelTestResult.value = `Connection successful! Model ${response.data.model} responded: "${response.data.response}"`;
     } else {
       languageModelTestSuccess.value = false;
       languageModelTestResult.value = response.message || 'Connection test failed';
@@ -474,17 +640,17 @@ const testLanguageModel = async () => {
 const testEmbedding = async () => {
   testingEmbedding.value = true;
   embeddingTestResult.value = '';
-  
+
   try {
     // Save settings first to ensure we're testing the current config
     await saveSettings(true); // Silent save
-    
+
     // Test the connection
     const response = await aiProviderService.testEmbeddingConnection();
-    
+
     if (response.success) {
       embeddingTestSuccess.value = true;
-      embeddingTestResult.value = `Connection successful! Generated a ${response.data.data.dimensions}-dimensional embedding with ${response.data.data.provider} model.`;
+      embeddingTestResult.value = `Connection successful! Generated a ${response.data.dimensions}-dimensional embedding with ${response.data.provider} model.`;
     } else {
       embeddingTestSuccess.value = false;
       embeddingTestResult.value = response.message || 'Connection test failed';
@@ -504,7 +670,7 @@ const saveSettings = async (silent = false) => {
     saving.value = true;
     statusMessage.value = '';
   }
-  
+
   try {
     // Convert settings to string before saving
     const settingsToSave = {
@@ -519,22 +685,49 @@ const saveSettings = async (silent = false) => {
       enable_vector_similarity: String(settings.enable_vector_similarity)
     };
     
+    // Debug log to see what we're actually saving
+    console.log('Saving embedding settings:', {
+      provider: settings.embedding_provider,
+      model: settings.embedding_model,
+      enabled: settings.enable_vector_similarity
+    });
+
+    // Enhanced debugging - log what we're trying to save
+    console.log('Preparing to save AI provider settings:', settingsToSave);
+
     // Update settings in the database
     const response = await aiProviderService.updateAiProviderSettings(settingsToSave);
     
-    if (response.success) {
+    // Enhanced response logging
+    console.log('Save settings response:', response);
+
+    // Improved response handling with more robust checks
+    if (response && response.success) {
       if (!silent) {
         statusMessage.value = 'AI provider settings saved successfully';
         statusSuccess.value = true;
       }
     } else {
       if (!silent) {
-        statusMessage.value = response.message || 'Failed to save settings';
+        // More detailed error handling
+        const errorMsg = response?.message || 
+                         response?.error || 
+                         'Failed to save settings - check console for details';
+        statusMessage.value = errorMsg;
         statusSuccess.value = false;
+        console.error('Settings save error details:', response);
       }
     }
   } catch (error) {
     console.error('Error saving AI provider settings:', error);
+    // Log detailed error information
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      response: error.response
+    });
+    
     if (!silent) {
       statusMessage.value = 'Failed to save settings: ' + (error.message || 'Unknown error');
       statusSuccess.value = false;

@@ -1,4 +1,4 @@
-const DeepSeek = require('../services/deepseekService');
+const languageModelProvider = require('../services/languageModelProvider');
 const Prompt = require('./PromptEngine');
 const Catalog = require('./CatalogService');
 const logger = require('../utils/logger');
@@ -34,12 +34,10 @@ exports.generate = async (req, res, next) => {
       logger.info('Phase 1: Analyzing scope to identify missing information');
       const scopePrompt = Prompt.buildScope(assessment);
 
-      // Make API call to DeepSeek
-      logger.debug('Calling DeepSeek API for scope analysis');
-      const scopeRaw = await DeepSeek.generateChatCompletion(
+      // Make API call to language model provider
+      logger.debug('Calling language model API for scope analysis');
+      const scopeRaw = await languageModelProvider.generateChatCompletion(
         scopePrompt.messages,
-        'deepseek-chat',
-        false,
         {
           max_tokens: scopePrompt.max_tokens,
           temperature: scopePrompt.temperature
@@ -75,12 +73,10 @@ exports.generate = async (req, res, next) => {
     logger.info('Phase 3: Generating draft items from assessment');
     const draftPrompt = Prompt.buildDraft(assessment, req.body.options || {});
 
-    // Make API call to DeepSeek
-    logger.debug('Calling DeepSeek API for item generation');
-    const draftRaw = await DeepSeek.generateChatCompletion(
+    // Make API call to language model provider
+    logger.debug('Calling language model API for item generation');
+    const draftRaw = await languageModelProvider.generateChatCompletion(
       draftPrompt.messages,
-      'deepseek-chat',
-      false,
       {
         max_tokens: draftPrompt.max_tokens,
         temperature: draftPrompt.temperature

@@ -9,7 +9,7 @@ class SettingsService {
    * @returns {Promise} Response data with all settings
    */
   async getAllSettings() {
-    return apiService.get('/api/settings');
+    return apiService.get('/settings');
   }
 
   /**
@@ -18,7 +18,7 @@ class SettingsService {
    * @returns {Promise} Response data with settings in the group
    */
   async getSettingsByGroup(group) {
-    return apiService.get(`/api/settings/group/${group}`);
+    return apiService.get(`/settings/group/${group}`);
   }
 
   /**
@@ -27,7 +27,7 @@ class SettingsService {
    * @returns {Promise} Response data with the setting
    */
   async getSetting(key) {
-    return apiService.get(`/api/settings/${key}`);
+    return apiService.get(`/settings/${key}`);
   }
 
   /**
@@ -57,7 +57,7 @@ class SettingsService {
    * @returns {Promise} Response data with updated setting
    */
   async updateSetting(key, value, group) {
-    return apiService.post(`/api/settings/${key}`, { value, group });
+    return apiService.post(`/settings/${key}`, { value, group });
   }
 
   /**
@@ -67,7 +67,7 @@ class SettingsService {
    * @returns {Promise} Response data
    */
   async updateMultipleSettings(settings, group) {
-    return apiService.post('/api/settings', { settings, group });
+    return apiService.post('/settings', { settings, group });
   }
 }
 

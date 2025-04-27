@@ -46,5 +46,9 @@ EXPOSE 3000
 # Add healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 CMD /app/healthcheck.sh
 
-# Command to run the app
-CMD ["npm", "run", "start"]
+# Make entrypoint script executable
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
+# Command to run migrations and then start the app
+CMD ["/app/docker-entrypoint.sh"]

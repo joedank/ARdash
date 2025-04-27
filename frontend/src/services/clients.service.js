@@ -14,7 +14,7 @@ class ClientsService {
     try {
       // Convert camelCase to snake_case for backend
       const snakeCaseData = toSnakeCase(clientData);
-      const response = await apiService.post('/api/clients', snakeCaseData);
+      const response = await apiService.post('/clients', snakeCaseData);
 
       if (response.success && response.data) {
         return {
@@ -48,7 +48,7 @@ class ClientsService {
         queryParams = `?type=${options.type}`;
       }
 
-      const response = await apiService.get(`/api/clients${queryParams}`);
+      const response = await apiService.get(`/clients${queryParams}`);
 
       if (response.success && response.data) {
         return {
@@ -75,7 +75,7 @@ class ClientsService {
    */
   async getClientsByType(type) {
     try {
-      const response = await apiService.get(`/api/clients/type/${type}`);
+      const response = await apiService.get(`/clients/type/${type}`);
 
       if (response.success && response.data) {
         return {
@@ -104,7 +104,7 @@ class ClientsService {
   async searchClients(query, type = null) {
     try {
       const typeParam = type ? `&type=${type}` : '';
-      const response = await apiService.get(`/api/clients/search?q=${encodeURIComponent(query)}${typeParam}`);
+      const response = await apiService.get(`/clients/search?q=${encodeURIComponent(query)}${typeParam}`);
 
       if (response.success && response.data) {
         return {
@@ -136,7 +136,7 @@ class ClientsService {
     }
 
     try {
-      const response = await apiService.get(`/api/clients/${id}`);
+      const response = await apiService.get(`/clients/${id}`);
 
       if (response.success && response.data) {
         return {
@@ -180,7 +180,7 @@ class ClientsService {
     try {
       // Convert camelCase to snake_case for backend
       const snakeCaseData = toSnakeCase(data);
-      const response = await apiService.put(`/api/clients/${id}`, snakeCaseData);
+      const response = await apiService.put(`/clients/${id}`, snakeCaseData);
 
       if (response.success && response.data) {
         return {
@@ -215,7 +215,7 @@ class ClientsService {
     try {
       // Convert camelCase to snake_case for backend
       const snakeCaseData = toSnakeCase(addressData);
-      return await apiService.post(`/api/clients/${clientId}/addresses`, snakeCaseData);
+      return await apiService.post(`/clients/${clientId}/addresses`, snakeCaseData);
     } catch (error) {
       console.error('Error adding address:', error);
       return {
@@ -242,7 +242,7 @@ class ClientsService {
     try {
       // Convert camelCase to snake_case for backend
       const snakeCaseData = toSnakeCase(addressData);
-      return await apiService.put(`/api/clients/${clientId}/addresses/${addressId}`, snakeCaseData);
+      return await apiService.put(`/clients/${clientId}/addresses/${addressId}`, snakeCaseData);
     } catch (error) {
       console.error('Error updating address:', error);
       return {
@@ -266,7 +266,7 @@ class ClientsService {
     }
 
     try {
-      return await apiService.delete(`/api/clients/${clientId}/addresses/${addressId}`);
+      return await apiService.delete(`/clients/${clientId}/addresses/${addressId}`);
     } catch (error) {
       console.error('Error deleting address:', error);
       return {
@@ -290,7 +290,7 @@ class ClientsService {
     }
 
     try {
-      return await apiService.get(`/api/clients/${clientId}/addresses/${addressId}`);
+      return await apiService.get(`/clients/${clientId}/addresses/${addressId}`);
     } catch (error) {
       console.error('Error fetching address:', error);
       return {
@@ -313,7 +313,7 @@ class ClientsService {
     }
 
     try {
-      return await apiService.delete(`/api/clients/${id}`);
+      return await apiService.delete(`/clients/${id}`);
     } catch (error) {
       console.error('Error deleting client:', error);
       return {

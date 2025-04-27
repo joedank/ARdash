@@ -61,7 +61,7 @@ class WorkTypesService {
       // Convert camelCase options to snake_case for API
       const snakeCaseOptions = toSnakeCase(options);
 
-      const response = await apiService.get(`/api/work-types/${id}`, {
+      const response = await apiService.get(`/work-types/${id}`, {
         params: snakeCaseOptions
       });
 
@@ -125,7 +125,7 @@ class WorkTypesService {
       // Convert camelCase data to snake_case for API
       const snakeCaseData = toSnakeCase(data);
 
-      const response = await apiService.put(`/api/work-types/${id}`, snakeCaseData);
+      const response = await apiService.put(`/work-types/${id}`, snakeCaseData);
 
       if (response.success && response.data) {
         return {
@@ -153,7 +153,7 @@ class WorkTypesService {
    */
   async deleteWorkType(id) {
     try {
-      const response = await apiService.delete(`/api/work-types/${id}`);
+      const response = await apiService.delete(`/work-types/${id}`);
 
       return {
         success: true,
@@ -277,7 +277,7 @@ class WorkTypesService {
         snakeCaseData.region = region;
       }
 
-      const response = await apiService.patch(`/api/work-types/${id}/costs`, snakeCaseData);
+      const response = await apiService.patch(`/work-types/${id}/costs`, snakeCaseData);
 
       if (response.success && response.data) {
         return {
@@ -313,7 +313,7 @@ class WorkTypesService {
         params.region = region;
       }
 
-      const response = await apiService.get(`/api/work-types/${id}/costs/history`, { params });
+      const response = await apiService.get(`/work-types/${id}/costs/history`, { params });
 
       if (response.success && response.data) {
         return {
@@ -346,7 +346,7 @@ class WorkTypesService {
       // Convert camelCase data to snake_case for API
       const snakeCaseMaterials = materials.map(material => toSnakeCase(material));
 
-      const response = await apiService.post(`/api/work-types/${id}/materials`, snakeCaseMaterials);
+      const response = await apiService.post(`/work-types/${id}/materials`, snakeCaseMaterials);
 
       if (response.success && response.data) {
         return {
@@ -377,7 +377,7 @@ class WorkTypesService {
    */
   async removeMaterial(id, materialId) {
     try {
-      const response = await apiService.delete(`/api/work-types/${id}/materials/${materialId}`);
+      const response = await apiService.delete(`/work-types/${id}/materials/${materialId}`);
 
       return {
         success: true,
@@ -401,7 +401,7 @@ class WorkTypesService {
    */
   async addTags(id, tags) {
     try {
-      const response = await apiService.post(`/api/work-types/${id}/tags`, tags);
+      const response = await apiService.post(`/work-types/${id}/tags`, tags);
 
       if (response.success && response.data) {
         return {
@@ -432,7 +432,7 @@ class WorkTypesService {
    */
   async removeTag(id, tag) {
     try {
-      const response = await apiService.delete(`/api/work-types/${id}/tags/${encodeURIComponent(tag)}`);
+      const response = await apiService.delete(`/work-types/${id}/tags/${encodeURIComponent(tag)}`);
 
       return {
         success: true,

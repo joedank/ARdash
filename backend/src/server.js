@@ -23,22 +23,22 @@ async function startServer() {
     } else {
       logger.info('Database connection successful');
 
-      // Initialize database (sync models)
+      // Run migrations first to ensure schema is up to date
       try {
-        await initDb(false); // Set to true to force reset tables (use with caution)
-        logger.info('Database models synchronized');
+        await runMigrations();
+        logger.info('Database migrations applied successfully');
 
-        // Run migrations
+        // Initialize database (sync models only in dev mode)
         try {
-          await runMigrations();
-          logger.info('Database migrations applied successfully');
-        } catch (migrationError) {
-          logger.warn('Database migrations failed:', migrationError);
-          logger.warn('Server will start, but some features may not work properly');
+          await initDb(false); // Set to true to force reset tables (use with caution)
+          logger.info('Database initialization completed');
+        } catch (dbInitError) {
+          logger.warn('Database initialization failed:', dbInitError);
+          logger.warn('Server will start, but database functionality may be limited');
         }
-      } catch (dbInitError) {
-        logger.warn('Database model synchronization failed:', dbInitError);
-        logger.warn('Server will start, but database functionality may be limited');
+      } catch (migrationError) {
+        logger.warn('Database migrations failed:', migrationError);
+        logger.warn('Server will start, but some features may not work properly');
       }
     }
 

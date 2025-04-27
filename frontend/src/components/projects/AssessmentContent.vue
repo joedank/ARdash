@@ -445,8 +445,11 @@ watchDebounced(
     if (!text || text.length < 15) return; // Skip short text
 
     console.log('Detecting work types for:', text.substring(0, 30) + '...');
-    suggested.value = await assessmentsService.detectWorkTypes(text);
+    const result = await assessmentsService.detectWorkTypes(text);
+    console.log('API response for work types:', result);
+    suggested.value = result;
     console.log('Detected work types:', suggested.value);
+    console.log('Is suggested array empty?', suggested.value.length === 0);
   },
   { debounce: 400, maxWait: 2000 } // Debounce for 400ms, max wait of 2s
 );

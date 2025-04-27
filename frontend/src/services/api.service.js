@@ -5,12 +5,15 @@ import { toSnakeCase } from '@/utils/casing';
 console.log('API Service Initialization - hostname:', window.location.hostname);
 
 /**
- * In prod we keep baseURL empty — axios will send requests
- * to the same origin that served the frontend (job.806040.xyz).
- * During local dev we proxy `/api` to port 3000 via Vite.
+ * ⚠️ IMPORTANT: baseURL **must** stay '/api'. Do not prepend '/api/' in individual service calls.
+ * This is crucial because Vite proxies '/api' to the backend in development,
+ * and Nginx routes '/api' in production.
+ *
+ * In both development and production, all API requests should use relative paths from '/api'.
+ * Example: Use '/auth/login', NOT '/auth/login' (which would result in '/auth/login').
  */
 const apiService = axios.create({
-  baseURL: '',              // <— empty string is safest
+  baseURL: '/api',     // Dev proxy & prod routing share this prefix
   timeout: 360000, // 6 minutes timeout for LLM calls
   withCredentials: true, // Important for cookies/authentication across domains
   headers: {
@@ -20,7 +23,7 @@ const apiService = axios.create({
   }
 });
 
-// NOTE: Keep baseURL '' – Nginx/Vite already mount backend at /api.
+// NOTE: baseURL is set to '/api' - Vite proxies this to backend in dev, Nginx routes it properly in prod.
 // IMPORTANT: Do not prepend '/api/' in individual service calls!
 
 /**

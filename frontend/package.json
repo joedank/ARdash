@@ -35,5 +35,8 @@
     "autoprefixer": "^10.4.21",
     "leaflet": "^1.9.4",
     "vite": "^6.2.0"
+  },
+  "resolutions": {
+    "@rollup/rollup-linux-arm64-musl": "^4.16.0"
   }
 }

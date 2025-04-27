@@ -22,11 +22,22 @@ async getProjectDependencies(projectId) {
 
   // Check if this is a job linked to an assessment
   let relatedAssessment = null;
-  if (project.assessment_id) {
-    relatedAssessment = await Project.findByPk(project.assessment_id, {
-      attributes: ['id', 'type', 'status', 'client_id'],
-      include: [{ model: Client, as: 'client', attributes: ['display_name'] }]
-    });
+  // Use the condition inspection to find the related assessment
+  const conditionInspection = await ProjectInspection.findOne({
+    where: {
+      project_id: projectId,
+      category: 'condition'
+    }
+  });
+
+  if (conditionInspection) {
+    relatedAssessment = {
+      id: projectId,
+      type: 'assessment',
+      status: project.status,
+      client_id: project.client_id,
+      client: project.client
+    };
   }
 
   // Check for inspections
@@ -93,39 +104,42 @@ async deleteProjectWithReferences(projectId) {
       throw new ValidationError('Project not found');
     }
 
-    // If this is a job, find and delete the associated assessment
-    if (project.type === 'active' && project.assessment_id) {
-      // First get the assessment
-      const assessment = await Project.findByPk(project.assessment_id, { transaction });
-      
-      if (assessment) {
-        // Delete assessment's photos and inspections first
-        await this._deleteProjectPhotosAndInspections(assessment.id, transaction);
-        
-        // Delete the assessment
-        await assessment.destroy({ transaction });
-        logger.info(`Deleted associated assessment: ${assessment.id}`);
+    // If this is a job, check for condition inspection
+    if (project.type === 'active') {
+      // Find condition inspection
+      const conditionInspection = await ProjectInspection.findOne({
+        where: {
+          project_id: projectId,
+          category: 'condition'
+        },
+        transaction
+      });
+
+      if (conditionInspection) {
+        // Delete the condition inspection
+        await conditionInspection.destroy({ transaction });
+        logger.info(`Deleted condition inspection for project ${projectId}`);
       }
     }
-    
+
     // If this is an assessment, find and delete the converted job
     if (project.type === 'assessment' && project.converted_to_job_id) {
       // First get the job
       const job = await Project.findByPk(project.converted_to_job_id, { transaction });
-      
+
       if (job) {
         // Delete job's photos and inspections first
         await this._deleteProjectPhotosAndInspections(job.id, transaction);
-        
+
         // Delete the job
         await job.destroy({ transaction });
         logger.info(`Deleted converted job: ${job.id}`);
       }
     }
-    
+
     // Delete this project's photos and inspections
     await this._deleteProjectPhotosAndInspections(projectId, transaction);
-    
+
     // Delete any associated estimates
     if (project.estimate) {
       // Delete estimate items first
@@ -133,15 +147,15 @@ async deleteProjectWithReferences(projectId) {
         where: { estimate_id: project.estimate.id },
         transaction
       });
-      
+
       // Delete the estimate
       await project.estimate.destroy({ transaction });
       logger.info(`Deleted associated estimate: ${project.estimate.id}`);
     }
-    
+
     // Finally delete the project
     await project.destroy({ transaction });
-    
+
     // Commit transaction
     await transaction.commit();
     return true;
@@ -167,13 +181,13 @@ async _deleteProjectPhotosAndInspections(projectId, transaction) {
     },
     transaction
   });
-  
+
   // Delete inspections
   await ProjectInspection.destroy({
     where: { project_id: projectId },
     transaction
   });
-  
+
   // Delete direct project photos
   await ProjectPhoto.destroy({
     where: {
@@ -182,7 +196,7 @@ async _deleteProjectPhotosAndInspections(projectId, transaction) {
     },
     transaction
   });
-  
+
   // Attempt to remove the photos directory
   try {
     const photosDir = path.join('uploads', 'project-photos', projectId);

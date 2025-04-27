@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
       });
     }
   }
-  
+
   EstimateItemPhoto.init({
     id: {
       type: DataTypes.UUID,
@@ -35,9 +35,15 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     photo_type: {
-      type: DataTypes.ENUM('progress', 'completed', 'issue', 'material', 'other'),
+      type: DataTypes.TEXT,
       allowNull: false,
-      defaultValue: 'progress'
+      defaultValue: 'progress',
+      validate: {
+        isIn: {
+          args: [['progress', 'completed', 'issue', 'material', 'other']],
+          msg: "Photo type must be one of: progress, completed, issue, material, other"
+        }
+      }
     },
     notes: {
       type: DataTypes.TEXT,
@@ -56,6 +62,6 @@ module.exports = (sequelize, DataTypes) => {
     createdAt: 'created_at',
     updatedAt: 'updated_at'
   });
-  
+
   return EstimateItemPhoto;
 };

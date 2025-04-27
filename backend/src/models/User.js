@@ -17,7 +17,13 @@ module.exports = (sequelize, DataTypes) => {
 
     // Instance method to check password
     async checkPassword(password) {
-      return await bcrypt.compare(password, this.password);
+      console.log('Inside checkPassword method:');
+      console.log('- Plaintext password:', password);
+      console.log('- Stored hash:', this.password);
+      console.log('- Hash is bcrypt?', /^\$2/.test(this.password));
+      const result = await bcrypt.compare(password, this.password);
+      console.log('- Password comparison result:', result);
+      return result;
     }
   }
 
@@ -86,12 +92,14 @@ module.exports = (sequelize, DataTypes) => {
     underscored: true, // Use snake_case for createdAt, updatedAt, deletedAt
     hooks: {
       beforeCreate: async (user) => {
-        if (user.password) {
+        // Always hash passwords that aren't already hashed
+        if (user.password && !user.password.startsWith('$2')) {
           user.password = await bcrypt.hash(user.password, 10);
         }
       },
       beforeUpdate: async (user) => {
-        if (user.changed('password')) {
+        // Always hash passwords that aren't already hashed
+        if (user.changed('password') && !user.password.startsWith('$2')) {
           user.password = await bcrypt.hash(user.password, 10);
         }
       }

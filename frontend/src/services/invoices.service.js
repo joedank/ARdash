@@ -24,7 +24,7 @@ class InvoicesService {
     queryParams.append('page', page);
     queryParams.append('limit', limit);
 
-    return apiService.get(`/api/invoices?${queryParams.toString()}`);
+    return apiService.get(`/invoices?${queryParams.toString()}`);
   }
 
   /**
@@ -34,7 +34,7 @@ class InvoicesService {
    */
   async createInvoice(invoiceData) {
     console.log('In invoices.service.js - Creating invoice with data:', invoiceData);
-    return apiService.post('/api/invoices', invoiceData);
+    return apiService.post('/invoices', invoiceData);
   }
 
   /**
@@ -43,7 +43,7 @@ class InvoicesService {
    * @returns {Promise} Response data with invoice details
    */
   async getInvoice(id) {
-    return apiService.get(`/api/invoices/${id}`);
+    return apiService.get(`/invoices/${id}`);
   }
 
   /**
@@ -53,7 +53,7 @@ class InvoicesService {
    * @returns {Promise} Response data with updated invoice
    */
   async updateInvoice(id, invoiceData) {
-    return apiService.put(`/api/invoices/${id}`, invoiceData);
+    return apiService.put(`/invoices/${id}`, invoiceData);
   }
 
   /**
@@ -62,7 +62,7 @@ class InvoicesService {
    * @returns {Promise} Response data
    */
   async deleteInvoice(id) {
-    return apiService.delete(`/api/invoices/${id}`);
+    return apiService.delete(`/invoices/${id}`);
   }
 
   /**
@@ -71,7 +71,7 @@ class InvoicesService {
    * @returns {Promise} Response data with updated invoice
    */
   async markInvoiceAsSent(id) {
-    return apiService.post(`/api/invoices/${id}/mark-sent`);
+    return apiService.post(`/invoices/${id}/mark-sent`);
   }
 
   /**
@@ -80,7 +80,7 @@ class InvoicesService {
    * @returns {Promise} Response data with updated invoice
    */
   async markInvoiceAsViewed(id) {
-    return apiService.post(`/api/invoices/${id}/mark-viewed`);
+    return apiService.post(`/invoices/${id}/mark-viewed`);
   }
 
   /**
@@ -90,7 +90,7 @@ class InvoicesService {
    * @returns {Promise} Response data with updated invoice
    */
   async addPayment(id, paymentData) {
-    return apiService.post(`/api/invoices/${id}/payments`, paymentData);
+    return apiService.post(`/invoices/${id}/payments`, paymentData);
   }
 
   /**
@@ -100,7 +100,7 @@ class InvoicesService {
    */
   async getInvoicePdf(invoiceId) {
     try {
-      const response = await apiService.get(`/api/invoices/${invoiceId}/pdf`, {
+      const response = await apiService.get(`/invoices/${invoiceId}/pdf`, {
         responseType: 'blob',
         validateStatus: status => status === 200 // Only treat 200 as success
       });
@@ -128,7 +128,7 @@ class InvoicesService {
    * @returns {Promise} Response data with next invoice number
    */
   async getNextInvoiceNumber() {
-    return apiService.get('/api/invoices/next-number');
+    return apiService.get('/invoices/next-number');
   }
 }
 

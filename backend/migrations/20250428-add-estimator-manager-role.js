@@ -4,12 +4,20 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     try {
-      // Add 'estimator_manager' to the enum_users_role type
+      // Add estimator_manager role to enum_users_role if it doesn't exist already
       await queryInterface.sequelize.query(`
-        ALTER TYPE "enum_users_role" ADD VALUE 'estimator_manager' AFTER 'user';
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_enum
+            WHERE enumtypid = 'enum_users_role'::regtype
+              AND enumlabel = 'estimator_manager'
+          ) THEN
+            ALTER TYPE "enum_users_role" ADD VALUE 'estimator_manager' AFTER 'user';
+          END IF;
+        END$$;
       `);
-      
-      console.log('Successfully added estimator_manager role to enum_users_role');
+      console.log('Successfully processed estimator_manager role addition');
     } catch (error) {
       console.error('Failed to add estimator_manager role:', error);
       throw error;

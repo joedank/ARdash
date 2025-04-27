@@ -169,43 +169,37 @@ class SettingsService {
    */
   async updateMultipleSettings(settings, group = 'general') {
     try {
-      // Get current timestamp in ISO format
-      const now = new Date().toISOString();
+      // Log the settings being updated
+      logger.debug(`Updating ${Object.keys(settings).length} settings in group: ${group}`);
+      logger.debug('Settings keys being updated:', Object.keys(settings));
       
       // Use Sequelize transaction to ensure all operations succeed or fail together
       await Settings.sequelize.transaction(async (transaction) => {
         for (const [key, value] of Object.entries(settings)) {
-          // Try to find the existing setting
-          const existingSetting = await Settings.findOne({
-            where: { key },
-            transaction
-          });
-          
-          if (existingSetting) {
-            // Update existing setting with raw query to ensure we use the correct column names
-            // Note: We need to escape 'group' as it's a reserved keyword in PostgreSQL
-            await Settings.sequelize.query(
-              'UPDATE settings SET value = ?, "group" = ?, "updatedAt" = ?, updated_at = ? WHERE key = ?',
+          try {
+            // Use Sequelize upsert method to handle both insert and update cases
+            // This will properly handle quoting reserved words like "group" and "value"
+            await Settings.upsert(
               {
-                replacements: [value, group || existingSetting.group, now, now, key],
-                type: Settings.sequelize.QueryTypes.UPDATE,
-                transaction
-              }
+                key,
+                value,
+                group
+                // timestamps (updatedAt, createdAt) handled automatically by Sequelize
+              },
+              { transaction }
             );
-          } else {
-            // Create new setting with raw query to ensure timestamps are set correctly
-            await Settings.sequelize.query(
-              'INSERT INTO settings (key, value, "group", "createdAt", "updatedAt", created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-              {
-                replacements: [key, value, group, now, now, now, now],
-                type: Settings.sequelize.QueryTypes.INSERT,
-                transaction
-              }
-            );
+            
+            logger.debug(`Upserted setting '${key}'`);
+          } catch (settingError) {
+            // Log the error for this specific setting
+            logger.error(`Error upserting setting '${key}':`, settingError);
+            // Re-throw to trigger transaction rollback
+            throw settingError;
           }
         }
       });
       
+      logger.info(`Successfully updated all ${Object.keys(settings).length} settings in group: ${group}`);
       return true;
     } catch (error) {
       logger.error('Error updating multiple settings:', error);

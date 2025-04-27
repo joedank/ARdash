@@ -7,8 +7,9 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     try {
       // Get all work types with non-standard UUIDs
+      // Using NOT SIMILAR TO instead of !~ which doesn't work with UUID type
       const workTypes = await queryInterface.sequelize.query(
-        `SELECT id, name FROM work_types WHERE id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'`,
+        `SELECT id, name FROM work_types WHERE id::text NOT SIMILAR TO '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'`,
         { type: Sequelize.QueryTypes.SELECT }
       );
 

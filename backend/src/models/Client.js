@@ -91,8 +91,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('property_manager', 'resident'),
       allowNull: true, // Keep true for now, can be changed later
       defaultValue: 'resident',
-      field: 'client_type',
-      comment: 'Indicates if client is a property manager or resident'
+      field: 'client_type'
     }
   }, {
     sequelize,

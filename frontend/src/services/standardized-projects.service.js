@@ -8,7 +8,7 @@ import { standardizeResponse as apiStandardizeResponse, standardizeRequest as ap
  */
 class StandardizedProjectsService extends BaseService {
   constructor() {
-    super('/api/projects');
+    super('/projects');
     this.api = api; // Explicitly set the API reference
   }
 

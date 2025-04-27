@@ -24,7 +24,7 @@ class EstimatesService {
     queryParams.append('page', page);
     queryParams.append('limit', limit);
 
-    return apiService.get(`/api/estimates?${queryParams.toString()}`);
+    return apiService.get(`/estimates?${queryParams.toString()}`);
   }
 
   /**
@@ -42,7 +42,7 @@ class EstimatesService {
    * @returns {Promise} Response data with estimate details
    */
   async getEstimate(id) {
-    return apiService.get(`/api/estimates/${id}`);
+    return apiService.get(`/estimates/${id}`);
   }
 
   /**
@@ -52,7 +52,7 @@ class EstimatesService {
    * @returns {Promise} Response data with updated estimate
    */
   async updateEstimate(id, estimateData) {
-    return apiService.put(`/api/estimates/${id}`, estimateData);
+    return apiService.put(`/estimates/${id}`, estimateData);
   }
 
   /**
@@ -61,7 +61,7 @@ class EstimatesService {
    * @returns {Promise} Response data
    */
   async deleteEstimate(id) {
-    return apiService.delete(`/api/estimates/${id}`);
+    return apiService.delete(`/estimates/${id}`);
   }
 
   /**
@@ -70,7 +70,7 @@ class EstimatesService {
    * @returns {Promise} Response data with updated estimate
    */
   async markEstimateAsSent(id) {
-    return apiService.post(`/api/estimates/${id}/mark-sent`);
+    return apiService.post(`/estimates/${id}/mark-sent`);
   }
 
   /**
@@ -79,7 +79,7 @@ class EstimatesService {
    * @returns {Promise} Response data with updated estimate
    */
   async markEstimateAsAccepted(id) {
-    return apiService.post(`/api/estimates/${id}/mark-accepted`);
+    return apiService.post(`/estimates/${id}/mark-accepted`);
   }
 
   /**
@@ -88,7 +88,7 @@ class EstimatesService {
    * @returns {Promise} Response data with updated estimate
    */
   async markEstimateAsRejected(id) {
-    return apiService.post(`/api/estimates/${id}/mark-rejected`);
+    return apiService.post(`/estimates/${id}/mark-rejected`);
   }
 
   /**
@@ -97,7 +97,7 @@ class EstimatesService {
    * @returns {Promise} Response data with created invoice
    */
   async convertToInvoice(id) {
-    return apiService.post(`/api/estimates/${id}/convert`);
+    return apiService.post(`/estimates/${id}/convert`);
   }
 
   /**
@@ -106,7 +106,7 @@ class EstimatesService {
    * @returns {Promise} PDF file as blob
    */
   async generatePdf(id) {
-    return apiService.get(`/api/estimates/${id}/pdf`, { responseType: 'blob' });
+    return apiService.get(`/estimates/${id}/pdf`, { responseType: 'blob' });
   }
 
   /**
@@ -116,7 +116,7 @@ class EstimatesService {
    */
   async getEstimatePdf(estimateId) {
     try {
-      const response = await apiService.get(`/api/estimates/${estimateId}/pdf`, {
+      const response = await apiService.get(`/estimates/${estimateId}/pdf`, {
         responseType: 'blob',
         validateStatus: status => status === 200 // Only treat 200 as success
       });
@@ -211,7 +211,7 @@ class EstimatesService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-      console.log('Calling API: /api/estimates/llm/analyze...');
+      console.log('Calling API: /estimates/llm/analyze...');
       const startTime = new Date().getTime();
       
       const response = await apiService.post('/estimates/llm/analyze', enhancedPayload, {
@@ -310,7 +310,7 @@ class EstimatesService {
    * @returns {Promise} Response data with assessment information
    */
   async getAssessmentData(projectId) {
-    return apiService.get(`/api/estimates/llm/assessment/${projectId}`);
+    return apiService.get(`/estimates/llm/assessment/${projectId}`);
   }
 
   /**
@@ -432,7 +432,7 @@ class EstimatesService {
    * @returns {Promise} Response data with source map
    */
   async getEstimateSourceMap(estimateId) {
-    return apiService.get(`/api/estimates/${estimateId}/source-map`);
+    return apiService.get(`/estimates/${estimateId}/source-map`);
   }
 
   /**

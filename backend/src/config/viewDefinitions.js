@@ -1,7 +1,8 @@
 'use strict';
 
 /**
- * Registry of all database view definitions for migrations and schema management
+ * View definitions registry for consistent recreation of views
+ * Each view is defined as a SQL CREATE OR REPLACE VIEW statement
  */
 const viewDefinitions = {
   client_view: `
@@ -21,8 +22,8 @@ const viewDefinitions = {
       updated_at
     FROM clients;
   `,
-  
-  // Add more view definitions here as needed
+
+  // Add other view definitions here as needed
 };
 
 module.exports = viewDefinitions;

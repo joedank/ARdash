@@ -662,7 +662,7 @@ const getAssessmentData = async (req, res) => {
 
     // Format the assessment data using the new service
     const assessmentData = {
-      scope: project.scope,
+      scope: project.condition,
       inspections: inspections,
       photos: project.project_photos || [],
       measurements,
@@ -898,24 +898,30 @@ const generateEstimateFromAssessment = async (req, res) => {
     logger.info(`Generating estimate directly from assessment project ID: ${finalProjectId}`);
     logger.info(`Options:`, finalOptions);
 
-    // Call the service function with the extracted project ID and options
-    const result = await llmEstimateService.generateEstimateFromAssessment({
-      projectId: finalProjectId,
-      mode: finalOptions.mode,
-      aggressiveness: finalOptions.aggressiveness,
-      // Pass the full assessment object if available for additional context
-      assessment: assessment
+    // Import the estimate queue
+    const estimateQueue = require('../queues/estimateQueue');
+
+    // Add job to queue instead of processing immediately
+    const job = await estimateQueue.add('generate', {
+      input: {
+        projectId: finalProjectId,
+        assessment: assessment,
+        mode: finalOptions.mode,
+        aggressiveness: finalOptions.aggressiveness
+      }
     });
 
-    if (result.success) {
-      res.json(success(result.data, 'Estimate generated successfully from assessment'));
-    } else {
-      // Use the error message from the service
-      res.status(400).json(error(result.message || 'Failed to generate estimate from assessment', result.data));
-    }
+    logger.info(`Added estimate generation job to queue with ID: ${job.id}`);
+
+    // Return the job ID for the client to check status
+    return res.status(202).json(success({
+      jobId: job.id,
+      message: 'Estimate generation job started',
+      statusUrl: `/api/estimate-jobs/${job.id}/status`
+    }, 'Estimate generation job started'));
   } catch (err) {
-    logger.error('Error generating estimate from assessment:', err);
-    res.status(500).json(error('Failed to generate estimate from assessment', { message: err.message }));
+    logger.error('Error scheduling estimate generation job:', err);
+    return res.status(500).json(error('Failed to schedule estimate generation job', { message: err.message }));
   }
 };
 

@@ -3,6 +3,9 @@
 const Sequelize = require('sequelize');
 const logger = require('./logger');
 
+// Read dimension once from env; default 3072 -- matches Gemini, OpenAI large, etc.
+const EMBED_DIM = parseInt(process.env.EMBEDDING_DIM || '3072', 10);
+
 /**
  * Extended Sequelize datatypes with custom types
  */
@@ -20,14 +23,14 @@ class ExtendedDataTypes {
    * @returns {Function} - Function that returns appropriate data type
    */
   createVectorType() {
-    return function(dimensions) {
+    return function() {
       const isVectorEnabled = process.env.ENABLE_VECTOR_SIMILARITY === 'true';
 
       if (isVectorEnabled) {
         try {
           // When vector similarity is enabled, use a special type
           // that will be interpreted by PostgreSQL as a vector
-          logger.info(`Creating VECTOR(${dimensions}) field type`);
+          logger.info(`Creating VECTOR(${EMBED_DIM}) field type`);
 
           // Return a special data type that will be properly handled by PostgreSQL
           return {

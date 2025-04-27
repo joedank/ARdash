@@ -76,7 +76,8 @@ const menuItems = [
     icon: 'pi pi-th-large',
     items: [
       { label: 'Product Catalog', icon: 'pi pi-list', to: '/settings/products' },
-      { label: 'LLM Prompts', icon: 'pi pi-comments', to: '/settings/llm-prompts', visible: () => isAdmin.value }
+      { label: 'LLM Prompts', icon: 'pi pi-comments', to: '/settings/llm-prompts', visible: () => isAdmin.value },
+      { label: 'AI Providers', icon: 'pi pi-server', to: '/settings/ai-provider', visible: () => isAdmin.value }
     ]
   },
   {

@@ -32,7 +32,7 @@ async function getAssessmentById(projectId) {
       date: project.scheduled_date,
       inspector: project.assigned_to || 'Unknown',
       projectId: project.id,
-      scope: project.scope || '',
+      scope: project.condition || '',
       notes: project.notes || '',
       measurements: [],
       conditions: [],

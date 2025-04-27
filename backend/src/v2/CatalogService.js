@@ -1,7 +1,7 @@
 const { Product } = require('../models');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
-const deepSeekService = require('../services/deepseekService');
+const embeddingProvider = require('../services/embeddingProvider');
 
 /**
  * Service for catalog management with similarity matching capabilities
@@ -104,28 +104,16 @@ class CatalogService {
   }
 
   /**
-   * Generate an embedding for a text string using the DeepSeek API (OpenAI compatible)
+   * Generate an embedding for a text string using the configured embedding provider
    * @param {string} text - The text to generate an embedding for
    * @returns {Promise<Array<number>>} - The embedding vector
    */
   async generateEmbedding(text) {
     try {
-      const embeddingModel = process.env.EMBEDDING_MODEL || 'embedding-2';
-      logger.debug(`Generating embedding for text using DeepSeek with model ${embeddingModel}`);
-      
-      // Use DeepSeek's OpenAI-compatible API
-      const response = await deepSeekService.client.embeddings.create({
-        model: embeddingModel,
-        input: text,
-      });
+      logger.debug('Generating embedding for text using configured embedding provider');
 
-      if (response.data && response.data.length > 0) {
-        logger.debug('Successfully generated embedding');
-        return response.data[0].embedding;
-      } else {
-        logger.warn('Unexpected response structure from DeepSeek API');
-        return null;
-      }
+      // Use the embeddingProvider service
+      return await embeddingProvider.embed(text);
     } catch (error) {
       logger.error(`Error generating embedding: ${error.message}`, error);
       return null;
@@ -141,15 +129,15 @@ class CatalogService {
   async generateAndStoreEmbedding(productId, name) {
     try {
       logger.debug(`Generating and storing embedding for product ${productId}`);
-      
+
       // Generate embedding
       const embedding = await this.generateEmbedding(name);
-      
+
       if (!embedding) {
         logger.warn(`Could not generate embedding for product ${productId}`);
         return false;
       }
-      
+
       // Store embedding in database
       await this.sequelize.query(`
         UPDATE products
@@ -159,7 +147,7 @@ class CatalogService {
         bind: [JSON.stringify(embedding), productId],
         type: this.sequelize.QueryTypes.UPDATE
       });
-      
+
       logger.debug(`Successfully stored embedding for product ${productId}`);
       return true;
     } catch (error) {
@@ -315,7 +303,7 @@ class CatalogService {
 
       // Bulk create products
       const createdProducts = await Product.bulkCreate(productsToCreate);
-      
+
       // Generate embeddings for all new products
       for (const product of createdProducts) {
         this.generateAndStoreEmbedding(product.id, product.name)

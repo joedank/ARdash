@@ -4,6 +4,17 @@ This document captures the current work focus, recent changes, active decisions,
 
 ## Current Focus
 
+- ✅ Restored Database from April 24th Backup with Idempotent Migration Handling
+- ✅ Fixed Non-Idempotent Migrations (ENUM values, extensions, indexes) for Reliable Restoration
+- ✅ Fixed NULL Timestamp Issues in Settings Table from Legacy Data
+- ✅ Fixed Frontend Docker Container Rollup Module Issues with Multi-Stage Build
+- ✅ Fixed Database Migration Issues with Settings Table Index and Legacy Function Signatures
+- ✅ Fixed PostgreSQL pgvector Dimension Limit for HNSW/IVFFLAT Indexes (max 2000 dims)
+- ✅ Fixed Data Type Mismatch in Settings Seed Migration (UUID vs INTEGER)
+- ✅ Fixed Project Model Naming Collision Between Column and Association
+
+- ✅ Fixed Vector Dimension and HNSW Index Migration Issues
+- ✅ Fixed migration function signature pattern to follow Sequelize standards
 - ✅ Fixed Work Type Detection in Frontend UI
 - ✅ Fixed Vector Dimensionality Mismatch in Work Type Detection
 - ✅ Fixed Language Model Provider API Key and Model Selection Issues
@@ -72,6 +83,39 @@ This document captures the current work focus, recent changes, active decisions,
 - ⏳ Testing the full estimate job generation pipeline
 
 ## Recent Achievements
+
+### Implemented Robust Database Restoration Process with Idempotent Migrations
+
+- **Identified Issues**: Several migrations were not idempotent, causing restoration failures
+  - ENUM value additions failed with "value already exists" errors
+  - Extension creation lacked IF NOT EXISTS clauses
+  - Index creation without proper existence checks
+  - NULL timestamp values in settings table violating NOT NULL constraints
+
+- **Implemented Solutions**:
+  - Refactored enum-modifying migrations to use PostgreSQL DO blocks with existence checks
+  - Added proper IF NOT EXISTS clauses to extension and index creation
+  - Created migrations to handle NULL timestamps in existing data
+  - Developed PostgreSQL-specific patterns for safe idempotent migrations
+
+- **Results**:
+  - Successfully restored database from April 24th backup
+  - Applied all post-backup migrations cleanly
+  - Maintained both legacy data (communities table) and newer schema elements
+  - Established patterns for reliable database restoration and migration
+
+### Fixed Vector Dimension and HNSW Index Migration Issues
+
+- **Identified Issues**: Migration failures due to dimension limits on existing ivfflat index and incorrect function signatures
+- **Implemented Solutions**:
+  - Added DO block to identify and drop ivfflat indexes before altering vector dimensions
+  - Fixed SQL dollar quoting syntax from `DO $` to `DO $$` for proper PostgreSQL compatibility
+  - Updated migration function signatures from `async up({ context: queryInterface })` to `async up(queryInterface, Sequelize)`
+  - Added compatibility layer with `const qi = queryInterface` where needed
+  - Added drop statement for existing HNSW indexes before recreation to prevent conflicts
+  - Modified `setup-work-types-db.sh` script to skip duplicate index creation
+  - Enhanced pgvector version checks to safely handle older versions
+- **Results**: Migrations now complete successfully without errors about undefined sequelize or dimension limits
 
 ### Implemented V2 Estimate Generation Performance Improvements
 
@@ -248,6 +292,15 @@ This document captures the current work focus, recent changes, active decisions,
 - Enhanced frontend validators to properly detect measurement existence in assessment data
 - Improved controller handling of assessment data and project parameters
 
+### Migration System Improvements
+
+- Standardized migration function signatures to match Sequelize expectations
+- Used PostgreSQL DO blocks with explicit existence checks for safe idempotent migrations
+- Implemented transaction-based approach for all schema changes to ensure atomicity
+- Created clear pattern for handling PostgreSQL view dependencies
+- Added standardized logging and error handling throughout migrations
+- Implemented migration organization strategy with _archive directory for problematic files
+
 ## Recent Changes
 
 ### Fixed Database Migration Issues
@@ -369,14 +422,16 @@ This document captures the current work focus, recent changes, active decisions,
 
 ## Next Steps
 
-- **Monitor Performance**: Track the performance impact of the new job queues, Redis cache, and HNSW index.
-- **Refine Frontend Polling**: Improve the frontend UI for the asynchronous estimate generation (e.g., add progress indicators, cancellation options).
-- **Optimize Compaction**: Fine-tune the `compactAssessment` utility based on LLM performance and accuracy.
-- **Scale Workers**: Adjust the concurrency settings for the embedding and estimate workers based on load.
-- **Add pgvector Version Check**: Implement a guard in the migration to check for pgvector >= 0.5 before creating the HNSW index.
-- **Fix Timeout Interval**: Update embedQueue.waitUntilFinished to clear the interval on resolve to prevent memory leaks.
-- **Implement Progress Reporting**: Add job.updateProgress() calls in the estimate worker for better UI feedback.
-- **Add Redis Outage Guards**: Implement additional error handling for cases where Redis is unavailable during job submission.
+- ✅ **Documented Migration Best Practices**: Created standardized patterns for idempotent migrations with proper function signatures
+- **Implement CI Check**: Create CI check to validate migration function signatures and prevent regression
+- **Monitor Performance**: Track the performance impact of the new job queues, Redis cache, and HNSW index
+- **Refine Frontend Polling**: Improve the frontend UI for the asynchronous estimate generation (e.g., add progress indicators, cancellation options)
+- **Optimize Compaction**: Fine-tune the `compactAssessment` utility based on LLM performance and accuracy
+- **Scale Workers**: Adjust the concurrency settings for the embedding and estimate workers based on load
+- **Add pgvector Version Check**: Implement a guard in the migration to check for pgvector >= 0.5 before creating the HNSW index
+- **Fix Timeout Interval**: Update embedQueue.waitUntilFinished to clear the interval on resolve to prevent memory leaks
+- **Implement Progress Reporting**: Add job.updateProgress() calls in the estimate worker for better UI feedback
+- **Add Redis Outage Guards**: Implement additional error handling for cases where Redis is unavailable during job submission
 - Implement AI-driven conversation workflow for smarter inspection-to-estimate conversion
 - Develop catalog deduplication with both trigram (pg_trgm) and vector similarity (pgvector) matching
 - Create user interfaces for handling potential duplicate detection with confidence scoring

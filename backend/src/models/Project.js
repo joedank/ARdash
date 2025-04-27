@@ -36,33 +36,39 @@ module.exports = (sequelize, DataTypes) => {
         as: 'inspections'
       });
 
+      // Scoped association for condition inspection
+      Project.hasOne(models.ProjectInspection, {
+        foreignKey: 'project_id',
+        as: 'conditionInspection',
+        scope: {
+          category: 'condition'
+        }
+      });
+
       // Association with Photos
       Project.hasMany(models.ProjectPhoto, {
         foreignKey: 'project_id',
         as: 'photos'
       });
-      
+
       // Self-referential associations for project conversion workflow
-      // Assessment to active job relationship
-      Project.belongsTo(models.Project, {
-        foreignKey: 'assessment_id',
-        as: 'assessment'
-      });
-      
-      Project.hasMany(models.Project, {
-        foreignKey: 'assessment_id',
-        as: 'derivedProjects'
-      });
-      
+      // Note: assessment_id has been removed from the schema
+
       // Converted job reference relationship
       Project.belongsTo(models.Project, {
         foreignKey: 'converted_to_job_id',
         as: 'convertedJob'
       });
-      
+
       Project.hasOne(models.Project, {
         foreignKey: 'converted_to_job_id',
         as: 'originalAssessment'
+      });
+
+      // Link active job back to its assessment
+      Project.belongsTo(models.Project, {
+        foreignKey: 'assessment_id',
+        as: 'assessment'
       });
     }
   }
@@ -118,10 +124,10 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       field: 'scheduled_date'
     },
-    scope: {
+    condition: {
       type: DataTypes.TEXT,
       allowNull: true,
-      field: 'scope'
+      field: 'condition'
     },
     additional_work: {
       type: DataTypes.TEXT,
@@ -131,12 +137,9 @@ module.exports = (sequelize, DataTypes) => {
     assessment_id: {
       type: DataTypes.UUID,
       allowNull: true,
-      references: {
-        model: 'projects',
-        key: 'id'
-      },
+      references: { model: 'projects', key: 'id' },
       field: 'assessment_id',
-      comment: 'Reference to the original assessment project when converted to an active job'
+      comment: 'Reference to original assessment'
     },
     converted_to_job_id: {
       type: DataTypes.UUID,

@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  # Redis for cache and queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # PostgreSQL Database
   db:
     image: pgvector/pgvector:pg16
@@ -14,6 +29,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/00-init.sh:/docker-entrypoint-initdb.d/00-init.sh
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/01-create-role.sql:/docker-entrypoint-initdb.d/01-create-role.sql
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/02-create-settings-table.sql:/docker-entrypoint-initdb.d/02-create-settings-table.sql
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/init/03-enable-pgvector.sql:/docker-entrypoint-initdb.d/03-enable-pgvector.sql
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/database/backups/management_db_20250414_145056.sql:/docker-entrypoint-initdb.d/04-init.sql
     networks:
@@ -32,14 +48,13 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Use named volume for node_modules to prevent host overriding
-      - backend_node_modules:/app/node_modules
       # Mount source code for development (exclude node_modules)
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/src:/app/src
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/migrations:/app/migrations
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/seeders:/app/seeders
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/package.json:/app/package.json
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/package-lock.json:/app/package-lock.json
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/docker-entrypoint.sh:/app/docker-entrypoint.sh
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/logs:/app/logs
       - uploads_data:/app/uploads
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/wait-for-it.sh:/app/wait-for-it.sh
@@ -57,8 +72,11 @@ services:
       - JWT_REFRESH_EXPIRES_IN=365d
       - DEEPSEEK_API_KEY=sk-aebbce11d90a4a5190d6be5ccf1ee504
       - ENABLE_VECTOR_SIMILARITY=true
+      - REDIS_URL=redis://redis:6379
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - app_network
@@ -72,7 +90,8 @@ services:
         fi
         echo 'Waiting for database to be ready...'
         chmod +x ./wait-for-it.sh
-        ./wait-for-it.sh db:5432 -t 60 -- npm start
+        chmod +x ./docker-entrypoint.sh
+        ./wait-for-it.sh db:5432 -t 60 -- ./docker-entrypoint.sh
       "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
@@ -81,18 +100,75 @@ services:
       retries: 3
       start_period: 15s
 
-  # Vue.js Frontend
+  # Worker for handling embedding jobs
+  embedding-worker:
+    build:
+      context: /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend
+      dockerfile: Dockerfile
+    volumes:
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/src:/app/src
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/package.json:/app/package.json
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/package-lock.json:/app/package-lock.json
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/logs:/app/logs
+    environment:
+      - NODE_ENV=development
+      - DB_NAME=management_db
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DEEPSEEK_API_KEY=sk-aebbce11d90a4a5190d6be5ccf1ee504
+      - ENABLE_VECTOR_SIMILARITY=true
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app_network
+    command: ["node", "src/workers/embedWorker.js"]
+
+  # Worker for handling estimate generation jobs
+  estimate-worker:
+    build:
+      context: /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend
+      dockerfile: Dockerfile
+    volumes:
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/src:/app/src
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/package.json:/app/package.json
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/backend/package-lock.json:/app/package-lock.json
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/logs:/app/logs
+    environment:
+      - NODE_ENV=development
+      - DB_NAME=management_db
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DEEPSEEK_API_KEY=sk-aebbce11d90a4a5190d6be5ccf1ee504
+      - ENABLE_VECTOR_SIMILARITY=true
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app_network
+    command: ["node", "src/workers/estimateWorker.js"]
+
   frontend:
     build:
       context: /Volumes/4TB/Users/josephmcmyne/myProjects/management/frontend
       dockerfile: Dockerfile
+      target: development
     ports:
       - "5173:5173"
     volumes:
-      # Use named volume for node_modules to prevent host overriding
-      - frontend_node_modules:/app/node_modules
-      # Mount source code for development
-      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/frontend:/app
+      # Mount source code for development (excluding node_modules)
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/frontend/src:/app/src
+      - /Volumes/4TB/Users/josephmcmyne/myProjects/management/frontend/public:/app/public
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/wait-for-it.sh:/app/wait-for-it.sh
     environment:
       - VITE_API_URL=http://localhost:3000
@@ -111,7 +187,7 @@ services:
         fi
         echo 'Waiting for backend to be ready...'
         chmod +x ./wait-for-it.sh
-        ./wait-for-it.sh backend:3000 -t 30 -- node fix-imports.js && npm run dev
+        ./wait-for-it.sh backend:3000 -t 30 -- npm run dev -- --host 0.0.0.0
       "
 
 networks:
@@ -121,5 +197,4 @@ networks:
 volumes:
   postgres_data:
   uploads_data:
-  backend_node_modules:
-  frontend_node_modules:
+  redis_data:

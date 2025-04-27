@@ -19,7 +19,10 @@ export const useEstimateGenStore = defineStore('estimateGen', {
       temperature: 0.5,
       hardThreshold: 0.85,
       softThreshold: 0.60
-    }
+    },
+    jobId: null,
+    progress: 0,
+    pollingActive: false
   }),
 
   getters: {
@@ -29,7 +32,10 @@ export const useEstimateGenStore = defineStore('estimateGen', {
     isLoading: (state) => state.loading,
     getError: (state) => state.error,
     getAssessment: (state) => state.assessment,
-    getOptions: (state) => state.options
+    getOptions: (state) => state.options,
+    getJobId: (state) => state.jobId,
+    getProgress: (state) => state.progress,
+    isPollingActive: (state) => state.pollingActive
   },
 
   actions: {
@@ -41,6 +47,9 @@ export const useEstimateGenStore = defineStore('estimateGen', {
     async startGeneration(payload) {
       this.loading = true;
       this.error = null;
+      this.progress = 0;
+      this.pollingActive = false;
+      this.jobId = null;
 
       try {
         // Save the assessment text for later use
@@ -54,35 +63,109 @@ export const useEstimateGenStore = defineStore('estimateGen', {
           };
         }
 
-        // Call the API
+        // Call the API - for v2/generate endpoints, this will immediately return a job ID
         const response = await estimatesV2Service.generate({
           assessment: payload.assessment,
           options: payload.options || this.options
         });
 
-        // Process the response based on the phase
-        if (response.data?.phase === 'clarify') {
-          this.phase = 'clarify';
-          this.clarify = {
-            requiredMeasurements: response.data.requiredMeasurements || [],
-            questions: response.data.questions || []
-          };
-        } else if (response.data?.phase === 'done') {
-          this.phase = 'review';
-          this.items = response.data.items || [];
+        // If we received a jobId, start polling for job status
+        if (response.data?.jobId) {
+          this.jobId = response.data.jobId;
+          this.pollingActive = true;
+          
+          // Start polling for job status
+          this.pollJobStatus();
+          
+          return { success: true, jobId: this.jobId };
         } else {
-          throw new Error('Unexpected response format');
+          // Handle legacy response format (immediate result)
+          return this.handleLegacyResponse(response);
         }
-
-        return { success: true, data: response.data };
       } catch (error) {
         console.error('Error starting estimate generation:', error);
         const errorMessage = error.message || 'Failed to start estimate generation';
         this.error = errorMessage;
         return { success: false, error: errorMessage };
       } finally {
+        // Don't set loading to false here - it will be set when polling completes
+        // Keep loading true while polling is active
+      }
+    },
+    
+    /**
+     * Poll for job status until completion
+     */
+    async pollJobStatus() {
+      if (!this.jobId || !this.pollingActive) return;
+      
+      try {
+        // Get job status
+        const response = await estimatesV2Service.getJobStatus(this.jobId);
+        
+        if (!response.success) {
+          throw new Error(response.message || 'Failed to get job status');
+        }
+        
+        const { state, progress, result, failReason } = response.data;
+        
+        // Update progress
+        this.progress = progress || 0;
+        
+        // If job is completed, process the result
+        if (state === 'completed' && result) {
+          if (result.success) {
+            // Process result
+            this.items = result.data || [];
+            this.phase = 'review';
+          } else {
+            // Handle error
+            throw new Error(result.error || 'Job completed with error');
+          }
+          
+          // End polling
+          this.pollingActive = false;
+          this.loading = false;
+          return;
+        }
+        
+        // If job failed, handle error
+        if (state === 'failed') {
+          throw new Error(failReason || 'Job failed');
+        }
+        
+        // Otherwise, continue polling after delay
+        setTimeout(() => this.pollJobStatus(), 2000);
+      } catch (error) {
+        console.error('Error polling job status:', error);
+        this.error = error.message || 'Failed to poll job status';
+        this.pollingActive = false;
         this.loading = false;
       }
+    },
+    
+    /**
+     * Handle legacy response format (immediate result without job)
+     * @param {Object} response - API response
+     * @returns {Object} - Result of the operation
+     */
+    handleLegacyResponse(response) {
+      // Process the response based on the phase
+      if (response.data?.phase === 'clarify') {
+        this.phase = 'clarify';
+        this.clarify = {
+          requiredMeasurements: response.data.requiredMeasurements || [],
+          questions: response.data.questions || []
+        };
+      } else if (response.data?.phase === 'done') {
+        this.phase = 'review';
+        this.items = response.data.items || [];
+      } else {
+        throw new Error('Unexpected response format');
+      }
+      
+      this.loading = false;
+      return { success: true, data: response.data };
     },
 
     /**
@@ -93,6 +176,9 @@ export const useEstimateGenStore = defineStore('estimateGen', {
     async submitClarifications(answers) {
       this.loading = true;
       this.error = null;
+      this.progress = 0;
+      this.pollingActive = false;
+      this.jobId = null;
 
       try {
         // Create a structured object with the original assessment and answers
@@ -102,38 +188,34 @@ export const useEstimateGenStore = defineStore('estimateGen', {
           questionAnswers: answers.questionAnswers
         };
 
-        // Keep the text version for other uses if needed
-        const updatedAssessmentText = this.createUpdatedAssessment(this.assessment, answers);
-
         // Call the API again with the structured assessment object and phase=clarifyDone
+        // This should also return a jobId now
         const response = await estimatesV2Service.generate({
           assessment: updatedAssessment, // Send structured object instead of text
           phase: 'clarifyDone', // Add phase parameter to indicate clarifications are done
           options: this.options
         });
 
-        // Process the response
-        if (response.data?.phase === 'clarify') {
-          // Still needs more clarification
-          this.clarify = {
-            requiredMeasurements: response.data.requiredMeasurements || [],
-            questions: response.data.questions || []
-          };
-        } else if (response.data?.phase === 'done') {
-          this.phase = 'review';
-          this.items = response.data.items || [];
+        // If we received a jobId, start polling for job status
+        if (response.data?.jobId) {
+          this.jobId = response.data.jobId;
+          this.pollingActive = true;
+          
+          // Start polling for job status
+          this.pollJobStatus();
+          
+          return { success: true, jobId: this.jobId };
         } else {
-          throw new Error('Unexpected response format');
+          // Handle legacy response format (immediate result)
+          return this.handleLegacyResponse(response);
         }
-
-        return { success: true, data: response.data };
       } catch (error) {
         console.error('Error submitting clarifications:', error);
         const errorMessage = error.message || 'Failed to submit clarifications';
         this.error = errorMessage;
         return { success: false, error: errorMessage };
       } finally {
-        this.loading = false;
+        // Loading state managed by polling
       }
     },
 

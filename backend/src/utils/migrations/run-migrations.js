@@ -1,33 +1,22 @@
+const { Umzug, SequelizeStorage } = require('umzug');
 const { sequelize } = require('../database');
-const fs = require('fs');
-const path = require('path');
 const logger = require('../logger');
 
 /**
  * Run database migrations
  */
 async function runMigrations() {
-  try {
-    logger.info('Running database migrations...');
-    
-    // Add theme_preference column to users table
-    await sequelize.query(`
-      ALTER TABLE users 
-      ADD COLUMN IF NOT EXISTS theme_preference VARCHAR(10) DEFAULT 'dark' NOT NULL;
-    `);
-    
-    // Update existing users to have a default theme preference
-    await sequelize.query(`
-      UPDATE users 
-      SET theme_preference = 'dark' 
-      WHERE theme_preference IS NULL;
-    `);
-    
-    logger.info('Database migrations completed successfully.');
-  } catch (error) {
-    logger.error('Error running database migrations:', error);
-    throw error;
-  }
+  logger.info('Running database migrations...');
+
+  const umzug = new Umzug({
+    migrations: { glob: 'backend/migrations/*.js' },
+    context: sequelize.getQueryInterface(),
+    storage: new SequelizeStorage({ sequelize }),
+    logger,
+  });
+
+  await umzug.up();
+  logger.info('Database migrations applied successfully');
 }
 
 module.exports = runMigrations;

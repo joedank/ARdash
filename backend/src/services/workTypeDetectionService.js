@@ -2,38 +2,29 @@
 
 const { sequelize, WorkType } = require('../models');
 const logger = require('../utils/logger');
-const deepseekService = require('./deepseekService');
+const embeddingProvider = require('./embeddingProvider');
+const { caching } = require('cache-manager');
+const redisStore = require('cache-manager-ioredis-yet');
 
-// Simple in-memory cache with TTL
-class Cache {
-  constructor(ttlMs = 600000) { // Default 10 minutes TTL
-    this.cache = new Map();
-    this.ttl = ttlMs;
-  }
-
-  get(key) {
-    if (!this.cache.has(key)) return null;
-
-    const { value, expires } = this.cache.get(key);
-    if (Date.now() > expires) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return value;
-  }
-
-  set(key, value) {
-    this.cache.set(key, {
-      value,
-      expires: Date.now() + this.ttl
+// Initialize Redis cache with TTL
+const initializeCache = async (ttlSeconds = 600) => {
+  try {
+    return caching({
+      store: redisStore,
+      url: process.env.REDIS_URL || 'redis://localhost:6379',
+      ttl: ttlSeconds
+    });
+  } catch (error) {
+    logger.error(`Error initializing Redis cache: ${error.message}`, { error });
+    // Fallback to memory cache if Redis initialization fails
+    logger.warn('Falling back to memory cache');
+    return caching({
+      store: 'memory',
+      max: 500,
+      ttl: ttlSeconds * 1000
     });
   }
-
-  clear() {
-    this.cache.clear();
-  }
-}
+};
 
 /**
  * Service for detecting work types from text conditions
@@ -41,7 +32,19 @@ class Cache {
 class WorkTypeDetectionService {
   constructor() {
     // Initialize cache for text detection with 10-minute TTL
-    this.detectionCache = new Cache(600000);
+    this.detectionCache = null;
+    this.cacheReady = false;
+    this.initializeCache();
+  }
+  
+  async initializeCache() {
+    try {
+      this.detectionCache = await initializeCache(600);
+      this.cacheReady = true;
+      logger.info('Detection cache initialized successfully');
+    } catch (error) {
+      logger.error(`Failed to initialize detection cache: ${error.message}`, { error });
+    }
   }
 
   /**
@@ -59,11 +62,18 @@ class WorkTypeDetectionService {
       // Generate hash for cache key
       const cacheKey = `detect:${this._hashText(text)}`;
 
-      // Check cache first
-      const cachedResult = this.detectionCache.get(cacheKey);
-      if (cachedResult) {
-        logger.debug(`Cache hit for work type detection: "${text.substring(0, 20)}..."`);
-        return cachedResult;
+      // Check cache first (if ready)
+      if (this.cacheReady) {
+        try {
+          const cachedResult = await this.detectionCache.get(cacheKey);
+          if (cachedResult) {
+            logger.debug(`Cache hit for work type detection: "${text.substring(0, 20)}..."`);
+            return cachedResult;
+          }
+        } catch (cacheError) {
+          logger.warn(`Cache error when getting key ${cacheKey}: ${cacheError.message}`);
+          // Continue execution even if cache fails
+        }
       }
 
       logger.debug(`Cache miss for work type detection: "${text.substring(0, 20)}..."`);
@@ -94,42 +104,72 @@ class WorkTypeDetectionService {
         !results[0].score ||
         results[0].score < 0.85;
 
-      // Check if vector similarity is enabled in environment
-      const isVectorEnabled = process.env.ENABLE_VECTOR_SIMILARITY === 'true';
+      // Check if vector similarity is enabled
+      const isVectorEnabled = await embeddingProvider.isEnabled();
       logger.debug(`Vector similarity enabled: ${isVectorEnabled}`);
 
       if (shouldUseVector && isVectorEnabled) {
         try {
-          // Use DeepSeek service to generate embeddings
-          const embed = await deepseekService.generateEmbedding(text);
+          // Use embedding queue to generate embeddings
+          const embedQueue = require('../queues/embedQueue');
+          const job = await embedQueue.add('embed', { text });
+          const jobId = job.id;
+          const { vector: vec } = await embedQueue.waitUntilFinished(jobId);
 
-          if (embed && Array.isArray(embed)) {
+          if (!vec) {
+            logger.warn('Embedding provider returned null vector');
+            return;
+          }
+
+          // Accept plain arrays *or* typed arrays
+          if (!Array.isArray(vec)) {
+            if (ArrayBuffer.isView(vec)) vec = Array.from(vec);
+            else { logger.warn(`Embedding is not iterable: ${typeof vec}`); return; }
+          }
+
+          if (vec.length === 0) {
+            logger.warn('Embedding array is empty');
+            return;
+          }
+
+          // Convert JavaScript array to pgvector literal string format with reduced precision (4 dp is enough)
+          const vecLiteral = '[' + vec.map(v => Number(v.toFixed(4))).join(',') + ']';
+
+          logger.debug(`Generated vector literal for similarity search (${vec.length} dimensions)`);
+
+          // Declare in outer scope so we can access it after the SQL call
+          let vecResults = [];
+
+          try {
             // Vector similarity query
             // Use a safer query that works even if pgvector operator <=> is not available
             // When ENABLE_VECTOR_SIMILARITY is true, this assumes the pgvector extension is installed
             const vectorQuery = `
-              SELECT id, name,
-                CASE WHEN pg_typeof(name_vec) = 'text'::regtype
-                  THEN similarity(name, $2) -- Fallback to trigram if name_vec is text
-                  ELSE 1-(name_vec <=> $1) -- Use vector similarity if available
-                END AS score
+              SELECT id, name, 1 - (name_vec <=> $1::vector) AS score
               FROM work_types
               WHERE name_vec IS NOT NULL
               ORDER BY score DESC
               LIMIT 10;
             `;
 
-            const [vecResults] = await sequelize.query(vectorQuery, {
-              bind: [embed, text], // Pass both the embedding and the text for fallback
+            logger.debug(`Executing vector query with literal: ${vecLiteral.substring(0, 50)}...`);
+
+            vecResults = await sequelize.query(vectorQuery, {
+              bind: [vecLiteral], // Pass only the vector as string literal with proper casting
               type: sequelize.QueryTypes.SELECT,
-              raw: true,
-              nest: true
+              raw: true
             });
 
-            // Combine results and remove duplicates
-            if (Array.isArray(vecResults) && vecResults.length > 0) {
-              results = this._combineResults(results, vecResults);
-            }
+            // Log the number of results for debugging
+            logger.debug(`Vector similarity rows returned: ${vecResults ? vecResults.length : 0}`);
+          } catch (sqlError) {
+            logger.error(`SQL error in vector similarity: ${sqlError.message}`, sqlError);
+            throw sqlError;
+          }
+
+          // Combine results and remove duplicates
+          if (Array.isArray(vecResults) && vecResults.length > 0) {
+            results = this._combineResults(results, vecResults);
           }
         } catch (vectorError) {
           logger.warn('Vector similarity failed, using trigram results only:', vectorError.message);
@@ -140,7 +180,7 @@ class WorkTypeDetectionService {
 
       // Filter by minimum confidence and limit to top 5
       const filteredResults = results
-        .filter(r => r.score > 0.60)
+        .filter(r => r.score !== null && r.score > 0.60)
         .slice(0, 5)
         .map(r => ({
           workTypeId: r.id,
@@ -148,8 +188,16 @@ class WorkTypeDetectionService {
           score: parseFloat(r.score)
         }));
 
-      // Cache the results
-      this.detectionCache.set(cacheKey, filteredResults);
+      // Cache the results (if cache is ready)
+      if (this.cacheReady) {
+        try {
+          await this.detectionCache.set(cacheKey, filteredResults);
+          logger.debug(`Cached results for key: ${cacheKey}`);
+        } catch (cacheError) {
+          logger.warn(`Cache error when setting key ${cacheKey}: ${cacheError.message}`);
+          // Continue even if caching fails
+        }
+      }
 
       return filteredResults;
     } catch (error) {

@@ -10,7 +10,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   createProject(data) {
-    return api.post('/api/projects', data);
+    return api.post('/projects', data);
   }
 
   /**
@@ -19,7 +19,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   getAllProjects(params = {}) {
-    return api.get('/api/projects', { params });
+    return api.get('/projects', { params });
   }
 
   /**
@@ -27,7 +27,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   getTodayProjects() {
-    return api.get('/api/projects/today');
+    return api.get('/projects/today');
   }
 
   /**
@@ -36,7 +36,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   getProject(id) {
-    return api.get(`/api/projects/${id}`);
+    return api.get(`/projects/${id}`);
   }
 
   /**
@@ -46,7 +46,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   updateStatus(id, status) {
-    return api.put(`/api/projects/${id}/status`, { status });
+    return api.put(`/projects/${id}/status`, { status });
   }
 
   /**
@@ -56,7 +56,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   updateProject(id, data) {
-    return api.put(`/api/projects/${id}`, data);
+    return api.put(`/projects/${id}`, data);
   }
 
   /**
@@ -66,7 +66,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   updateAdditionalWork(id, notes) {
-    return api.put(`/api/projects/${id}/additional-work`, { additional_work: notes });
+    return api.put(`/projects/${id}/additional-work`, { additional_work: notes });
   }
 
   /**
@@ -76,7 +76,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   updateWorkTypes(id, workTypes) {
-    return api.put(`/api/projects/${id}/work-types`, { work_types: workTypes });
+    return api.put(`/projects/${id}/work-types`, { work_types: workTypes });
   }
 
   /**
@@ -85,7 +85,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   deleteProject(id) {
-    return api.delete(`/api/projects/${id}`);
+    return api.delete(`/projects/${id}`);
   }
 
   /**
@@ -95,7 +95,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   addInspection(id, data) {
-    return api.post(`/api/projects/${id}/inspections`, data);
+    return api.post(`/projects/${id}/inspections`, data);
   }
 
   /**
@@ -119,7 +119,7 @@ class ProjectsService {
     });
 
     try {
-      return await api.post(`/api/projects/${id}/photos`, formData, {
+      return await api.post(`/projects/${id}/photos`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
@@ -147,7 +147,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   convertToEstimate(id) {
-    return api.post(`/api/projects/${id}/convert`);
+    return api.post(`/projects/${id}/convert`);
   }
 
   /**
@@ -157,7 +157,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   convertToJob(id, estimateId) {
-    return api.post(`/api/projects/${id}/convert-to-job`, { estimate_id: estimateId });
+    return api.post(`/projects/${id}/convert-to-job`, { estimate_id: estimateId });
   }
 
   /**
@@ -167,7 +167,7 @@ class ProjectsService {
    * @returns {Promise} API response
    */
   deletePhoto(projectId, photoId) {
-    return api.delete(`/api/projects/${projectId}/photos/${photoId}`);
+    return api.delete(`/projects/${projectId}/photos/${photoId}`);
   }
 
   /**

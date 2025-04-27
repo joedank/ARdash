@@ -22,7 +22,7 @@ const estimateItemAdditionalWorkService = {
       }
 
       // Make API request
-      const response = await api.get(`/api/estimate-items/${estimateItemId}/additional-work`);
+      const response = await api.get(`/estimate-items/${estimateItemId}/additional-work`);
       return apiAdapter.standardizeResponse(response);
     } catch (error) {
       return apiAdapter.standardizeError(error);
@@ -54,7 +54,7 @@ const estimateItemAdditionalWorkService = {
       }
 
       // Make API request
-      const response = await api.post(`/api/estimate-items/${estimateItemId}/additional-work`, {
+      const response = await api.post(`/estimate-items/${estimateItemId}/additional-work`, {
         description
       });
       
@@ -80,7 +80,7 @@ const estimateItemAdditionalWorkService = {
       }
 
       // Make API request
-      const response = await api.delete(`/api/estimate-items/${estimateItemId}/additional-work`);
+      const response = await api.delete(`/estimate-items/${estimateItemId}/additional-work`);
       return apiAdapter.standardizeResponse(response);
     } catch (error) {
       return apiAdapter.standardizeError(error);
@@ -103,7 +103,7 @@ const estimateItemAdditionalWorkService = {
       }
 
       // Make API request
-      const response = await api.get(`/api/estimates/${estimateId}/additional-work`);
+      const response = await api.get(`/estimates/${estimateId}/additional-work`);
       return apiAdapter.standardizeResponse(response);
     } catch (error) {
       return apiAdapter.standardizeError(error);

@@ -193,7 +193,56 @@ function prepareEntityForApi(entity) {
   return toSnakeCase(prepared);
 }
 
+/**
+ * Standardizes error responses from API for consistent frontend error handling
+ * @param {Error|Object} error - Error object from API response
+ * @returns {Object} - Standardized error response
+ */
+export const standardizeError = (error) => {
+  // Default error structure
+  const standardError = {
+    success: false,
+    message: 'An error occurred',
+    data: null
+  };
+  
+  // Check if the error has a response from axios
+  if (error.response) {
+    // The request was made and the server responded with an error status
+    const { data, status } = error.response;
+    
+    // Handle API formatted errors
+    if (data) {
+      if (data.message) {
+        standardError.message = data.message;
+      }
+      
+      if (data.data) {
+        standardError.data = toCamelCase(data.data);
+      }
+      
+      // Include HTTP status code for debugging
+      standardError.statusCode = status;
+    }
+  } else if (error.request) {
+    // The request was made but no response was received
+    standardError.message = 'No response from server';
+    standardError.data = { request: error.request };
+  } else if (error.message) {
+    // Something happened in setting up the request
+    standardError.message = error.message;
+  }
+  
+  // Log the error for debugging (in development)
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('API Error:', standardError);
+  }
+  
+  return standardError;
+};
+
 export default {
   standardizeResponse,
-  standardizeRequest
+  standardizeRequest,
+  standardizeError
 };

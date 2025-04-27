@@ -9,7 +9,7 @@ class EstimateService extends BaseService {
    * Create a new EstimateService instance
    */
   constructor() {
-    super('/api/estimates');
+    super('/estimates');
   }
 
   /**
@@ -231,7 +231,7 @@ class EstimateService extends BaseService {
       // Try primary endpoint first - explicitly include /api prefix for production
       try {
         // Explicitly include /api prefix to ensure correct routing
-        const primaryEndpoint = `/api/estimates/llm/assessment/${projectId}`;
+        const primaryEndpoint = `/estimates/llm/assessment/${projectId}`;
         console.log(`Trying primary endpoint: ${primaryEndpoint}`);
 
         response = await apiService.get(primaryEndpoint);
@@ -246,7 +246,7 @@ class EstimateService extends BaseService {
       if (!primarySucceeded) {
         try {
           // For the legacy endpoint, explicitly include /api prefix
-          const fallbackEndpoint = `/api/assessments/for-project/${projectId}`;
+          const fallbackEndpoint = `/assessments/for-project/${projectId}`;
           console.log(`Trying fallback endpoint: ${fallbackEndpoint}`);
 
           response = await apiService.get(fallbackEndpoint);
@@ -457,7 +457,7 @@ class EstimateService extends BaseService {
       }
 
       // Explicitly include /api prefix to ensure correct routing
-      const endpoint = `/api/estimates/llm/generate`;
+      const endpoint = `/estimates/llm/generate`;
 
       // Log the final endpoint being called
       console.log('Sending estimate generation payload to endpoint:', endpoint);

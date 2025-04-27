@@ -559,7 +559,7 @@ class EstimateService {
               'type',
               'status',
               'scheduled_date',
-              'scope',
+              'condition',
               'additional_work',
               'assessment_id',
               'converted_to_job_id',

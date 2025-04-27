@@ -17,7 +17,7 @@ class AddressService {
     }
 
     try {
-      const response = await apiService.get(`/api/clients/${clientId}/addresses`);
+      const response = await apiService.get(`/clients/${clientId}/addresses`);
 
       if (response && response.success && response.data) {
         // Normalize addresses for consistent usage

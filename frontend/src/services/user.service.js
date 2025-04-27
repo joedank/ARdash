@@ -11,7 +11,7 @@ class UserService {
    */
   async updateProfile(userData) {
     try {
-      const response = await api.put('/api/users/profile', userData);
+      const response = await api.put('/users/profile', userData);
       return response;
     } catch (error) {
       throw this.handleError(error);
@@ -25,7 +25,7 @@ class UserService {
    */
   async changePassword(passwordData) {
     try {
-      const response = await api.put('/api/users/password', passwordData);
+      const response = await api.put('/users/password', passwordData);
       return response;
     } catch (error) {
       throw this.handleError(error);
@@ -39,7 +39,7 @@ class UserService {
    */
   async updateThemePreference(theme) {
     try {
-      const response = await api.put('/api/users/preferences/theme', { theme_preference: theme });
+      const response = await api.put('/users/preferences/theme', { theme_preference: theme });
       return response;
     } catch (error) {
       throw this.handleError(error);

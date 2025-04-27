@@ -99,7 +99,10 @@ const login = async (req, res) => {
     }
 
     // Check password
+    console.log('Stored password hash from DB:', user.password);
+    console.log('Password from request:', password);
     const isPasswordValid = await user.checkPassword(password);
+    console.log('Password valid:', isPasswordValid);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -132,7 +135,8 @@ const login = async (req, res) => {
           role: user.role,
           theme_preference: user.theme_preference
         },
-        token
+        token,
+        refreshToken
       }
     });
   } catch (error) {

@@ -81,7 +81,7 @@ class ProjectService {
    * @returns {Promise<Object>} Created project
    */
   async createProject(data) {
-    const { client_id, estimate_id, address_id, scope, scheduled_date, type = 'assessment', status } = data;
+    const { client_id, estimate_id, address_id, condition, scheduled_date, type = 'assessment', status } = data;
 
     // Validate client exists
     const client = await Client.findByPk(client_id, {
@@ -150,7 +150,7 @@ class ProjectService {
       client_id,
       estimate_id,
       address_id: finalAddressId,
-      scope,
+      condition,
       scheduled_date,
       type: type || (estimate_id ? 'active' : 'assessment'),
       status: initialStatus
@@ -237,6 +237,12 @@ class ProjectService {
           order: [['created_at', 'DESC']] // Sort by creation date, newest first
         },
         {
+          model: ProjectInspection,
+          as: 'conditionInspection',
+          where: { category: 'condition' },
+          required: false
+        },
+        {
           model: ProjectPhoto,
           as: 'photos',
           where: {
@@ -290,7 +296,7 @@ class ProjectService {
     }
 
     // Extract updateable fields
-    const { client_id, type, status, scheduled_date, scope } = data;
+    const { client_id, type, status, scheduled_date, condition } = data;
 
     // Validate client if changing
     if (client_id && client_id !== project.client_id) {
@@ -306,7 +312,7 @@ class ProjectService {
       type: type || project.type,
       status: status || project.status,
       scheduled_date: scheduled_date || project.scheduled_date,
-      scope: scope !== undefined ? scope : project.scope
+      condition: condition !== undefined ? condition : project.condition
     });
 
     // Return the updated project with client info
@@ -930,10 +936,9 @@ class ProjectService {
         address_id: assessmentProject.address_id,
         type: 'active',
         status: initialStatus,
-        assessment_id: assessmentId, // Important: Link to the original assessment
         estimate_id: estimateId,
         scheduled_date: scheduledDate,
-        scope: assessmentProject.scope
+        condition: assessmentProject.condition // Use condition instead of scope
       }, { transaction });
 
       // Copy "before" photos to the new job
@@ -1339,8 +1344,8 @@ class ProjectService {
       // Update status and add rejection reason if provided
       const updateData = { status: 'rejected' };
       if (rejectionReason) {
-        updateData.scope = project.scope
-          ? `${project.scope}\n\nRejection Reason: ${rejectionReason}`
+        updateData.condition = project.condition
+          ? `${project.condition}\n\nRejection Reason: ${rejectionReason}`
           : `Rejection Reason: ${rejectionReason}`;
       }
 

@@ -1,3 +1,123 @@
+### Docker Multi-Stage Build Pattern
+
+- **Problem:** Single-stage Docker builds mix development and production needs, causing issues with package management and optional dependencies.
+- **Pattern:** Use multi-stage Docker builds to separate concerns and optimize for both development and production.
+- **Example Implementation:** Frontend Dockerfile with builder, development, build, and production stages.
+- **Solution:**
+  ```dockerfile
+  # Stage 1: Build stage with all dependencies
+  FROM node:20-alpine AS builder
+  WORKDIR /app
+  COPY package*.json ./
+  # Install ALL dependencies including dev dependencies
+  RUN npm ci
+  COPY . .
+  
+  # Stage 2: Development image that uses all the dependencies
+  FROM builder AS development
+  EXPOSE 5173
+  CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+  
+  # Stage 3: Build the production assets
+  FROM builder AS build
+  RUN npm run build
+  
+  # Stage 4: Production image with minimal dependencies
+  FROM nginx:alpine AS production
+  COPY --from=build /app/dist /usr/share/nginx/html
+  EXPOSE 80
+  ```
+- **Key Learning:**
+  - Always use a multi-stage approach for Docker builds to separate build and runtime concerns
+  - Install dev dependencies in builder/development stages but exclude them from production
+  - Avoid volume-mounting node_modules to prevent native module issues
+  - Pre-build assets and copy only what's needed to production images
+  - Target specific stages in docker-compose.yml with the `target` parameter
+
+## Database Migration Best Practices
+
+### Idempotent Migration Pattern
+
+- **Problem**: Database migrations fail when run multiple times (such as during database restoration) or when database state doesn't match expectations
+- **Pattern**: Make all migrations idempotent by checking for existing objects before attempting to create/modify
+- **Implementation Examples**:
+  
+  **1. Enum Value Addition**
+  ```javascript
+  // Instead of direct ALTER TYPE statement
+  await queryInterface.sequelize.query(`
+    DO $
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_enum
+        WHERE enumtypid = 'enum_projects_status'::regtype
+          AND enumlabel = 'rejected'
+      ) THEN
+        ALTER TYPE enum_projects_status ADD VALUE 'rejected';
+      END IF;
+    END$;
+  `);
+  ```
+  
+  **2. Extension Creation**
+  ```javascript
+  // Always use IF NOT EXISTS for extensions
+  await queryInterface.sequelize.query(`
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+  `);
+  ```
+  
+  **3. Index Creation**
+  ```javascript
+  // Drop first, then create with IF NOT EXISTS
+  await queryInterface.sequelize.query(`
+    DROP INDEX IF EXISTS work_types_name_vec_hnsw;
+    CREATE INDEX IF NOT EXISTS work_types_name_vec_hnsw
+    ON work_types USING hnsw (name_vec vector_l2_ops)
+    WITH (m = 16, ef_construction = 200);
+  `);
+  ```
+  
+  **4. Column NULL Timestamp Handling**
+  ```javascript
+  // Handle NULL timestamp values in existing data
+  await queryInterface.sequelize.query(`
+    UPDATE settings
+    SET created_at = NOW(), updated_at = NOW()
+    WHERE created_at IS NULL OR updated_at IS NULL;
+  `);
+  ```
+
+- **Key Aspects**:
+  - Always verify object existence before creation/modification
+  - Use PostgreSQL DO blocks with explicit existence checks for constraints
+  - Use `DROP IF EXISTS` before creating objects to ensure clean state
+  - Handle legacy data issues (like NULL timestamps in NOT NULL columns)
+  - Use transaction-based approach for atomicity of related changes
+  - Add detailed logging to help diagnose issues
+  - Implement proper error handling with specific error messages
+
+### Function Signatures
+
+- Use standard Sequelize migration function signature: `async up(queryInterface, Sequelize)`
+- Avoid legacy pattern: `async up({ context: queryInterface })`
+- For compatibility with existing code, use `const qi = queryInterface`
+- Apply the same pattern to `down` methods
+
+### PostgreSQL pgvector
+
+- HNSW and IVFFLAT indexes have a 2000-dimension limit
+- Check vector dimensions before creating indexes: `vector_dims(name_vec)`
+- Provide explicit operator class: `vector_l2_ops`
+- Implement fallbacks when specialized indexes are unavailable
+- Drop all existing vector indexes before altering vector column dimensions
+
+### Sequelize Models
+
+- Avoid using the same name for both a column and an association in the same model
+- Use descriptive suffixes for associations (e.g., `conditionInspection`) to avoid collisions
+- When transitioning column names, update all association references in services and controllers
+
 # System Patterns: Construction Management Web Application
 
 ## Frontend Integration Patterns
