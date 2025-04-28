@@ -1,5 +1,12 @@
 'use strict';
 
+// Generic tokens to filter out before similarity matching
+const GENERIC_TOKENS = [
+  'install', 'installation', 'replace', 'replacement',
+  'repair', 'repairs', 'service', 'services'
+];
+const tokenRegex = new RegExp(`\\b(${GENERIC_TOKENS.join('|')})\\b`, 'gi');
+
 const { sequelize, WorkType } = require('../models');
 const logger = require('../utils/logger');
 const embeddingProvider = require('./embeddingProvider');
@@ -48,26 +55,27 @@ class WorkTypeDetectionService {
   }
 
   /**
-   * Detect work types that match the given text condition
-   * @param {string} text - The condition text to analyze
-   * @returns {Promise<Array>} Matching work types with confidence scores
+   * Helper method to detect work types for a single text fragment
+   * @private
+   * @param {string} fragment - Text fragment to analyze
+   * @returns {Promise<Array>} - Work types with scores for this fragment
    */
-  async detect(text) {
+  async _detectFragment(fragment) {
     try {
-      if (!text || typeof text !== 'string' || text.trim().length < 10) {
-        logger.warn('Text too short for work type detection:', text);
+      if (!fragment || typeof fragment !== 'string' || fragment.trim().length < 10) {
+        logger.warn('Text too short for work type detection:', fragment);
         return [];
       }
 
       // Generate hash for cache key
-      const cacheKey = `detect:${this._hashText(text)}`;
+      const cacheKey = `detect:${this._hashText(fragment)}`;
 
       // Check cache first (if ready)
       if (this.cacheReady) {
         try {
           const cachedResult = await this.detectionCache.get(cacheKey);
           if (cachedResult) {
-            logger.debug(`Cache hit for work type detection: "${text.substring(0, 20)}..."`);
+            logger.debug(`Cache hit for work type detection: "${fragment.substring(0, 20)}..."`);
             return cachedResult;
           }
         } catch (cacheError) {
@@ -76,25 +84,42 @@ class WorkTypeDetectionService {
         }
       }
 
-      logger.debug(`Cache miss for work type detection: "${text.substring(0, 20)}..."`);
+      logger.debug(`Cache miss for work type detection: "${fragment.substring(0, 20)}..."`);
 
-      // Step 1 – trigram top-N
+      // Clean the query text by removing generic tokens
+      const cleaned = fragment.replace(tokenRegex, '').replace(/\s{2,}/g, ' ').trim();
+      // Use cleaned text if it's long enough, otherwise fall back to original fragment
+      const queryText = cleaned.length >= 3 ? cleaned : fragment;
+      
+      logger.debug(`Original text: "${fragment}", Cleaned text: "${queryText}"`);
+
+      // Step 1 – trigram top-N using name_clean for better noun matching
+      const isCleanedText = queryText !== fragment;
       const trigramQuery = `
-        SELECT id, name, similarity(name, $1) AS score
+        SELECT id, name, 
+          CASE
+            -- When we're using cleaned text, check against name_clean if it exists
+            WHEN ${isCleanedText} AND name_clean IS NOT NULL THEN
+              -- Boost similarity to name_clean by 0.15 to prioritize noun matches
+              similarity(name_clean, lower($1)) + 0.15
+            ELSE
+              -- Fallback to normal name similarity for unmodified queries or if name_clean doesn't exist
+              similarity(name, $1)
+          END AS score
         FROM work_types
-        WHERE name % $1
+        WHERE name % $1 OR (name_clean IS NOT NULL AND name_clean % lower($1))
         ORDER BY score DESC
         LIMIT 15;
       `;
 
-      const [triResults] = await sequelize.query(trigramQuery, {
-        bind: [text],
+      const triResults = await sequelize.query(trigramQuery, {
+        bind: [queryText],
         type: sequelize.QueryTypes.SELECT,
         raw: true,
         nest: true
       });
 
-      let results = Array.isArray(triResults) ? triResults : [];
+      let results = triResults;
 
       // Step 2 – embed & vector if tri scores < hard threshold
       // Only do vector similarity if trigram top result < 0.85
@@ -112,24 +137,24 @@ class WorkTypeDetectionService {
         try {
           // Use embedding queue to generate embeddings
           const embedQueue = require('../queues/embedQueue');
-          const job = await embedQueue.add('embed', { text });
+          const job = await embedQueue.add('embed', { text: fragment });
           const jobId = job.id;
           const { vector: vec } = await embedQueue.waitUntilFinished(jobId);
 
           if (!vec) {
             logger.warn('Embedding provider returned null vector');
-            return;
+            return results;
           }
 
           // Accept plain arrays *or* typed arrays
           if (!Array.isArray(vec)) {
             if (ArrayBuffer.isView(vec)) vec = Array.from(vec);
-            else { logger.warn(`Embedding is not iterable: ${typeof vec}`); return; }
+            else { logger.warn(`Embedding is not iterable: ${typeof vec}`); return results; }
           }
 
           if (vec.length === 0) {
             logger.warn('Embedding array is empty');
-            return;
+            return results;
           }
 
           // Convert JavaScript array to pgvector literal string format with reduced precision (4 dp is enough)
@@ -168,7 +193,7 @@ class WorkTypeDetectionService {
           }
 
           // Combine results and remove duplicates
-          if (Array.isArray(vecResults) && vecResults.length > 0) {
+          if (vecResults?.length) {
             results = this._combineResults(results, vecResults);
           }
         } catch (vectorError) {
@@ -178,10 +203,9 @@ class WorkTypeDetectionService {
         logger.debug('Skipping vector similarity: either trigram score is high enough or vector similarity is disabled');
       }
 
-      // Filter by minimum confidence and limit to top 5
+      // Filter by minimum confidence
       const filteredResults = results
-        .filter(r => r.score !== null && r.score > 0.60)
-        .slice(0, 5)
+        .filter(r => r.score !== null && r.score >= 0.30)
         .map(r => ({
           workTypeId: r.id,
           name: r.name,
@@ -201,9 +225,46 @@ class WorkTypeDetectionService {
 
       return filteredResults;
     } catch (error) {
-      logger.error(`Error detecting work types for text: "${text.substring(0, 20)}..."`, error);
+      logger.error(`Error detecting work types for fragment: "${fragment ? fragment.substring(0, 20) : 'undefined'}..."`, error);
       return [];
     }
+  }
+
+  /**
+   * Detect work types that match the given text condition
+   * @param {string} text - The condition text to analyze
+   * @returns {Promise<Array>} Matching work types with confidence scores
+   */
+  async detect(text) {
+    if (!text || text.trim().length < 10) return [];
+    
+    // Split text into meaningful fragments by periods, line breaks, 
+    // semicolons, or the word "and" surrounded by word boundaries
+    const parts = text
+      .split(/[\.\n;]+|\band\b/gi)
+      .map(s => s.trim())
+      .filter(s => s.length >= 8);  // Skip fragments that are too short
+
+    logger.debug(`Split condition text into ${parts.length} fragments`);
+    
+    // Process each fragment separately
+    const agg = [];
+    for (const p of parts) {
+      const hits = await this._detectFragment(p);
+      agg.push(...hits);
+    }
+
+    // De-duplicate results and keep highest score for each work type
+    const map = new Map();
+    agg.forEach(r => {
+      const prev = map.get(r.workTypeId);
+      if (!prev || r.score > prev.score) map.set(r.workTypeId, r);
+    });
+
+    // Return results sorted by score and limited to 10
+    return [...map.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);  // Up to 10 suggestions, not just 5
   }
 
   /**
