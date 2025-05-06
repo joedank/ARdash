@@ -187,6 +187,17 @@ class ClientService {
       
       // Handle addresses if provided
       if (addresses && Array.isArray(addresses)) {
+        // Find existing addresses for this client
+        const existingAddresses = await ClientAddress.findAll({
+          where: { client_id: id }
+        });
+        
+        // Create a map of existing addresses by ID for easier lookup
+        const existingAddressMap = existingAddresses.reduce((map, addr) => {
+          map[addr.id] = addr;
+          return map;
+        }, {});
+        
         // Find which address is marked as primary
         const primaryAddress = addresses.find(addr => addr.is_primary);
         
@@ -201,45 +212,58 @@ class ClientService {
           );
         }
         
+        // Keep track of processed address IDs to determine which ones to remove
+        const processedAddressIds = [];
+        
         // Process each address
         for (const address of addresses) {
-          if (address.id) {
-            // Update existing address
-            const addressData = {
-              name: address.name,
-              street_address: address.street_address,
-              city: address.city,
-              state: address.state,
-              postal_code: address.postal_code,
-              country: address.country,
-              is_primary: address.is_primary,
-              notes: address.notes
-            };
-            
-            await ClientAddress.update(
-              addressData,
-              { 
-                where: { id: address.id, client_id: id },
-                transaction 
-              }
-            );
-            
-            // Log the update
-            logger.info(`Updated address ${address.id} for client ${id}`);
+          // Clean the address data to ensure required fields
+          const addressData = {
+            name: address.name,
+            street_address: address.street_address,
+            city: address.city,
+            state: address.state,
+            postal_code: address.postal_code,
+            country: address.country || 'USA',
+            is_primary: address.is_primary,
+            notes: address.notes || ''
+          };
+          
+          if (address.id && existingAddressMap[address.id]) {
+            // Update existing address using findByPk and update pattern
+            // instead of the bulk update to ensure the update works
+            const existingAddress = await ClientAddress.findByPk(address.id);
+            if (existingAddress && existingAddress.client_id === id) {
+              await existingAddress.update(addressData, { transaction });
+              processedAddressIds.push(address.id);
+              logger.info(`Updated address ${address.id} for client ${id}`);
+            }
           } else {
-            // Create new address
-            await ClientAddress.create(
+            // Create new address only if it doesn't already exist
+            const newAddress = await ClientAddress.create(
               {
-                ...address,
+                ...addressData,
                 client_id: id
               },
               { transaction }
             );
-            
-            // Log the creation
+            processedAddressIds.push(newAddress.id);
             logger.info(`Created new address for client ${id}`);
           }
         }
+        
+        // Optional: Remove addresses that weren't in the update request
+        // Uncomment if you want to delete addresses not included in the update
+        /*
+        const addressesToRemove = existingAddresses.filter(addr => 
+          !processedAddressIds.includes(addr.id)
+        );
+        
+        for (const addrToRemove of addressesToRemove) {
+          await addrToRemove.destroy({ transaction });
+          logger.info(`Removed address ${addrToRemove.id} for client ${id}`);
+        }
+        */
       }
       
       await transaction.commit();

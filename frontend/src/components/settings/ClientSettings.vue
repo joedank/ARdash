@@ -1061,32 +1061,26 @@ async function submitClientForm() {
     // Format addresses for creation/update (already camelCase)
     // Ensure we only include necessary fields and proper ID handling
     payload.addresses = payload.addresses.map(addr => {
-      // For existing addresses, keep the ID
+      const addressData = {
+        name: addr.name,
+        streetAddress: addr.streetAddress,
+        city: addr.city,
+        state: addr.state,
+        postalCode: addr.postalCode,
+        country: addr.country || 'USA',
+        isPrimary: addr.isPrimary,
+        notes: addr.notes || ''
+      };
+      
+      // Only include ID for existing addresses
       if (isEditing.value && addr.id) {
-        return {
-          id: addr.id,
-          name: addr.name,
-          streetAddress: addr.streetAddress,
-          city: addr.city,
-          state: addr.state,
-          postalCode: addr.postalCode,
-          country: addr.country || 'USA',
-          isPrimary: addr.isPrimary,
-          notes: addr.notes || ''
-        };
-      } else {
-        // For new addresses, remove any temp id
-        return {
-          name: addr.name,
-          streetAddress: addr.streetAddress,
-          city: addr.city,
-          state: addr.state,
-          postalCode: addr.postalCode,
-          country: addr.country || 'USA',
-          isPrimary: addr.isPrimary,
-          notes: addr.notes || ''
-        };
+        // Ensure we're only passing UUID addresses, not temporary IDs
+        if (typeof addr.id === 'string' && addr.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          addressData.id = addr.id;
+        }
       }
+      
+      return addressData;
     });
 
     console.log('Submitting client with addresses:', JSON.stringify(payload.addresses));
