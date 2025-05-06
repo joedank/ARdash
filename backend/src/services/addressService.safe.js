@@ -30,9 +30,13 @@ class SafeAddressService {
         };
       }
       
-      // Check if address is referenced by any projects
+      // Check for all possible references
+      const references = {};
+      let hasAnyReferences = false;
+
+      // Check projects
       const projectReferences = await sequelize.query(
-        `SELECT COUNT(*) as count FROM projects WHERE address_id = :addressId`,
+        `SELECT id, type, status FROM projects WHERE address_id = :addressId`,
         {
           replacements: { addressId },
           type: sequelize.QueryTypes.SELECT,
@@ -40,9 +44,58 @@ class SafeAddressService {
         }
       );
       
-      const hasReferences = parseInt(projectReferences[0].count, 10) > 0;
+      if (projectReferences.length > 0) {
+        references.projects = projectReferences;
+        hasAnyReferences = true;
+      }
+
+      // Check estimates
+      const estimateReferences = await sequelize.query(
+        `SELECT id, estimate_number, status FROM estimates WHERE address_id = :addressId`,
+        {
+          replacements: { addressId },
+          type: sequelize.QueryTypes.SELECT,
+          transaction: t
+        }
+      );
       
-      if (hasReferences) {
+      if (estimateReferences.length > 0) {
+        references.estimates = estimateReferences;
+        hasAnyReferences = true;
+      }
+
+      // Check invoices
+      const invoiceReferences = await sequelize.query(
+        `SELECT id, invoice_number, status FROM invoices WHERE address_id = :addressId`,
+        {
+          replacements: { addressId },
+          type: sequelize.QueryTypes.SELECT,
+          transaction: t
+        }
+      );
+      
+      if (invoiceReferences.length > 0) {
+        references.invoices = invoiceReferences;
+        hasAnyReferences = true;
+      }
+
+      // Check pre-assessments
+      const preAssessmentReferences = await sequelize.query(
+        `SELECT id, status FROM pre_assessments WHERE client_address_id = :addressId`,
+        {
+          replacements: { addressId },
+          type: sequelize.QueryTypes.SELECT,
+          transaction: t
+        }
+      );
+      
+      if (preAssessmentReferences.length > 0) {
+        references.preAssessments = preAssessmentReferences;
+        hasAnyReferences = true;
+      }
+      
+      // If the address is referenced anywhere
+      if (hasAnyReferences) {
         // If address is referenced, mark it as non-primary if it was primary
         if (address.is_primary) {
           // Find another address to mark as primary
@@ -62,14 +115,15 @@ class SafeAddressService {
           
           // Update the referenced address to not be primary
           await address.update({ is_primary: false }, { transaction: t });
-          logger.info(`Marked address ${addressId} as non-primary as it is referenced by projects`);
+          logger.info(`Marked address ${addressId} as non-primary as it is referenced by other entities`);
         }
         
         if (createdTransaction) await t.commit();
         return { 
           success: true, 
-          message: `Address ${addressId} marked as non-primary (cannot be deleted due to project references)`,
-          status: 'updated'
+          message: `Address ${addressId} cannot be deleted because it is referenced by other entities`,
+          status: 'updated',
+          references: references
         };
       } else {
         // If no references, safe to delete

@@ -186,6 +186,9 @@ class ClientService {
       // Update client properties
       await client.update(clientData, { transaction });
       
+      // Track addresses that couldn't be deleted due to references
+      const addressReferences = {};
+      
       // Handle addresses if provided
       if (addresses && Array.isArray(addresses)) {
         // Find existing addresses for this client
@@ -264,6 +267,13 @@ class ClientService {
             if (result.success) {
               logger.info(`Address operation successful: ${result.message}`);
               
+              // If the address was marked as non-primary (couldn't be deleted),
+              // store the references for the frontend
+              if (result.status === 'updated' && result.references) {
+                addressReferences[addressId] = result.references;
+                logger.info(`Address ${addressId} has references preventing deletion`, result.references);
+              }
+              
               // If the address was marked as non-primary (couldn't be deleted), 
               // we need to ensure we have a primary address among the processed ones
               if (result.status === 'updated' && processedAddressIds.length > 0) {
@@ -305,6 +315,12 @@ class ClientService {
             if (result.success) {
               logger.info(`Implicit address removal successful: ${result.message}`);
               
+              // Store references for addresses that couldn't be deleted
+              if (result.status === 'updated' && result.references) {
+                addressReferences[addrToRemove.id] = result.references;
+                logger.info(`Address ${addrToRemove.id} has references preventing implicit deletion`, result.references);
+              }
+              
               // Similar logic to explicit deletion - ensure we have a primary address
               if (result.status === 'updated' && processedAddressIds.length > 0) {
                 const anyPrimary = await ClientAddress.findOne({
@@ -331,8 +347,15 @@ class ClientService {
       
       await transaction.commit();
       
-      // Return the updated client with addresses
-      return await this.getClientById(id);
+      // Fetch the updated client with addresses
+      const updatedClient = await this.getClientById(id);
+      
+      // Attach address references to the response if there are any
+      if (Object.keys(addressReferences).length > 0) {
+        updatedClient.dataValues._addressReferences = addressReferences;
+      }
+      
+      return updatedClient;
     } catch (error) {
       if (transaction) await transaction.rollback();
       logger.error(`Error updating client ${id}:`, error);
