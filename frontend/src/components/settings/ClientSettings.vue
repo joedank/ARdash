@@ -1082,8 +1082,19 @@ async function submitClientForm() {
       
       return addressData;
     });
-
+    
+    // For logging
     console.log('Submitting client with addresses:', JSON.stringify(payload.addresses));
+    
+    // If there are deleted addresses, explicitly call deleteClientAddress for each
+    // This is for addresses that can't be auto-removed due to reference constraints
+    if (isEditing.value && deletedAddressIds.value.length > 0) {
+      console.log(`Explicitly deleting ${deletedAddressIds.value.length} addresses:`, deletedAddressIds.value);
+      
+      // Include a helper property to tell the backend which addresses to delete
+      // The backend will use this to identify addresses that should be removed
+      payload._deletedAddressIds = deletedAddressIds.value;
+    }
 
     let response;
     if (isEditing.value) {
@@ -1093,6 +1104,9 @@ async function submitClientForm() {
     }
 
     if (response.success) {
+      // Clear the deleted address IDs after successful update
+      deletedAddressIds.value = [];
+      
       await fetchClients(); // Refresh the list
       
       // Refresh the selected client if it's the one being edited/created
@@ -1147,13 +1161,24 @@ function editAddress(index) {
   showAddressForm.value = true;
 }
 
+// Track deleted addresses to ensure they're removed from the database
+const deletedAddressIds = ref([]);
+
 function removeAddress(index) {
   // Prevent deleting the last primary address
   if (clientForm.value.addresses.length === 1 && clientForm.value.addresses[index].isPrimary) { // camelCase
       handleError({ message: 'Cannot delete the only primary address.' }, 'Cannot delete the only primary address.'); // Use handleError for toast
       return;
   }
+  
   const removedAddress = clientForm.value.addresses.splice(index, 1)[0];
+  
+  // If this is an existing address (has an ID), track it for deletion
+  if (removedAddress.id && typeof removedAddress.id === 'string' && 
+      removedAddress.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    console.log(`Marking address ${removedAddress.id} for deletion`);
+    deletedAddressIds.value.push(removedAddress.id);
+  }
 
   // If the removed address was primary, and there are still addresses left,
   // make the first remaining address primary.

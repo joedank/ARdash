@@ -179,8 +179,8 @@ class ClientService {
         throw new Error(`Client with ID ${id} not found`);
       }
       
-      // Extract addresses from data
-      const { addresses, ...clientData } = data;
+      // Extract addresses and deleted address IDs from data
+      const { addresses, _deletedAddressIds, ...clientData } = data;
       
       // Update client properties
       await client.update(clientData, { transaction });
@@ -252,18 +252,118 @@ class ClientService {
           }
         }
         
-        // Optional: Remove addresses that weren't in the update request
-        // Uncomment if you want to delete addresses not included in the update
-        /*
-        const addressesToRemove = existingAddresses.filter(addr => 
-          !processedAddressIds.includes(addr.id)
+        // Handle explicit address deletions from frontend (when user clicks trash icon)
+        if (_deletedAddressIds && Array.isArray(_deletedAddressIds) && _deletedAddressIds.length > 0) {
+          logger.info(`Client ${id} has ${_deletedAddressIds.length} addresses explicitly marked for deletion`);
+          
+          // Process each deleted address
+          for (const addressId of _deletedAddressIds) {
+            const addressToDelete = existingAddresses.find(addr => addr.id === addressId);
+            
+            if (!addressToDelete) {
+              logger.warn(`Address ${addressId} marked for deletion not found`);
+              continue;
+            }
+            
+            try {
+              // If we're deleting a primary address, make sure there's a new primary
+              if (addressToDelete.is_primary && processedAddressIds.length > 0) {
+                // Set the first processed address as primary
+                const newPrimaryAddress = await ClientAddress.findOne({
+                  where: { 
+                    id: { [Op.in]: processedAddressIds },
+                    client_id: id
+                  }
+                });
+                
+                if (newPrimaryAddress) {
+                  await newPrimaryAddress.update({ is_primary: true }, { transaction });
+                  logger.info(`Set address ${newPrimaryAddress.id} as new primary after deleting ${addressId}`);
+                }
+              }
+              
+              // Attempt to delete the address
+              await addressToDelete.destroy({ transaction });
+              logger.info(`Successfully deleted address ${addressId} for client ${id}`);
+              
+            } catch (error) {
+              // If deletion fails due to foreign key constraints, log it but continue
+              if (error.name === 'SequelizeForeignKeyConstraintError') {
+                logger.warn(`Could not delete address ${addressId} as it is referenced by other records`);
+                
+                // If this was a primary address, unmark it
+                if (addressToDelete.is_primary) {
+                  await addressToDelete.update({ is_primary: false }, { transaction });
+                  logger.info(`Unmarked address ${addressId} as primary since it couldn't be deleted`);
+                  
+                  // Set a new primary address if needed
+                  if (processedAddressIds.length > 0) {
+                    const newPrimaryAddress = await ClientAddress.findOne({
+                      where: { 
+                        id: { [Op.in]: processedAddressIds },
+                        client_id: id
+                      }
+                    });
+                    
+                    if (newPrimaryAddress) {
+                      await newPrimaryAddress.update({ is_primary: true }, { transaction });
+                      logger.info(`Set address ${newPrimaryAddress.id} as new primary`);
+                    }
+                  }
+                }
+              } else {
+                // For other errors, rethrow
+                throw error;
+              }
+            }
+          }
+        }
+        
+        // Also handle implicit address removals (addresses that were in the DB but not in the form)
+        const implicitlyRemovedAddresses = existingAddresses.filter(addr => 
+          !processedAddressIds.includes(addr.id) && 
+          !(_deletedAddressIds && _deletedAddressIds.includes(addr.id))
         );
         
-        for (const addrToRemove of addressesToRemove) {
-          await addrToRemove.destroy({ transaction });
-          logger.info(`Removed address ${addrToRemove.id} for client ${id}`);
+        if (implicitlyRemovedAddresses.length > 0) {
+          logger.info(`Found ${implicitlyRemovedAddresses.length} addresses implicitly removed for client ${id}`);
+          
+          // Process each implicitly removed address
+          for (const addrToRemove of implicitlyRemovedAddresses) {
+            try {
+              // Similar logic as explicit deletion
+              if (addrToRemove.is_primary && processedAddressIds.length > 0) {
+                const firstRemainingAddress = await ClientAddress.findOne({
+                  where: { 
+                    id: { [Op.in]: processedAddressIds },
+                    client_id: id
+                  }
+                });
+                
+                if (firstRemainingAddress) {
+                  await firstRemainingAddress.update({ is_primary: true }, { transaction });
+                  logger.info(`Set address ${firstRemainingAddress.id} as new primary`);
+                }
+              }
+              
+              // Attempt to delete the address
+              await addrToRemove.destroy({ transaction });
+              logger.info(`Successfully removed implicitly deleted address ${addrToRemove.id}`);
+            } catch (error) {
+              // Same error handling as before
+              if (error.name === 'SequelizeForeignKeyConstraintError') {
+                logger.warn(`Could not remove address ${addrToRemove.id} as it is referenced by other records`);
+                
+                if (addrToRemove.is_primary) {
+                  await addrToRemove.update({ is_primary: false }, { transaction });
+                  logger.info(`Marked referenced address ${addrToRemove.id} as non-primary`);
+                }
+              } else {
+                throw error;
+              }
+            }
+          }
         }
-        */
       }
       
       await transaction.commit();
