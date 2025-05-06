@@ -241,11 +241,11 @@ This document provides a comprehensive overview of the database structure and AP
   - `embedding_settings`: Stores embedding model configuration
 - **AI Provider Settings**:
   - `openai_api_key`: API key for OpenAI
-  - `deepseek_api_key`: API key for DeepSeek
+  - `deepseek_api_key`: API key for DeepSeek (used for language models only)
   - `anthropic_api_key`: API key for Anthropic
   - `language_model_provider`: Selected provider for language model (openai, deepseek, anthropic)
   - `language_model`: Selected model name for the chosen provider
-  - `embedding_provider`: Selected provider for embeddings (openai, deepseek)
+  - `embedding_provider`: Selected provider for embeddings (openai, gemini)
   - `embedding_model`: Selected model name for embeddings
   - `embedding_enabled`: Boolean flag to enable/disable embedding functionality
 

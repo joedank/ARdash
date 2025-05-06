@@ -11,8 +11,11 @@
 const mockWorkTypeDetectionService = {
   _detectFragment: jest.fn(),
   _combineResults: jest.fn((...args) => args[0]), // Just return first arg for simplicity
-  detect: require('../src/services/workTypeDetectionService').detect // Use the actual detect method
+  detect: require('../src/services/workTypeDetectionService').detect, // Use the actual detect method
 };
+
+// Get constants from the original service for use in tests
+const { MIN, HARD_CREATE } = require('../src/services/workTypeDetectionService');
 
 // Test
 describe('WorkTypeDetectionService', () => {
@@ -158,6 +161,34 @@ describe('WorkTypeDetectionService', () => {
       expect(result.length).toBe(2);
       expect(result.map(r => r.workTypeId)).toContain('door-id');
       expect(result.map(r => r.workTypeId)).toContain('window-id');
+    });
+    
+    it('should include fragments with score < HARD_CREATE in unmatched list', async () => {
+      // Override mock implementation to test the HARD_CREATE threshold
+      mockWorkTypeDetectionService._detectFragment.mockImplementation((fragment) => {
+        if (fragment.includes('Cleaning skylight')) {
+          return [{ workTypeId: 'skylight-id', name: 'Skylight Replacement', score: 0.44 }];
+        } else if (fragment.includes('Ceramic roofing')) {
+          return [{ workTypeId: 'ceramic-id', name: 'Ceramic Roof Installation', score: 0.70 }];
+        } else {
+          return [];
+        }
+      });
+      
+      const text = 'Cleaning skylight. Ceramic roofing tile replacement.';
+      const result = await mockWorkTypeDetectionService.detect(text);
+      
+      // Verify result has the expected structure
+      expect(result).toHaveProperty('existing');
+      expect(result).toHaveProperty('unmatched');
+      
+      // Fragment with 0.44 score (< HARD_CREATE 0.60) should appear in both existing and unmatched
+      expect(result.existing.some(item => item.workTypeId === 'skylight-id')).toBe(true);
+      expect(result.unmatched).toContain('Cleaning skylight');
+      
+      // Fragment with 0.70 score (>= HARD_CREATE 0.60) should only appear in existing, not in unmatched
+      expect(result.existing.some(item => item.workTypeId === 'ceramic-id')).toBe(true);
+      expect(result.unmatched).not.toContain('Ceramic roofing tile replacement');
     });
   });
 });

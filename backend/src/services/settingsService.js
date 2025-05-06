@@ -177,6 +177,23 @@ class SettingsService {
       await Settings.sequelize.transaction(async (transaction) => {
         for (const [key, value] of Object.entries(settings)) {
           try {
+            // Handle special case for explicit null (signals deletion)
+            if (value === null) {
+              // Delete the setting if it exists
+              await Settings.destroy({
+                where: { key },
+                transaction
+              });
+              logger.debug(`Deleted setting '${key}'`);
+              continue;
+            }
+            
+            // Skip empty or undefined values to prevent overwriting existing settings with blank values
+            if (value === '' || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+              logger.debug(`Skipping empty or whitespace-only value for setting '${key}'`);
+              continue;
+            }
+            
             // Use Sequelize upsert method to handle both insert and update cases
             // This will properly handle quoting reserved words like "group" and "value"
             await Settings.upsert(

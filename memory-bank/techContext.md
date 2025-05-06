@@ -22,7 +22,8 @@
   - Creates configurable dimension vector columns (now 1536 dimensions) in products and work_types tables
   - Provides efficient cosine similarity operations via `<=>` operator
   - Used with `ivfflat` index for optimized performance (limited to 2000 dimensions)
-  - Supports Gemini embeddings through dimension reduction (3072 → 1536)
+  - Google Gemini embeddings supported through dimension reduction (3072 → 1536)
+  - DeepSeek embeddings support removed in favor of standardizing on Gemini
 - **pg_trgm**: Trigram matching extension for PostgreSQL enabling fuzzy text search and string similarity
   - Used for text-based similarity matching
   - Handles typos and small wording variations
@@ -38,9 +39,9 @@
 - **Axios**: Promise-based HTTP client
 - **Vite**: Modern frontend build tool and development server with HMR (Hot Module Replacement)
 - **Tailwind CSS**: Utility-first CSS framework for responsive design
-- **Gemini API**: Integration for vector embeddings with dimension reduction (3072→1536)
-- **OpenAI API**: Integration for AI-assisted estimate generation from assessment data
-- **DeepSeek API**: *Deprecated* - Being phased out in favor of more flexible provider abstraction
+- **Gemini API**: Primary integration for vector embeddings with dimension reduction (3072→1536)
+- **OpenAI API**: Alternative integration for vector embeddings and AI-assisted generation
+- **DeepSeek API**: *Removed from embedding provider, maintained for language tasks only*
 - **Chart.js**: JavaScript charting library for data visualization
 - **ESLint**: Static code analysis for identifying problematic patterns
 - **Prettier**: Code formatter for consistent style
@@ -293,7 +294,8 @@ The application uses a flexible provider abstraction pattern for external servic
 
 - **Vector Embedding Service**: Abstracts embedding generation across different providers
 - **Dimension Management**: Handles different embedding dimensions with automatic reduction
-- **Provider Compatibility**: Works with OpenAI, DeepSeek, Gemini, and other compatible APIs
+- **Provider Compatibility**: Works with OpenAI and Gemini APIs (DeepSeek support removed)
+- **Default Provider**: Uses Google Gemini as the default embedding provider
 - **Caching**: Implements optional caching for frequently used embeddings
 - **Fallback Mechanisms**: Provides fallbacks when primary embedding service is unavailable
 

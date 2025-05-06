@@ -185,6 +185,48 @@ for (const f of files) {
   - The fix was verified by testing login and communities page functionality
   - The browser network tab confirmed requests use correct paths without duplication
 
+### Multiple Threshold NLP Matching Pattern
+
+- **Problem**: Simple binary matching thresholds don't provide enough flexibility for AI-driven work type suggestions
+- **Pattern**: Implement multiple confidence thresholds for different user actions
+- **Solution**: Use separate thresholds for suggestions vs. creation candidates
+
+```javascript
+// Multiple threshold constants for different confidence levels
+const MIN = 0.35;      // Minimum threshold for suggestions
+const HARD_CREATE = 0.60;  // Threshold below which items should be creation candidates
+
+// Fragment processing with multiple threshold logic
+for (const p of parts) {
+  const hits = await this._detectFragment(p);
+  
+  // Add to unmatched if best score is below HARD_CREATE threshold
+  const bestScore = hits.length ? Math.max(...hits.map(h=>h.score)) : 0;
+  if (bestScore < HARD_CREATE) {
+    unmatchedFragments.push(p.trim());
+  }
+  
+  agg.push(...hits);
+}
+
+// Result now contains both lists:
+// - existing: Items with scores >= MIN
+// - unmatched: Items with top score < HARD_CREATE (which could include some from existing list)
+return {
+  existing: existingWorkTypes,
+  unmatched: unmatchedFragments
+};
+```
+
+- **Key Aspects**:
+  - Separate constants for different threshold levels
+  - Items can appear in both suggestion and creation lists when 0.35 <= score < 0.60
+  - Frontend can visually differentiate between the two categories (blue for suggestions, yellow for new)
+  - Different actions available based on confidence level
+  - Improved UX by providing both suggestions and creation options for ambiguous matches
+  - Schema allows for future refinement of thresholds based on user feedback
+  - Validation ensures fragments are properly trimmed and prepared
+
 ### API Path Prefixing Implementation
 
 - **Problem**: Inconsistent API path handling causing 404 errors when Vite doesn't properly proxy requests
@@ -716,6 +758,47 @@ class LanguageModelProvider {
   - Transparent reinitialize capability for configuration changes
   - Settings-driven dependency injection
   - Isolated API client instances for each provider
+
+### Embedding Provider Migration Pattern
+
+- **Problem:** Changing AI embedding providers requires updates across multiple layers (code, database, UI)
+- **Pattern:** Coordinated changes to default provider, database settings, and UI options
+- **Solution:** Three-part migration strategy with database, code, and UI updates
+
+```javascript
+// 1. Code Default Updates - Change provider fallback in service
+let providerName = await settingsService.getSettingValue(
+  'embedding_provider',
+  process.env.EMBEDDING_PROVIDER || 'gemini' // Changed from 'deepseek'
+);
+
+// 2. Database Migration - Create with proper cleanup
+module.exports = {
+  async up(queryInterface) {
+    await queryInterface.sequelize.query(`
+      DELETE FROM settings WHERE "key" ILIKE 'deepseek_%';
+      UPDATE settings SET value='gemini' WHERE "key"='embedding_provider';
+    `);
+  }
+};
+
+// 3. UI Options Update - Remove deprecated provider from selection
+const providers = {
+  embedding: [
+    { value: 'gemini', label: 'Google Gemini' }, // Primary option first
+    { value: 'openai', label: 'OpenAI' },
+    { value: 'custom', label: 'Custom Provider' }
+  ]
+};
+```
+
+- **Key Aspects:**
+  - Changing default fallback provider in service code
+  - Creating a migration to clean database of deprecated settings
+  - Moving deprecated seed migrations to a _deprecated folder
+  - Updating UI options to remove deprecated providers
+  - Making the supported provider the first option in UI selection
+  - Ensuring all conditional branches for deprecated providers are removed
 
 ## API and Data Patterns
 

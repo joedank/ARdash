@@ -118,7 +118,7 @@ const getClientById = async (req, res) => {
 };
 
 /**
- * Update client settings
+ * Update client settings with nested address handling
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
@@ -135,8 +135,16 @@ const updateClient = async (req, res) => {
       return res.status(400).json(error('Invalid client type. Must be "property_manager" or "resident"'));
     }
     
+    // Log the received data for debugging
+    logger.info(`Updating client ${id} with data:`, { 
+      ...clientData, 
+      addresses: clientData.addresses ? `${clientData.addresses.length} addresses` : 'none'
+    });
+    
+    // Use the enhanced clientService.updateClient which handles nested addresses
     const client = await clientService.updateClient(id, clientData);
     
+    // Return the updated client with its addresses
     return res.status(200).json(success(client, 'Client updated successfully'));
   } catch (err) {
     logger.error(`Error updating client ${req.params.id}:`, err);

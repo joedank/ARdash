@@ -67,7 +67,11 @@ class SettingsService {
    * @returns {Promise} Response data
    */
   async updateMultipleSettings(settings, group) {
-    return apiService.post('/settings', { settings, group });
+    // Ensure settings is properly wrapped in the expected format
+    return apiService.post('/settings', { 
+      settings, // This is the key-value object that the backend expects
+      group 
+    });
   }
 }
 

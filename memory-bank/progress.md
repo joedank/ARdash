@@ -1,3 +1,145 @@
+
+## Next Actions
+
+- Monitor PDF generation to ensure settings persist correctly
+- Consider expanding the validation utilities for other data types
+- Evaluate if other components could benefit from similar empty value handling
+- Review other settings components for consistency in validation approach[2025-04-30 11:30] - **Fixed External LLM Response Processing API Mismatch (Updated)**
+
+**Issues Identified:**
+
+1. The external paste handler in ExternalPasteMode.vue was failing with a 400 "LLM response text is required" error:
+   - Frontend component was sending a payload with `{ text: llmResponse.value.trim() }`
+   - Backend controller was expecting `{ responseText: ... }` in the request body
+   - This mismatch caused the API to reject valid requests with a 400 error
+
+2. Additional issues identified during code review:
+   - Frontend service validation was too strict, only accepting `text` property
+   - ExternalPasteMode.vue could potentially send empty strings if user pasted only whitespace
+   - No test coverage for the mixed-field scenario
+
+**Solution Implemented:**
+
+1. Updated the backend controller to accept either field name:
+   - Modified `processExternalLlmResponse` in estimates.controller.js to extract both fields
+   - Added fallback logic: `const llmResponseText = text || responseText;`
+   - Maintained backward compatibility for any existing code using responseText
+   - Enhanced error handling to provide clearer error messages
+
+2. Improved frontend service validation with true backward compatibility:
+   - Updated estimates.service.js to accept either `text` or `responseText` field
+   - Used nullish coalescing: `const hasText = payload?.text ?? payload?.responseText;`
+   - Enhanced JSDoc documentation to clarify both field options (marking responseText as legacy)
+   - Added error handling to prevent invalid requests from reaching the API
+
+3. Enhanced ExternalPasteMode.vue with better input validation:
+   - Added explicit check for empty strings after trimming
+   - Stored trimmed response in a variable to avoid duplicate trimming operations
+   - Improved code readability with clearer variable names and comments
+
+**Key Learnings:**
+
+- API boundaries should be flexible with field names when reasonable
+- Backend controllers should implement graceful fallbacks for common variations
+- Frontend services should maintain the same level of compatibility as the backend
+- Input validation should happen at multiple levels (UI, service, and API)
+- Clear error messages help identify the root cause of API failures quickly
+- Documentation should be kept in sync with implementation changes
+- Code reviews are essential for catching compatibility issues
+
+**Next Steps:**
+
+- Add unit tests that cover both field name scenarios
+- Plan a deprecation window for the `responseText` field with appropriate warnings
+- Document the change and migration path for downstream code
+- Eventually standardize on a single field name across the codebase
+- Consider adding comprehensive API validation with Joi/Zod schemas
+
+[2025-04-29 14:30] - **Enhanced Work Type Detection Logic for Creating New Types**
+
+**Issues Identified:**
+
+1. Work type detection logic was dropping fragments from unmatched once any match score ≥ 0.35 was found:
+   - Problem: Fragments like "Cleaning skylight" with moderate match scores (e.g., "Skylight Replacement" with 0.44) were not appearing as candidates for new work types
+   - Business rule had shifted: We now want to keep normal suggestions at 0.35+, but also treat fragments with top score < 0.60 as candidates for brand-new work types
+   - The `workTypeDetectionService.detect()` method was only adding fragments to unmatched when bestScore < MIN (0.35)
+
+**Solution Implemented:**
+
+1. Enhanced work type detection logic:
+   - Added `HARD_CREATE = 0.60` threshold in workTypeDetectionService.js
+   - Modified detection logic to keep fragments with top scores < HARD_CREATE in the unmatched list
+   - Updated frontend to properly display unmatched fragments with "(new)" indicator
+   - Added router integration to direct users to work type creation page when clicked
+   - Created comprehensive tests for the new detection logic
+
+2. Improved the user experience:
+   - Fragments with no good matches (all scores < 0.35) appear only in unmatched (previous behavior)
+   - Fragments with moderate matches (0.35 ≤ top score < 0.60) now appear in both existing and unmatched lists
+   - Fragments with strong matches (top score ≥ 0.60) appear only in existing suggestions
+   - Visual differentiation using yellow chips with "(new)" label for unmatched fragments
+
+**Key Learnings:**
+
+- Thresholds for natural language matching should have multiple levels, not just binary accept/reject
+- Frontend navigation for new item creation should include proper router initialization
+- Testing multiple threshold conditions requires careful setup of mock scenarios
+- User experience benefits from clear visual cues (yellow color, "(new)" label) for different suggestion types
+
+**Next Steps:**
+
+- Monitor effectiveness of the 0.60 threshold in real-world usage
+- Consider adding analytics to track which suggestions lead to new work type creation
+- Evaluate if additional visual improvements could make the difference between suggestions more clear
+
+[2025-04-27 16:45] - **Migrated Embedding Provider from DeepSeek to Google Gemini**
+
+**Issues Identified:**
+
+1. DeepSeek was still the default/allowed provider for embeddings even though we now support only Google Gemini:
+   - Error: 404 errors when attempting to use DeepSeek embedding endpoints
+   - Error: Default provider was set to DeepSeek causing incorrect fallback behavior
+   - DeepSeek options still appearing in AI Provider UI settings
+
+**Root Cause Analysis:**
+
+1. Multiple issues identified across the embedding provider system:
+   - `embeddingProvider.js` defaulted to 'deepseek' and checked for it in multiple conditional blocks
+   - DeepSeek-specific base-URL/model branches inserted unreachable paths
+   - Migration file `20250426000200-seed-embedding-model.js` was populating DeepSeek settings
+   - UI still showed DeepSeek as an available option in the AI Provider settings component
+
+**Solution Implemented:**
+
+1. Modified `embeddingProvider.js` to use Gemini by default:
+   - Updated default provider from 'deepseek' to 'gemini'
+   - Removed all instances of `|| providerName === 'deepseek'` in conditional checks
+   - Removed DeepSeek-specific code blocks for base URL and model name selection
+
+2. Created a new migration to clean up the database:
+   - Created `202504270002-remove-deepseek-settings.js` to remove all DeepSeek settings
+   - Updated the embedding_provider setting to 'gemini' in the database
+   - Moved the old DeepSeek seed migration to _deprecated folder
+
+3. Updated AI Provider controller:
+   - Removed DeepSeek from the list of available embedding providers in UI options
+   - Removed DeepSeek embedding models from the models list
+   - Made Google Gemini the primary embedding provider option
+
+**Key Learnings:**
+
+- Deprecated services should be completely removed from fallback chains to prevent unexpected 404 errors
+- UI options should be kept in sync with backend capability changes
+- Service abstraction layers should be consistently applied across the application
+- Provider migration should include database settings, code defaults, and UI options
+- Keeping old migrations in a _deprecated folder maintains history while preventing them from running
+
+**Next Steps:**
+
+- Consider implementing automated tests to verify correct provider selection
+- Add guards to prevent adding providers without full implementation
+- Update documentation to reflect Gemini-only embedding support
+
 [2025-04-27 16:45] - **Implemented Robust Database Restoration Process with Idempotent Migrations**
 
 **Issues Identified:**
@@ -38,7 +180,7 @@
    ALTER TABLE settings
    ALTER COLUMN created_at SET DEFAULT NOW(),
    ALTER COLUMN updated_at SET DEFAULT NOW();
-   
+
    UPDATE settings
    SET created_at = NOW(), updated_at = NOW()
    WHERE created_at IS NULL OR updated_at IS NULL;

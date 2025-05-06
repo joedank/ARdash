@@ -25,10 +25,10 @@ class LanguageModelProvider {
     try {
       // Load settings from DB or use environment variables as fallback
       const providerName = await settingsService.getSettingValue(
-        'language_model_provider', 
+        'language_model_provider',
         process.env.LANGUAGE_MODEL_PROVIDER || 'deepseek'
       );
-      
+
       const apiKey = await this._getApiKey(providerName);
       const baseUrl = await this._getBaseUrl(providerName);
       const modelName = await this._getModelName(providerName);
@@ -47,7 +47,7 @@ class LanguageModelProvider {
         this._provider !== providerName
       ) {
         logger.info(`Initializing language model provider: ${providerName}`);
-        
+
         this._provider = providerName;
         this._lastApiKey = apiKey;
         this._lastBaseUrl = baseUrl;
@@ -58,7 +58,7 @@ class LanguageModelProvider {
           apiKey: apiKey,
           baseURL: baseUrl,
         });
-        
+
         this._initialized = true;
         logger.info(`Language model provider initialized: ${providerName} with model ${modelName}`);
       }
@@ -99,7 +99,7 @@ class LanguageModelProvider {
     // Fallback to provider-specific key
     const specificKey = `${providerName.toLowerCase()}_${suffix}`;
     const envKey = `${providerName.toUpperCase()}_${suffix.toUpperCase()}`;
-    
+
     logger.debug(`Looking for setting: ${specificKey} with fallback to ${genericKey}`);
     return await settingsService.getSettingValue(specificKey, process.env[envKey] || defaultValue);
   }
@@ -122,14 +122,14 @@ class LanguageModelProvider {
    */
   async _getBaseUrl(providerName) {
     let defaultBaseUrl = '';
-    
+
     // Set default base URLs based on provider
     if (providerName === 'openai') {
       defaultBaseUrl = 'https://api.openai.com/v1';
     } else if (providerName === 'deepseek') {
       defaultBaseUrl = 'https://api.deepseek.com/v1';
     }
-    
+
     return await this._getSetting(providerName, 'baseUrl', defaultBaseUrl);
   }
 
@@ -141,14 +141,14 @@ class LanguageModelProvider {
    */
   async _getModelName(providerName) {
     let defaultModel = '';
-    
+
     // Set default models based on provider
     if (providerName === 'openai') {
       defaultModel = 'gpt-3.5-turbo';
     } else if (providerName === 'deepseek') {
       defaultModel = 'deepseek-chat';
     }
-    
+
     return await this._getSetting(providerName, 'model', defaultModel);
   }
 
@@ -192,11 +192,11 @@ class LanguageModelProvider {
       }
 
       if (!messages || messages.length === 0) {
-        throw new Error('Messages array cannot be empty');
+        throw new Error('Controller bug: tried to call LM with 0 messages AFTER default‑prompt fallback');
       }
 
       logger.debug(`Sending request to ${this._provider} model: ${this._lastModelName}`);
-      
+
       const requestParams = {
         messages: messages,
         model: options.model || this._lastModelName,

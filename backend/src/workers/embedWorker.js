@@ -33,10 +33,7 @@ const worker = new Worker('embedding', async job => {
     return { vector };
   } catch (error) {
     logger.error(`Error generating embedding for job ${job.id}: ${error.message}`, { error });
-    // Mark job as failed with a clear error message so BullMQ doesn't retry indefinitely
-    job.moveToFailed(new Error(`Embedding failed: ${error.message}`), true);
-    // Return failure object instead of throwing
-    return { success: false, error: error.message };
+    throw error;
   }
 }, { 
   connection,

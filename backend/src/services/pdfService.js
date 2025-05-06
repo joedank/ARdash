@@ -4,6 +4,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const logger = require('../utils/logger');
 const { Settings, ClientAddress, Client } = require('../models');
+const { Op } = require('sequelize');
 const fieldAdapter = require('../utils/field-adapter');
 
 /**
@@ -22,6 +23,35 @@ class PDFService {
     } catch (error) {
       logger.error(`Error fetching setting ${key}:`, error);
       return null;
+    }
+  }
+  
+  /**
+   * Get multiple setting values by keys in a single query
+   * @param {string[]} keys - Array of setting keys
+   * @returns {Promise<Object>} - Object with key-value pairs
+   */
+  async getSettingsByKeys(keys) {
+    try {
+      // Get all settings for these keys in a single query
+      const settings = await Settings.findAll({
+        where: {
+          key: {
+            [Op.in]: keys
+          }
+        }
+      });
+      
+      // Create a key-value map from the results
+      const settingsMap = {};
+      settings.forEach(setting => {
+        settingsMap[setting.key] = setting.value;
+      });
+      
+      return settingsMap;
+    } catch (error) {
+      logger.error(`Error fetching settings: ${keys.join(', ')}:`, error);
+      return {};
     }
   }
 
@@ -136,12 +166,10 @@ class PDFService {
         'pdf_header_margin', 'pdf_footer_margin', 'pdf_watermark_text',
         'pdf_invoice_footer', 'pdf_estimate_footer'
       ];
-      const settingsPromises = settingsKeys.map(key => this.getSetting(key));
-      const settingsValues = await Promise.all(settingsPromises);
-      const settings = settingsKeys.reduce((acc, key, index) => {
-        acc[key] = settingsValues[index];
-        return acc;
-      }, {});
+      
+      // Use the bulk settings retrieval method instead of individual queries
+      const settings = await this.getSettingsByKeys(settingsKeys);
+      logger.debug('Retrieved PDF settings in bulk:', Object.keys(settings).length);
 
       // Provide defaults for essential settings
       settings.company_name = settings.company_name || 'Your Company';
@@ -155,7 +183,7 @@ class PDFService {
       settings.pdf_invoice_footer = settings.pdf_invoice_footer || 'Thank you for your business.';
       settings.pdf_estimate_footer = settings.pdf_estimate_footer || 'Thank you for considering our services.';
 
-      logger.debug('PDF Settings Loaded for Puppeteer:', settings);
+      logger.debug('PDF Settings prepared for generation:', settings);
 
       // --- Prepare Logo Data URI ---
       let logoDataUri = null;
@@ -165,8 +193,10 @@ class PDFService {
           const logoBuffer = await fs.readFile(logoPath);
           const ext = path.extname(settings.company_logo_path).toLowerCase().substring(1);
           const mimeType = `image/${ext === 'jpg' ? 'jpeg' : ext}`; // Handle jpg/jpeg
-          logoDataUri = `data:${mimeType};base64,${logoBuffer.toString('base64')}`;
-          logger.debug(`Generated logo data URI for ${settings.company_logo_path}`);
+          // Add a timestamp to prevent browser caching
+          const timestamp = Date.now();
+          logoDataUri = `data:${mimeType};base64,${logoBuffer.toString('base64')}#timestamp=${timestamp}`;
+          logger.debug(`Generated logo data URI for ${settings.company_logo_path} with timestamp`);
         } catch (logoError) {
           logger.error(`Could not read or encode logo file: ${settings.company_logo_path}`, logoError);
           // Continue without logo if there's an error
@@ -208,6 +238,9 @@ class PDFService {
       });
       logger.info('Puppeteer browser launched successfully');
       const page = await browser.newPage();
+
+      // Disable cache to ensure fresh content
+      await page.setCacheEnabled(false);
 
       // --- Generate PDF ---
       logger.info('Setting page content and generating PDF...');

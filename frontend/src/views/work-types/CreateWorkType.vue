@@ -151,8 +151,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 import BaseButton from '@/components/base/BaseButton.vue';
 import BaseFormGroup from '@/components/form/BaseFormGroup.vue';
@@ -160,7 +160,8 @@ import BaseSelect from '@/components/form/BaseSelect.vue';
 import workTypesService from '@/services/work-types.service';
 
 const router = useRouter();
-const { showToast } = useToast();
+const route = useRoute();
+const toast = useToast();
 
 // Form state
 const form = ref({
@@ -175,6 +176,14 @@ const form = ref({
 
 const loading = ref(false);
 const error = ref(null);
+
+// Check for name parameter in URL and populate the form
+onMounted(() => {
+  if (route.query.name) {
+    console.log('Found name in URL:', route.query.name);
+    form.value.name = route.query.name;
+  }
+});
 
 // Options for select fields
 const parentBucketOptions = [
@@ -256,10 +265,8 @@ async function saveWorkType() {
     const response = await workTypesService.createWorkType(workTypeData);
 
     if (response.success) {
-      showToast({
-        message: 'Work type created successfully',
-        type: 'success',
-        duration: 3000
+      toast.success('Work type created successfully', {
+        timeout: 3000
       });
 
       router.push(`/work-types/${response.data.id}`);

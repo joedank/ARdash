@@ -73,10 +73,10 @@ export const useEstimateGenStore = defineStore('estimateGen', {
         if (response.data?.jobId) {
           this.jobId = response.data.jobId;
           this.pollingActive = true;
-          
+
           // Start polling for job status
           this.pollJobStatus();
-          
+
           return { success: true, jobId: this.jobId };
         } else {
           // Handle legacy response format (immediate result)
@@ -92,26 +92,26 @@ export const useEstimateGenStore = defineStore('estimateGen', {
         // Keep loading true while polling is active
       }
     },
-    
+
     /**
      * Poll for job status until completion
      */
     async pollJobStatus() {
       if (!this.jobId || !this.pollingActive) return;
-      
+
       try {
         // Get job status
         const response = await estimatesV2Service.getJobStatus(this.jobId);
-        
+
         if (!response.success) {
           throw new Error(response.message || 'Failed to get job status');
         }
-        
+
         const { state, progress, result, failReason } = response.data;
-        
+
         // Update progress
         this.progress = progress || 0;
-        
+
         // If job is completed, process the result
         if (state === 'completed' && result) {
           if (result.success) {
@@ -122,18 +122,18 @@ export const useEstimateGenStore = defineStore('estimateGen', {
             // Handle error
             throw new Error(result.error || 'Job completed with error');
           }
-          
+
           // End polling
           this.pollingActive = false;
           this.loading = false;
           return;
         }
-        
+
         // If job failed, handle error
         if (state === 'failed') {
           throw new Error(failReason || 'Job failed');
         }
-        
+
         // Otherwise, continue polling after delay
         setTimeout(() => this.pollJobStatus(), 2000);
       } catch (error) {
@@ -143,7 +143,7 @@ export const useEstimateGenStore = defineStore('estimateGen', {
         this.loading = false;
       }
     },
-    
+
     /**
      * Handle legacy response format (immediate result without job)
      * @param {Object} response - API response
@@ -163,7 +163,7 @@ export const useEstimateGenStore = defineStore('estimateGen', {
       } else {
         throw new Error('Unexpected response format');
       }
-      
+
       this.loading = false;
       return { success: true, data: response.data };
     },
@@ -188,11 +188,33 @@ export const useEstimateGenStore = defineStore('estimateGen', {
           questionAnswers: answers.questionAnswers
         };
 
+        // Extract answers to questions for clarifications
+        const clarifications = [];
+
+        // Add measurements as clarifications
+        if (answers.measurements) {
+          Object.entries(answers.measurements).forEach(([key, value]) => {
+            if (value) {
+              clarifications.push(`Measurement - ${key}: ${value}`);
+            }
+          });
+        }
+
+        // Add question answers as clarifications
+        if (answers.questionAnswers) {
+          Object.entries(answers.questionAnswers).forEach(([question, answer]) => {
+            if (answer) {
+              clarifications.push(`Q: ${question}\nA: ${answer}`);
+            }
+          });
+        }
+
         // Call the API again with the structured assessment object and phase=clarifyDone
         // This should also return a jobId now
         const response = await estimatesV2Service.generate({
           assessment: updatedAssessment, // Send structured object instead of text
           phase: 'clarifyDone', // Add phase parameter to indicate clarifications are done
+          clarifications: clarifications, // Always send clarifications array, even if empty
           options: this.options
         });
 
@@ -200,10 +222,10 @@ export const useEstimateGenStore = defineStore('estimateGen', {
         if (response.data?.jobId) {
           this.jobId = response.data.jobId;
           this.pollingActive = true;
-          
+
           // Start polling for job status
           this.pollJobStatus();
-          
+
           return { success: true, jobId: this.jobId };
         } else {
           // Handle legacy response format (immediate result)

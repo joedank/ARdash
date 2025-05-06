@@ -13,19 +13,22 @@
           :disabled="readonly"
         />
 
-        <!-- Work Type Suggestions -->
-        <div v-if="suggested.length && !readonly" class="mt-2 flex flex-wrap gap-2">
+        <!-- Existing Work Type Suggestions -->
+        <div v-if="suggestions.existing.length && !readonly" class="mt-2 flex flex-wrap gap-2">
           <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 w-full">Suggested work types:</div>
-          <div
-            v-for="s in suggested"
+          <SuggestedChip
+            v-for="s in suggestions.existing"
             :key="s.workTypeId"
+            :label="`${s.name} (${Math.round(s.score*100)}%)`"
+            :selected="isWorkTypeSelected(s.workTypeId)"
             @click="toggleWorkType(s)"
-            class="badge cursor-pointer px-2 py-1 text-xs rounded-full flex items-center gap-1"
-            :class="isWorkTypeSelected(s.workTypeId) ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300'"
-          >
-            <span>{{ s.name }}</span>
-            <span class="text-xs opacity-70">({{ Math.round(s.score*100) }}%)</span>
-          </div>
+          />
+        </div>
+
+        <!-- Unmatched Work Type Suggestions -->
+        <div v-if="suggestions.unmatched.length" class="mt-2 flex flex-wrap gap-2">
+          <div class="text-sm text-gray-500 dark:text-gray-400 mb-1 w-full">Unmatched fragments:</div>
+          <SuggestedChip v-for="u in suggestions.unmatched" :key="u" color="yellow" :label="`${u} (new)`" @click="router.push(`/work-types/new?name=${encodeURIComponent(u)}`)" />
         </div>
         <PhotoUploadSection
           v-if="!readonly"
@@ -59,7 +62,11 @@
                 label="What are you measuring?"
                 placeholder="e.g., Roof, Room, Window, Trim"
                 :disabled="readonly"
+                required
               />
+              <p v-if="!measurement.description && !readonly" class="text-xs text-red-500 mt-1">
+                Description is required for measurements to be saved
+              </p>
 
               <!-- Measurement Type Selector -->
               <div>
@@ -83,7 +90,11 @@
                     label="Length (ft)"
                     type="number"
                     :disabled="readonly"
+                    required
                   />
+                  <p v-if="!measurement.dimensions.length && !readonly" class="text-xs text-red-500 mt-1">
+                    Length is required
+                  </p>
                 </div>
                 <div class="col-span-1">
                   <BaseInput
@@ -91,7 +102,11 @@
                     label="Width (ft)"
                     type="number"
                     :disabled="readonly"
+                    required
                   />
+                  <p v-if="!measurement.dimensions.width && !readonly" class="text-xs text-red-500 mt-1">
+                    Width is required
+                  </p>
                 </div>
                 <div class="col-span-1">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Square Footage</label>
@@ -109,7 +124,11 @@
                     label="Length (ft)"
                     type="number"
                     :disabled="readonly"
+                    required
                   />
+                  <p v-if="!measurement.dimensions.length && !readonly" class="text-xs text-red-500 mt-1">
+                    Length is required
+                  </p>
                 </div>
                 <div class="col-span-1">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linear Feet</label>
@@ -127,7 +146,11 @@
                     label="Quantity"
                     type="number"
                     :disabled="readonly"
+                    required
                   />
+                  <p v-if="!measurement.quantity && !readonly" class="text-xs text-red-500 mt-1">
+                    Quantity is required
+                  </p>
                 </div>
                 <div class="col-span-1">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unit</label>
@@ -354,17 +377,24 @@
 
 <script setup>
 import { toCamelCase } from '@/utils/casing';
-import { ref, computed, watch } from 'vue';
-import { watchDebounced } from '@vueuse/core';
+import { ref, computed, watch, reactive } from 'vue';
+import { useRouter } from 'vue-router';
+import { debounce } from 'lodash-es';
 import BaseTextarea from '@/components/form/BaseTextarea.vue';
 import BaseInput from '@/components/form/BaseInput.vue';
 import BaseButton from '@/components/base/BaseButton.vue';
 import BaseIcon from '@/components/base/BaseIcon.vue';
 import BaseSelect from '@/components/form/BaseSelect.vue';
 import Badge from 'primevue/badge';
+import Dialog from 'primevue/dialog';
 import assessmentsService from '@/services/assessments.service.js';
+import workTypesService from '@/services/work-types.service.js';
 import PhotoUploadSection from '@/components/projects/PhotoUploadSection.vue';
 import PhotoGrid from '@/components/projects/PhotoGrid.vue';
+import SuggestedChip from '@/components/projects/SuggestedChip.vue';
+
+// Initialize the router
+const router = useRouter();
 
 const emit = defineEmits(['refresh-project', 'update:condition', 'update:measurements', 'update:materials', 'photo-deleted', 'update:workTypes']);
 
@@ -418,8 +448,15 @@ const normalizedProject = computed(() => {
 const condition = ref(props.condition);
 const measurements = ref(props.measurements);
 const materials = ref(props.materials);
-const suggested = ref([]);
+const suggestions = reactive({
+  existing: [],
+  unmatched: []
+});
 const workTypes = ref(props.workTypes || []);
+const selectedDraft = ref(null);
+const showDraftModal = ref(false);
+const isSavingDraft = ref(false);
+const draftSaveError = ref('');
 
 // Watch for changes and emit updates
 watch(condition, (newValue) => {
@@ -438,21 +475,31 @@ watch(workTypes, (newValue) => {
   emit('update:workTypes', newValue);
 }, { deep: true });
 
-// Watch condition text with debounce for work type detection
-watchDebounced(
-  () => condition.value.assessment,
-  async (text) => {
-    if (!text || text.length < 15) return; // Skip short text
+// Function to run detection with proper logging
+async function runDetect(text) {
+  if (!text || text.length < 15) return; // Skip short text
 
-    console.log('Detecting work types for:', text.substring(0, 30) + '...');
+  console.log('Detecting work types for:', text.substring(0, 30) + '...');
+  try {
     const result = await assessmentsService.detectWorkTypes(text);
     console.log('API response for work types:', result);
-    suggested.value = result;
-    console.log('Detected work types:', suggested.value);
-    console.log('Is suggested array empty?', suggested.value.length === 0);
-  },
-  { debounce: 400, maxWait: 2000 } // Debounce for 400ms, max wait of 2s
-);
+    
+    // Update suggestions
+    suggestions.existing = result.existing || [];
+    suggestions.unmatched = result.unmatched || [];
+    
+    console.log('Existing work types:', suggestions.existing);
+    console.log('Unmatched fragments:', suggestions.unmatched);
+  } catch (error) {
+    console.error('Error detecting work types:', error);
+  }
+}
+
+// Create debounced version with longer delay for LLM processing
+const detectDebounced = debounce(runDetect, 800);
+
+// Watch for changes and trigger debounced detection
+watch(() => condition.value.assessment, value => detectDebounced(value));
 
 // Helper functions for measurement field handling
 const getMeasurementValue = (measurement, property) => {
@@ -586,6 +633,49 @@ const quantityUnitOptions = [
   { value: 'hours', label: 'Hours' }
 ];
 
+// Helper function to get the appropriate unit options based on measurement type
+const getSuggestedUnitOptions = (measurementType) => {
+  switch (measurementType) {
+    case 'area':
+      return [
+        { value: 'sq ft', label: 'Square Feet (sq ft)' },
+        { value: 'sq yd', label: 'Square Yards (sq yd)' },
+        { value: 'sq m', label: 'Square Meters (sq m)' }
+      ];
+    case 'linear':
+      return [
+        { value: 'ft', label: 'Feet (ft)' },
+        { value: 'in', label: 'Inches (in)' },
+        { value: 'yd', label: 'Yards (yd)' },
+        { value: 'm', label: 'Meters (m)' }
+      ];
+    case 'quantity':
+      return [
+        { value: 'each', label: 'Each' },
+        { value: 'job', label: 'Job' },
+        { value: 'set', label: 'Set' }
+      ];
+    default:
+      return [];
+  }
+};
+
+// Update suggested units when measurement type changes
+const updateSuggestedUnits = () => {
+  if (!selectedDraft.value) return;
+  
+  // Get the appropriate unit options for the selected measurement type
+  const unitOptions = getSuggestedUnitOptions(selectedDraft.value.measurementType);
+  
+  // Check if the current unit is valid for the selected measurement type
+  const isUnitValid = unitOptions.some(option => option.value === selectedDraft.value.suggestedUnits);
+  
+  // If the current unit is not valid, set it to the first option
+  if (!isUnitValid && unitOptions.length > 0) {
+    selectedDraft.value.suggestedUnits = unitOptions[0].value;
+  }
+};
+
 // Measurements management
 const addMeasurement = () => {
   measurements.value.items.push({
@@ -599,6 +689,14 @@ const addMeasurement = () => {
     quantity: '1',
     quantityUnit: 'each'
   });
+  
+  // Scroll to the newly added measurement for better UX
+  setTimeout(() => {
+    const measurementsContainer = document.querySelector('.assessment-content');
+    if (measurementsContainer) {
+      measurementsContainer.scrollTop = measurementsContainer.scrollHeight;
+    }
+  }, 100);
 };
 
 // Update measurement fields based on type selection

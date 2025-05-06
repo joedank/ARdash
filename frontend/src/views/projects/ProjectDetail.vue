@@ -766,10 +766,23 @@ const saveAssessment = async () => {
       projectsService.formatInspectionData('condition', condition.value)
     );
 
-    // Save measurements
-    await projectsService.addInspection(project.value.id,
-      projectsService.formatInspectionData('measurements', measurements.value)
+    // Check if measurements have at least one valid item before saving
+    const hasMeasurements = measurements.value && measurements.value.items && measurements.value.items.length > 0;
+    const hasValidMeasurement = hasMeasurements && measurements.value.items.some(item => 
+      item.description && 
+      ((item.measurementType === 'area' && item.dimensions?.length && item.dimensions?.width) ||
+       (item.measurementType === 'linear' && item.dimensions?.length) ||
+       (item.measurementType === 'quantity' && item.quantity))
     );
+
+    if (hasValidMeasurement) {
+      // Save measurements
+      await projectsService.addInspection(project.value.id,
+        projectsService.formatInspectionData('measurements', measurements.value)
+      );
+    } else if (hasMeasurements) {
+      console.log('Skipping measurements save - no valid items with description and dimensions');
+    }
 
     // Save materials
     await projectsService.addInspection(project.value.id,

@@ -166,9 +166,9 @@ class ClientsService {
   }
 
   /**
-   * Update client settings
+   * Update client settings including nested address updates
    * @param {string} id - Client ID
-   * @param {Object} data - Client data to update
+   * @param {Object} data - Client data to update (including addresses array)
    * @returns {Promise} Response data with updated client
    */
   async updateClient(id, data) {
@@ -178,8 +178,12 @@ class ClientsService {
     }
 
     try {
-      // Convert camelCase to snake_case for backend
+      // Convert camelCase to snake_case for backend, including all nested address objects
       const snakeCaseData = toSnakeCase(data);
+      
+      // Log the payload being sent, useful for debugging
+      console.log('Updating client with data:', JSON.stringify(snakeCaseData));
+      
       const response = await apiService.put(`/clients/${id}`, snakeCaseData);
 
       if (response.success && response.data) {

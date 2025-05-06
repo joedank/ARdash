@@ -264,7 +264,9 @@ const tryParseAsJson = () => {
 };
 
 const processResponse = async () => {
-  if (!llmResponse.value.trim()) {
+  // Ensure we have non-empty content to process
+  const trimmedResponse = llmResponse.value.trim();
+  if (!trimmedResponse) {
     toast.error('Please paste an LLM response first');
     return;
   }
@@ -274,10 +276,8 @@ const processResponse = async () => {
   error.value = null;
 
   try {
-    const response = await estimateService.processExternalLlmResponse({
-      responseText: llmResponse.value,
-      assessmentData: props.assessmentData
-    });
+    const payload = { text: trimmedResponse };
+    const response = await estimateService.processExternalLlmResponse(payload);
 
     if (response.success && response.data) {
       generatedItems.value = response.data;

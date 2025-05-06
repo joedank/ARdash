@@ -158,15 +158,15 @@ class EstimatesService {
     try {
       // Log the assessment ID we're using
       console.log('Using assessment data:', !!payload.assessmentData);
-      
+
       // Create a new object with all required properties
       const assessmentWithProjectId = { ...payload.assessmentData };
-      
+
       // Ensure projectId is set at root level if available
       if (payload.assessmentData && payload.assessmentData.projectId) {
         assessmentWithProjectId.projectId = payload.assessmentData.projectId;
       }
-      
+
       // Ensure project object exists with correct ID
       if (payload.assessmentData && payload.assessmentData.projectId) {
         assessmentWithProjectId.project = assessmentWithProjectId.project || {};
@@ -174,7 +174,7 @@ class EstimatesService {
         // Also include project_id property for backward compatibility
         assessmentWithProjectId.project.project_id = payload.assessmentData.projectId;
       }
-      
+
       // Format measurements in a more accessible structure for the LLM
       if (payload.assessmentData && payload.assessmentData.measurements) {
         assessmentWithProjectId.formattedMeasurements = payload.assessmentData.measurements.map(m => ({
@@ -185,7 +185,7 @@ class EstimatesService {
           location: m.location || ''
         }));
       }
-      
+
       // Format conditions similarly
       if (payload.assessmentData && payload.assessmentData.conditions) {
         assessmentWithProjectId.formattedConditions = payload.assessmentData.conditions.map(c => ({
@@ -195,7 +195,7 @@ class EstimatesService {
           notes: c.notes
         }));
       }
-      
+
       // Prepare the complete payload similar to working implementation
       const enhancedPayload = {
         description: payload.description,
@@ -204,16 +204,16 @@ class EstimatesService {
         assessment: assessmentWithProjectId,
         options: payload.assessmentOptions || {}
       };
-      
+
       console.log('Enhanced payload structure:', JSON.stringify(enhancedPayload, null, 2));
-      
+
       // Create an abort controller for timeout handling
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
       console.log('Calling API: /estimates/llm/analyze...');
       const startTime = new Date().getTime();
-      
+
       const response = await apiService.post('/estimates/llm/analyze', enhancedPayload, {
         signal: controller.signal,
         timeout: TIMEOUT_MS
@@ -224,7 +224,7 @@ class EstimatesService {
       console.log('ANALYZE SCOPE - Response:', JSON.stringify(response, null, 2));
 
       clearTimeout(timeoutId);
-      
+
       // Log detailed information about the response
       if (response && response.data) {
         console.log('API Response Structure:', {
@@ -234,21 +234,21 @@ class EstimatesService {
           keys: response.data ? Object.keys(response.data) : 'N/A',
           requiredServices: response.data.required_services
         });
-        
+
         // Pre-fill measurement values from assessment data if available
-        if (response.data.required_measurements && 
-            payload.assessmentData && 
+        if (response.data.required_measurements &&
+            payload.assessmentData &&
             payload.assessmentData.measurements) {
-              
+
           response.data.prefilled_measurements = {};
-          
+
           response.data.required_measurements.forEach(measName => {
-            const match = payload.assessmentData.measurements.find(m => 
+            const match = payload.assessmentData.measurements.find(m =>
               m.label.toLowerCase().includes(measName.toLowerCase().replace(/_/g, ' ')) ||
               (m.label.toLowerCase().includes('subfloor') && measName.toLowerCase().includes('subfloor')) ||
               (m.label.toLowerCase().includes('cabinet') && measName.toLowerCase().includes('cabinet'))
             );
-            
+
             if (match) {
               response.data.prefilled_measurements[measName] = {
                 value: match.value,
@@ -257,7 +257,7 @@ class EstimatesService {
             }
           });
         }
-        
+
         console.log('ANALYZE SCOPE - Response Data Structure:');
         console.log('- Has repair_type:', !!response.data.repair_type);
         console.log('- Has required_services:', !!response.data.required_services);
@@ -295,7 +295,7 @@ class EstimatesService {
           data: error.response.data
         } : 'No response data'
       });
-      
+
       return {
         success: false,
         message: error.response?.data?.message || 'Failed to analyze project scope',
@@ -419,10 +419,18 @@ class EstimatesService {
 
   /**
    * Process an external LLM response to generate estimate line items
-   * @param {Object} payload - Object containing responseText and optional assessmentData
+   * @param {Object} payload - Object containing LLM response text
+   * @param {string} [payload.text] - The raw LLM response text (preferred)
+   * @param {string} [payload.responseText] - The raw LLM response text (legacy, will be deprecated)
+   * @param {Object} [payload.assessmentData] - Optional assessment data to enhance processing
    * @returns {Promise} Response data with parsed line items
    */
   async processExternalLlmResponse(payload) {
+    const hasText = payload?.text ?? payload?.responseText;
+    if (!payload || !hasText) {
+      console.error('Missing required text or responseText field in payload');
+      throw new Error('Text or responseText field is required in the payload');
+    }
     return apiService.post('/estimates/llm/process-external', payload);
   }
 

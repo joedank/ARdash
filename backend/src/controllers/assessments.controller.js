@@ -14,6 +14,10 @@ const { Project, ProjectInspection, Estimate } = require('../models');
 exports.detectWorkTypes = async (req, res, next) => {
   try {
     const { condition } = req.body;
+    
+    // Note: We've removed the custom rate limiting that was causing errors
+    // The endpoint is already protected by the global rate limiter middleware
+    // defined in the routes file (30 requests per minute)
 
     if (!condition || typeof condition !== 'string' || condition.trim().length < 15) {
       logger.warn('Invalid or too short condition text for work type detection:', condition);
@@ -23,11 +27,11 @@ exports.detectWorkTypes = async (req, res, next) => {
       });
     }
 
-    const workTypes = await workTypeDetectionService.detect(condition);
+    const { existing, unmatched } = await workTypeDetectionService.detect(condition);
 
     return res.status(200).json({
       success: true,
-      data: workTypes
+      data: { existing, unmatched }
     });
   } catch (error) {
     logger.error('Error in detectWorkTypes controller:', error);

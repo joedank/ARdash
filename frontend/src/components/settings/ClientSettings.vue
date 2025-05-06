@@ -1057,27 +1057,61 @@ async function submitClientForm() {
     const payload = { ...clientForm.value };
     // Ensure tax rate is a number or null
     payload.defaultTaxRate = payload.defaultTaxRate !== '' ? Number(payload.defaultTaxRate) : null;
+    
     // Format addresses for creation/update (already camelCase)
+    // Ensure we only include necessary fields and proper ID handling
     payload.addresses = payload.addresses.map(addr => {
-      const { id, ...rest } = addr; // Keep id for updates
-      return isEditing.value && typeof id === 'number' ? addr : rest; // Remove temp id only for new addresses
+      // For existing addresses, keep the ID
+      if (isEditing.value && addr.id) {
+        return {
+          id: addr.id,
+          name: addr.name,
+          streetAddress: addr.streetAddress,
+          city: addr.city,
+          state: addr.state,
+          postalCode: addr.postalCode,
+          country: addr.country || 'USA',
+          isPrimary: addr.isPrimary,
+          notes: addr.notes || ''
+        };
+      } else {
+        // For new addresses, remove any temp id
+        return {
+          name: addr.name,
+          streetAddress: addr.streetAddress,
+          city: addr.city,
+          state: addr.state,
+          postalCode: addr.postalCode,
+          country: addr.country || 'USA',
+          isPrimary: addr.isPrimary,
+          notes: addr.notes || ''
+        };
+      }
     });
+
+    console.log('Submitting client with addresses:', JSON.stringify(payload.addresses));
 
     let response;
     if (isEditing.value) {
-      response = await clientService.updateClient(payload.id, payload); // Use correct method name
+      response = await clientService.updateClient(payload.id, payload);
     } else {
-      response = await clientService.createClient(payload); // Use correct method name
+      response = await clientService.createClient(payload);
     }
 
     if (response.success) {
       await fetchClients(); // Refresh the list
+      
       // Refresh the selected client if it's the one being edited/created
       if (selectedClient.value && selectedClient.value.id === response.data.id) {
          selectedClient.value = response.data;
       }
+      
       // Use toast via handleError for consistency (though this is success)
-      handleError({ message: `Client ${isEditing.value ? 'updated' : 'created'} successfully.` }, `Client ${isEditing.value ? 'updated' : 'created'} successfully.`); // Simulate success via error handler for toast
+      handleError(
+        { message: `Client ${isEditing.value ? 'updated' : 'created'} successfully.` }, 
+        `Client ${isEditing.value ? 'updated' : 'created'} successfully.`
+      );
+      
       showClientModal.value = false;
     } else {
        formError.value = response.message || `Failed to ${isEditing.value ? 'update' : 'create'} client.`;
@@ -1207,7 +1241,7 @@ function saveAddress() {
     }
   }
 
-
+  console.log('Saving address with isPrimary:', addressForm.value.isPrimary);
   const addressData = JSON.parse(JSON.stringify(addressForm.value)); // Deep copy
 
   if (isEditingAddress.value) {
@@ -1224,6 +1258,8 @@ function saveAddress() {
       handleError({ message: 'Automatically set the first address as primary.' }, 'Automatically set the first address as primary.'); // Use handleError for toast
   }
 
+  // Add explicit log to verify the state of addresses before saving
+  console.log('Addresses state after update:', JSON.stringify(clientForm.value.addresses));
 
   cancelAddressForm(); // Hide form after saving
 }

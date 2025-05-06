@@ -1,6 +1,7 @@
 const OpenAI = require('openai');
 const logger = require('../utils/logger');
 const settingsService = require('./settingsService');
+const axios = require('axios');
 
 /**
  * Service for managing embeddings across different providers
@@ -64,19 +65,23 @@ class EmbeddingProvider {
         this._lastModelName = modelName;
 
         // Create OpenAI client for OpenAI and Gemini (all use OpenAI-compatible API)
+      // Create OpenAI client based on provider
       if (providerName === 'openai' || providerName === 'gemini') {
-        let headers = undefined;
-
-        // Gemini requires special header
         if (providerName === 'gemini') {
-          headers = { 'x-goog-api-key': apiKey };
+          // Gemini now uses standard OpenAI client format with API key directly
+          this._client = new OpenAI({
+            apiKey: apiKey,
+            baseURL: `${baseUrl}/openai/`,
+          });
+          
+          logger.debug('Initialized Gemini client with standard OpenAI format');
+        } else {
+          // Standard OpenAI initialization
+          this._client = new OpenAI({
+            apiKey: apiKey,
+            baseURL: baseUrl,
+          });
         }
-
-        this._client = new OpenAI({
-          apiKey: apiKey,
-          baseURL: baseUrl,
-          defaultHeaders: headers,
-        });
       }
 
         this._initialized = true;
@@ -269,24 +274,12 @@ class EmbeddingProvider {
         }
         // Check for different response formats based on provider
         let embedding;
-        if (this._provider === 'gemini') {
-          // Gemini format might vary
-          if (resp.data && Array.isArray(resp.data) && resp.data.length > 0) {
-            if (resp.data[0].embedding) {
-              embedding = resp.data[0].embedding;
-            } else if (resp.data[0].values) {
-              embedding = resp.data[0].values;
-            }
-          }
-          // Additional fallbacks for Gemini's response structure
-          if (!embedding && resp.embedding) embedding = resp.embedding;
-          if (!embedding && resp.values) embedding = resp.values;
-
-          if (!embedding) {
-            logger.warn('Unexpected Gemini embedding response format:', resp);
-            throw new Error('Unexpected Gemini embedding response format');
-          }
-        } else {
+        if (this._provider === 'gemini' || this._provider === 'openai') {
+          const resp = await this._client.embeddings.create({
+            model: this._lastModelName,
+            input: text,
+          });
+          return resp.data[0].embedding;
           // Default OpenAI format
           embedding = resp.data[0].embedding;
         }

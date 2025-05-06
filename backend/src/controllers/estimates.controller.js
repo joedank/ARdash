@@ -420,7 +420,7 @@ const analyzeEstimateScope = async (req, res) => {
     console.log('Project ID:', projectId);
     console.log('Assessment Data Available:', !!assessment);
     console.log('Options:', options);
-    
+
     // Debug the measurements and conditions if available
     if (assessment && assessment.measurements) {
       console.log('Assessment Measurements:', assessment.measurements.length);
@@ -428,14 +428,14 @@ const analyzeEstimateScope = async (req, res) => {
         console.log(`- Measurement ${i+1}: ${m.label} = ${m.value} ${m.unit}`);
       });
     }
-    
+
     if (assessment && assessment.formattedMeasurements) {
       console.log('Formatted Measurements:', assessment.formattedMeasurements.length);
       assessment.formattedMeasurements.forEach((m, i) => {
         console.log(`- Formatted Measurement ${i+1}: ${m.name} = ${m.value} ${m.unit}`);
       });
     }
-    
+
     if (assessment && assessment.conditions) {
       console.log('Assessment Conditions:', assessment.conditions.length);
       assessment.conditions.forEach((c, i) => {
@@ -450,7 +450,7 @@ const analyzeEstimateScope = async (req, res) => {
     // Check for and validate projectId
     if (projectId) {
       logger.info(`Analyzing estimate scope with project ID: ${projectId}`);
-      
+
       // Validate UUID format
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(projectId)) {
@@ -489,11 +489,11 @@ const analyzeEstimateScope = async (req, res) => {
       if (!analysisResult.data.required_services || !Array.isArray(analysisResult.data.required_services) || analysisResult.data.required_services.length === 0) {
         console.log('\n===== ADDING MISSING SERVICES =====');
         console.log('Original data:', JSON.stringify(analysisResult.data, null, 2));
-        
+
         // Add default services based on repair type
         const repairType = analysisResult.data.repair_type || 'General Repair';
         let defaultServices = ['general_repair'];
-        
+
         // Add more specific services based on repair type
         if (repairType.toLowerCase().includes('roof')) {
           defaultServices = ['roof_inspection', 'roof_repair'];
@@ -504,7 +504,7 @@ const analyzeEstimateScope = async (req, res) => {
         } else if (repairType.toLowerCase().includes('paint')) {
           defaultServices = ['painting', 'surface_preparation'];
         }
-        
+
         // Apply the default services
         analysisResult.data.required_services = defaultServices;
         console.log('Fixed data:', JSON.stringify(analysisResult.data, null, 2));
@@ -525,13 +525,13 @@ const analyzeEstimateScope = async (req, res) => {
 
   } catch (err) {
     logger.error('Error analyzing estimate scope:', err);
-    
+
     // Log detailed error information
     console.log('\n===== ERROR IN ANALYZE ESTIMATE SCOPE =====');
     console.log('Error message:', err.message);
     console.log('Error stack:', err.stack);
     console.log('==========================================\n');
-    
+
     return res.status(500).json(error('Failed to analyze estimate scope', { message: err.message }));
   }
 };
@@ -671,8 +671,8 @@ const getAssessmentData = async (req, res) => {
       // Add project details
       projectId: project.id,
       // Create a descriptive project name from client and address information
-      projectName: project.client ? 
-        `${project.client.display_name || 'Client'} - ${project.type || 'Project'} ${new Date(project.scheduled_date).toLocaleDateString()}` : 
+      projectName: project.client ?
+        `${project.client.display_name || 'Client'} - ${project.type || 'Project'} ${new Date(project.scheduled_date).toLocaleDateString()}` :
         `${project.type || 'Project'} #${project.id.substring(0, 8)}`,
       date: project.scheduled_date,
       inspector: project.inspector || 'Unknown',
@@ -943,11 +943,11 @@ const checkCatalogSimilarity = async (req, res) => {
     // Get products for similarity checking
     const { Product } = require('../models');
     const stringSimilarity = require('string-similarity');
-    
+
     const products = await Product.findAll({
-      where: { 
-        type: 'service', 
-        deleted_at: null 
+      where: {
+        type: 'service',
+        deleted_at: null
       }
     });
 
@@ -958,10 +958,10 @@ const checkCatalogSimilarity = async (req, res) => {
 
     // Process each description for similarity matches
     const results = [];
-    
+
     for (const description of descriptions) {
       if (!description || typeof description !== 'string') continue;
-      
+
       // Calculate similarity for each product
       const matches = products
         .map(product => ({
@@ -1013,11 +1013,11 @@ const getCatalogEligibleItems = async (req, res) => {
     // Get products for similarity checking
     const { Product } = require('../models');
     const stringSimilarity = require('string-similarity');
-    
+
     const products = await Product.findAll({
-      where: { 
-        type: 'service', 
-        deleted_at: null 
+      where: {
+        type: 'service',
+        deleted_at: null
       }
     });
 
@@ -1028,26 +1028,26 @@ const getCatalogEligibleItems = async (req, res) => {
 
     // Find highly similar matches that exceed the threshold
     const eligibleItems = [];
-    
+
     for (const description of descriptions) {
       if (!description || typeof description !== 'string') continue;
-      
+
       // Find the best match for this description
       let bestMatch = null;
       let bestSimilarity = 0;
-      
+
       for (const product of products) {
         const similarity = stringSimilarity.compareTwoStrings(
           description.toLowerCase(),
           product.name.toLowerCase()
         );
-        
+
         if (similarity > bestSimilarity) {
           bestSimilarity = similarity;
           bestMatch = product;
         }
       }
-      
+
       // If the best match exceeds our threshold, it's eligible for catalog replacement
       if (bestMatch && bestSimilarity >= threshold) {
         eligibleItems.push({
@@ -1079,16 +1079,18 @@ const getCatalogEligibleItems = async (req, res) => {
  */
 const processExternalLlmResponse = async (req, res) => {
   try {
-    const { responseText, assessmentData } = req.body;
+    // Accept either text or responseText for backward compatibility
+    const { text, responseText, assessmentData } = req.body;
+    const llmResponseText = text || responseText;
 
-    if (!responseText) {
+    if (!llmResponseText) {
       return res.status(400).json(error('LLM response text is required'));
     }
 
     logger.info('Processing external LLM response');
 
     // Call the dedicated processor service
-    const result = await externalLlmProcessor.processExternalLlmResponse(responseText, assessmentData);
+    const result = await externalLlmProcessor.processExternalLlmResponse(llmResponseText, assessmentData);
 
     if (!result.success) {
       // Use the error message from the processor

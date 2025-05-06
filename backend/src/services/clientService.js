@@ -163,22 +163,91 @@ class ClientService {
   }
 
   /**
-   * Update client
+   * Update client with nested address handling
    * @param {string} id - Client ID
-   * @param {Object} data - Client data to update
-   * @returns {Promise<Object>} - Updated client
+   * @param {Object} data - Client data to update (including addresses array)
+   * @returns {Promise<Object>} - Updated client with addresses
    */
   async updateClient(id, data) {
+    let transaction;
+    
     try {
+      transaction = await sequelize.transaction();
+      
       const client = await Client.findByPk(id);
-
       if (!client) {
         throw new Error(`Client with ID ${id} not found`);
       }
-
-      await client.update(data);
-      return client;
+      
+      // Extract addresses from data
+      const { addresses, ...clientData } = data;
+      
+      // Update client properties
+      await client.update(clientData, { transaction });
+      
+      // Handle addresses if provided
+      if (addresses && Array.isArray(addresses)) {
+        // Find which address is marked as primary
+        const primaryAddress = addresses.find(addr => addr.is_primary);
+        
+        // If an address is marked as primary, unmark all others
+        if (primaryAddress) {
+          await ClientAddress.update(
+            { is_primary: false },
+            { 
+              where: { client_id: id },
+              transaction 
+            }
+          );
+        }
+        
+        // Process each address
+        for (const address of addresses) {
+          if (address.id) {
+            // Update existing address
+            const addressData = {
+              name: address.name,
+              street_address: address.street_address,
+              city: address.city,
+              state: address.state,
+              postal_code: address.postal_code,
+              country: address.country,
+              is_primary: address.is_primary,
+              notes: address.notes
+            };
+            
+            await ClientAddress.update(
+              addressData,
+              { 
+                where: { id: address.id, client_id: id },
+                transaction 
+              }
+            );
+            
+            // Log the update
+            logger.info(`Updated address ${address.id} for client ${id}`);
+          } else {
+            // Create new address
+            await ClientAddress.create(
+              {
+                ...address,
+                client_id: id
+              },
+              { transaction }
+            );
+            
+            // Log the creation
+            logger.info(`Created new address for client ${id}`);
+          }
+        }
+      }
+      
+      await transaction.commit();
+      
+      // Return the updated client with addresses
+      return await this.getClientById(id);
     } catch (error) {
+      if (transaction) await transaction.rollback();
       logger.error(`Error updating client ${id}:`, error);
       throw error;
     }

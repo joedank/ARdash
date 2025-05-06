@@ -284,6 +284,15 @@ class ProjectService {
   }
 
   /**
+   * Alias kept for controller compatibility.
+   * @param {string} projectId
+   * @returns {Promise<Object>}
+   */
+  async getProject(projectId) {
+    return this.getProjectWithDetails(projectId);
+  }
+
+  /**
    * Update project
    * @param {string} projectId - Project ID
    * @param {Object} data - Updated project data

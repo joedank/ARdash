@@ -6,6 +6,8 @@ const GENERIC_TOKENS = [
   'repair', 'repairs', 'service', 'services'
 ];
 const tokenRegex = new RegExp(`\\b(${GENERIC_TOKENS.join('|')})\\b`, 'gi');
+const MIN = 0.35;
+const HARD_CREATE = 0.60;     // new
 
 const { sequelize, WorkType } = require('../models');
 const logger = require('../utils/logger');
@@ -205,7 +207,7 @@ class WorkTypeDetectionService {
 
       // Filter by minimum confidence
       const filteredResults = results
-        .filter(r => r.score !== null && r.score >= 0.30)
+        .filter(r => r.score !== null && r.score >= MIN)
         .map(r => ({
           workTypeId: r.id,
           name: r.name,
@@ -233,10 +235,11 @@ class WorkTypeDetectionService {
   /**
    * Detect work types that match the given text condition
    * @param {string} text - The condition text to analyze
-   * @returns {Promise<Array>} Matching work types with confidence scores
+   * @param {boolean} includeDrafts - Whether to include draft work types (default: true)
+   * @returns {Promise<Object>} Object containing existing and draft work types
    */
-  async detect(text) {
-    if (!text || text.trim().length < 10) return [];
+  async detect(text, includeDrafts = true) {
+    if (!text || text.trim().length < 10) return { existing: [], drafts: [] };
     
     // Split text into meaningful fragments by periods, line breaks, 
     // semicolons, or the word "and" surrounded by word boundaries
@@ -249,8 +252,17 @@ class WorkTypeDetectionService {
     
     // Process each fragment separately
     const agg = [];
+    const unmatchedFragments = [];
+    
     for (const p of parts) {
       const hits = await this._detectFragment(p);
+      
+      // Add to unmatched if best score is below HARD_CREATE threshold
+      const bestScore = hits.length ? Math.max(...hits.map(h=>h.score)) : 0;
+      if (bestScore < HARD_CREATE) {
+        unmatchedFragments.push(p.trim());
+      }
+      
       agg.push(...hits);
     }
 
@@ -261,10 +273,15 @@ class WorkTypeDetectionService {
       if (!prev || r.score > prev.score) map.set(r.workTypeId, r);
     });
 
-    // Return results sorted by score and limited to 10
-    return [...map.values()]
+    // Get existing work types sorted by score and limited to 10
+    const existingWorkTypes = [...map.values()]
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10);  // Up to 10 suggestions, not just 5
+      .slice(0, 10);  // Up to 10 suggestions
+    
+    return {
+      existing: existingWorkTypes,
+      unmatched: unmatchedFragments
+    };
   }
 
   /**

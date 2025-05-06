@@ -82,13 +82,21 @@
                     accept="image/*"
                     class="hidden"
                   />
-                  <div class="flex items-center">
+                  <div class="flex items-center space-x-2">
                     <button
                       type="button"
                       @click="$refs.logoInput.click()"
                       class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
                       Upload Logo
+                    </button>
+                    <button
+                      v-if="logoPreview"
+                      type="button"
+                      @click="handleLogoRemove"
+                      class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      Remove Logo
                     </button>
                     <span v-if="uploadStatus" class="ml-2 text-sm" :class="uploadStatus.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                       {{ uploadStatus.message }}
@@ -363,6 +371,10 @@ import ColorPicker from 'primevue/colorpicker';
 import settingsService from '@/services/settings.service';
 import apiService from '@/services/api.service';
 import { BACKEND_URL } from '@/config';
+import { isBlank, isValidHexColor, normalizeHexColor } from '@/utils/validation';
+
+const logoChanged = ref(false);
+const logoExplicitlyRemoved = ref(false);
 
 // State (using camelCase keys)
 const settings = ref({
@@ -475,6 +487,7 @@ const handleLogoUpload = async (event) => {
       // Update logo preview with full backend URL
       logoPreview.value = `${BACKEND_URL}${response.data.path}`;
       settings.value.companyLogoPath = response.data.filename; // Use camelCase
+      logoChanged.value = true; // Mark logo as changed
       
       uploadStatus.value = {
         type: 'success',
@@ -500,35 +513,24 @@ const handleLogoUpload = async (event) => {
   }
 };
 
-// Validate and normalize hex color code
-const isValidHexColor = (color) => {
-  return /^#[0-9A-F]{6}$/i.test(color);
-};
-
-// Format and normalize color to valid hex with # prefix
-const normalizeHexColor = (color) => {
-  if (!color) return '#000000'; // Default to black if empty
+// Handle logo removal
+const handleLogoRemove = () => {
+  // Clear logo preview
+  logoPreview.value = '';
+  // Set logo as explicitly removed (null) to signal deletion
+  settings.value.companyLogoPath = null;
+  logoExplicitlyRemoved.value = true;
+  logoChanged.value = true; // Mark as changed
   
-  // If color already has # prefix and is valid format
-  if (isValidHexColor(color)) return color;
+  uploadStatus.value = {
+    type: 'success',
+    message: 'Logo removed'
+  };
   
-  // If color has # prefix but might be in short form (#RGB)
-  if (color.startsWith('#')) {
-    // Convert #RGB to #RRGGBB
-    if (/^#[0-9A-F]{3}$/i.test(color)) {
-      return `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`;
-    }
-    // If it has # but invalid format, return default
-    return '#000000';
-  }
-  
-  // If color doesn't have # prefix, add it
-  if (/^[0-9A-F]{6}$/i.test(color)) {
-    return `#${color}`;
-  }
-  
-  // For any other invalid format, return default
-  return '#000000';
+  // Clear status after 3 seconds
+  setTimeout(() => {
+    uploadStatus.value = null;
+  }, 3000);
 };
 
 // Handle color change from the ColorPicker
@@ -597,14 +599,49 @@ const saveSettings = async () => {
     // Save settings by group
     for (const [group, keys] of Object.entries(groups)) {
       const groupSettings = {};
-      keys.forEach(key => { // key here is camelCase from the groups object
-        groupSettings[key] = settings.value[key];
-      });
+      
+      // Special handling for the company group to only include logo if changed
+      if (group === 'company') {
+        keys.forEach(key => {
+          if (key === 'companyLogoPath') {
+            // Special handling for logo path
+            if (logoChanged.value) {
+              // If explicitly removed, set to null to signal deletion
+              if (logoExplicitlyRemoved.value) {
+                groupSettings[key] = null; // Explicit null signals deletion
+              } else {
+                // Otherwise use the new value if not blank
+                const val = settings.value[key];
+                if (!isBlank(val)) {
+                  groupSettings[key] = val;
+                }
+              }
+            }
+          } else {
+            // For other keys, apply the non-empty check using isBlank
+            const val = settings.value[key];
+            if (!isBlank(val)) {
+              groupSettings[key] = val;
+            }
+          }
+        });
+      } else {
+        // Handle other groups normally, checking for empty values with isBlank
+        keys.forEach(key => {
+          const val = settings.value[key];
+          if (!isBlank(val)) {
+            groupSettings[key] = val;
+          }
+        });
+      }
       
       // Convert the groupSettings object keys to snake_case before sending
       const snakeCaseGroupSettings = toSnakeCase(groupSettings);
       
-      await settingsService.updateMultipleSettings(snakeCaseGroupSettings, group);
+      // Only proceed if there are settings to update
+      if (Object.keys(snakeCaseGroupSettings).length > 0) {
+        await settingsService.updateMultipleSettings(snakeCaseGroupSettings, group);
+      }
     }
     
     saveStatus.value = {

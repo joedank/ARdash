@@ -1,9 +1,36 @@
-# Active Context: Construction Management Web Application
+
+### Fixed PDF Settings Bug with Empty Values
+
+- **Identified Issue**: Empty strings ('') from form fields would overwrite existing settings in the database, causing colors and logos to disappear in generated PDFs
+- **Implementation Details**:
+  - **Frontend Fixes** (PdfSettings.vue):
+    - Skip empty strings, null, and undefined values when building settings objects
+    - Only send companyLogoPath when logo has explicitly changed
+    - Added whitespace detection to properly handle strings with only spaces
+    - Created a reusable isBlank() utility function in validation.js
+    - Added "Remove Logo" button with explicit deletion handling
+  - **Backend Fixes** (settingsService.js):
+    - Skip empty strings, null, and whitespace-only values before Settings.upsert
+    - Added special handling for explicit null values as deletion requests
+    - Implemented DB cleanup migration to remove existing empty settings
+  - **API Integration Fixes**:
+    - Added check to prevent API calls with empty settings objects
+    - Fixed response handling for empty settings groups
+- **Results**:
+  - PDF colors and logo now persist correctly after form submission
+  - Users can explicitly remove a logo with the Remove Logo button
+  - Whitespace-only strings are properly detected and handled
+  - Database remains clean without accumulating empty settings
+  - Improved user experience with clear visual feedback- ✅ Fixed PDF Settings Bug Preventing Logo and Colors from Persisting
+- ✅ Fixed Empty Settings Values Handling in Frontend and Backend# Active Context: Construction Management Web Application
 
 This document captures the current work focus, recent changes, active decisions, and important patterns and preferences.
 
 ## Current Focus
 
+- ✅ Enhanced Work Type Detection with Separate Thresholds for Suggestions vs New Creation
+- ✅ Implemented Multiple Confidence Thresholds for Fragment Processing (0.35/0.60)  
+- ✅ Fixed Router Integration in SuggestedChip Component for Work Type Creation
 - ✅ Restored Database from April 24th Backup with Idempotent Migration Handling
 - ✅ Fixed Non-Idempotent Migrations (ENUM values, extensions, indexes) for Reliable Restoration
 - ✅ Fixed NULL Timestamp Issues in Settings Table from Legacy Data
@@ -21,6 +48,8 @@ This document captures the current work focus, recent changes, active decisions,
 - ✅ Refactored settings retrieval with unified suffix map pattern for consistency
 - ✅ Deprecated direct DeepSeek service usage in favor of provider abstraction
 - ✅ Fixed DeepSeek API testing in AI Provider Settings component
+- ✅ Migrated embedding provider from DeepSeek to Google Gemini
+- ✅ Removed DeepSeek from embedding options in AI Provider UI
 - ✅ Fixed foreign key constraint issue with source_maps and estimate_items
 - ✅ Fixed Sequelize client_type column syntax issues with invalid COMMENT...USING syntax
 - ✅ Fixed database initialization issue by properly handling view dependencies
@@ -83,6 +112,23 @@ This document captures the current work focus, recent changes, active decisions,
 - ⏳ Testing the full estimate job generation pipeline
 
 ## Recent Achievements
+
+### Enhanced Work Type Detection with Multiple Confidence Thresholds
+
+- **Identified Issue**: Work type detection logic was dropping fragments from unmatched once any match ≥ 0.35 was found
+- **Business Rule Change**: Need to keep normal suggestions at 0.35+, but also treat fragments with top score < 0.60 as candidates for new work types
+- **Implementation Details**:
+  - Added `HARD_CREATE = 0.60` threshold in workTypeDetectionService.js
+  - Modified detection logic to keep fragments with top scores < HARD_CREATE in the unmatched list
+  - Enhanced frontend with visual cues - yellow chips with "(new)" indicator for unmatched fragments
+  - Added integration with Vue Router for seamless navigation to work type creation page
+  - Created comprehensive tests to validate the new threshold-based behavior
+- **Results**:
+  - Fragments with no good matches (< 0.35) appear only in unmatched list (previous behavior)
+  - Fragments with moderate matches (0.35-0.60) now appear in both existing and unmatched lists
+  - Fragments with strong matches (≥ 0.60) appear only in existing suggestions
+  - "Cleaning skylight" now appears in unmatched list even with a 0.44 match to "Skylight Replacement"
+  - Improved user experience with clear paths for creating new work types when needed
 
 ### Implemented Robust Database Restoration Process with Idempotent Migrations
 
