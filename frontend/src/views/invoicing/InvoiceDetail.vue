@@ -542,8 +542,14 @@ const normalizeInvoice = (data) => {
   // Normalize the invoice data (except client)
   const camelCaseInvoice = toCamelCase(normalizedData);
   
-  // Reattach the client data (which may already be normalized)
-  camelCaseInvoice.client = clientData;
+  // Reattach client if present
+  const camelClient = clientData ? toCamelCase(clientData) : null;
+  if (camelClient) {
+    camelClient.address =
+      (camelClient.addresses ?? []).find(a => a.isPrimary) ||
+      (camelClient.addresses ?? [])[0] || null;
+  }
+  camelCaseInvoice.client = camelClient;
   
   // Ensure payments array items are normalized
   if (Array.isArray(camelCaseInvoice.payments)) {
