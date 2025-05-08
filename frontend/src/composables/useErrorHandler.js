@@ -56,10 +56,19 @@ export default function useErrorHandler() {
     rawErrorContent.value = null;
   };
   
+  /**
+   * Display a success toast notification
+   * @param {string} message - Success message to display
+   */
+  const successToast = (message) => {
+    toast.success(message);
+  };
+  
   return {
     error,
     rawErrorContent,
     handleError,
-    clearError
+    clearError,
+    successToast
   };
 }

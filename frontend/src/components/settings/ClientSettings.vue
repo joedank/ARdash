@@ -693,6 +693,7 @@ import { debounce } from 'lodash-es';
 // Use standardized service
 import clientService from '@/services/clients.service.js';
 import useErrorHandler from '@/composables/useErrorHandler.js'; // Import error handler
+import { useToast } from '@/composables/useToast.js'; // Corrected: Using named import for useToast
 
 // Import Base Components
 import BaseButton from '@/components/base/BaseButton.vue';
@@ -711,8 +712,9 @@ import BaseToggleSwitch from '@/components/form/BaseToggleSwitch.vue';
 import ClientTableResponsive from './client-tables/ClientTableResponsive.vue';
 import ClientTableCompact from './client-tables/ClientTableCompact.vue';
 
-// Instantiate error handler
-const { handleError } = useErrorHandler();
+// Instantiate error handler and toast
+const { handleError, successToast } = useErrorHandler();
+const toast = useToast(); // Correctly instantiating useToast at the component level
 
 // State
 const clients = ref([]);
@@ -1119,11 +1121,7 @@ async function submitClientForm() {
          selectedClient.value = response.data;
       }
       
-      // Use toast via handleError for consistency (though this is success)
-      handleError(
-        { message: `Client ${isEditing.value ? 'updated' : 'created'} successfully.` }, 
-        `Client ${isEditing.value ? 'updated' : 'created'} successfully.`
-      );
+      successToast(`Client ${isEditing.value ? 'updated' : 'created'} successfully`);
       
       showClientModal.value = false;
     } else {
@@ -1248,7 +1246,7 @@ function saveAddress() {
     if (primaryAddresses.length === 0 && (!isEditingAddress.value || clientForm.value.addresses[editingAddressIndex.value]?.isPrimary)) { // camelCase
         // If there are other addresses, make the first one primary
         if (clientForm.value.addresses.length > (isEditingAddress.value ? 1 : 0)) {
-             handleError({ message: 'Cannot unset the only primary address. Setting the first address as primary.' }, 'Cannot unset the only primary address.'); // Use handleError for toast
+             toast.error('Cannot unset the only primary address. Setting the first address as primary.');
              // Find the first address that isn't the one being edited (if applicable) and make it primary
              const firstOtherIndex = clientForm.value.addresses.findIndex((_, i) => i !== editingAddressIndex.value);
              if (firstOtherIndex !== -1) {
@@ -1259,7 +1257,7 @@ function saveAddress() {
              }
         } else {
             // If this is truly the only address, it must remain primary
-            handleError({ message: 'The only address must be primary.' }, 'The only address must be primary.'); // Use handleError for toast
+            toast.error('The only address must be primary.');
             addressForm.value.isPrimary = true; // camelCase
         }
     }
@@ -1279,7 +1277,7 @@ function saveAddress() {
   // Ensure there's always at least one primary address after saving
   if (!clientForm.value.addresses.some(a => a.isPrimary) && clientForm.value.addresses.length > 0) { // camelCase
       clientForm.value.addresses[0].isPrimary = true; // camelCase
-      handleError({ message: 'Automatically set the first address as primary.' }, 'Automatically set the first address as primary.'); // Use handleError for toast
+      toast.error('Automatically set the first address as primary.');
   }
 
   // Add explicit log to verify the state of addresses before saving
@@ -1308,7 +1306,7 @@ async function confirmDeleteClient() {
   try {
     const response = await clientService.deleteClient(clientToDelete.value.id); // Use correct method name
     if (response.success) {
-      handleError({ message: 'Client deleted successfully.' }, 'Client deleted successfully.'); // Use handleError for toast
+      successToast('Client deleted successfully');
       showDeleteModal.value = false;
       await fetchClients(); // Refresh list
       // If the deleted client was selected in the details drawer, close it
@@ -1337,7 +1335,7 @@ async function toggleClientStatus(client) {
         // Use correct method name
         const response = await clientService.updateClient(client.id, { isActive: client.isActive }); // camelCase
         if (response.success) {
-          handleError({ message: `Client status updated to ${client.isActive ? 'Active' : 'Inactive'}.` }, `Client status updated to ${client.isActive ? 'Active' : 'Inactive'}.`); // Use handleError for toast
+          successToast(`Client status updated to ${client.isActive ? 'Active' : 'Inactive'}`);
           // Optional: refetch specific client data if needed
           // const updatedClientResponse = await clientService.getById(client.id);
           // const index = clients.value.findIndex(c => c.id === client.id);
@@ -1424,11 +1422,8 @@ function handleAddressReferences(data) {
     // Add explanation about what happened
     referenceMessage += `\n\nThe address has been maintained in the system but marked as non-primary. You must update the references listed above before this address can be deleted.`;
     
-    // Show the detailed error to the user
-    handleError(
-      { message: referenceMessage }, 
-      `Address Referenced by Other Records`
-    );
+    // Use toast.error directly rather than handling through handleError
+    toast.error(referenceMessage);
   }
 }
 

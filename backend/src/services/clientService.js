@@ -346,15 +346,10 @@ class ClientService {
       }
       
       await transaction.commit();
-      
-      // Fetch the updated client with addresses
-      const updatedClient = await this.getClientById(id);
-      
-      // Attach address references to the response if there are any
-      if (Object.keys(addressReferences).length > 0) {
-        updatedClient.dataValues._addressReferences = addressReferences;
+      const updatedClient = (await this.getClientById(id)).toJSON();
+      if (Object.keys(addressReferences).length) {
+        updatedClient._addressReferences = addressReferences;
       }
-      
       return updatedClient;
     } catch (error) {
       if (transaction) await transaction.rollback();

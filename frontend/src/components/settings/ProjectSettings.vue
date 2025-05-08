@@ -186,6 +186,20 @@
             />
           </BaseFormGroup>
 
+          <!-- Project Address -->
+          <BaseFormGroup
+            label="Project Address"
+            input-id="edit-project-address"
+            helper-text="Select the project location"
+          >
+            <BaseSelect
+              id="edit-project-address"
+              v-model="selectedAddressId"
+              :options="addressOptions"
+              placeholder="Select address"
+            />
+          </BaseFormGroup>
+
           <!-- Project Scope Field Removed -->
         </div>
 
@@ -299,6 +313,7 @@ import { useRouter } from 'vue-router';
 // Use standardized service
 import projectsService from '@/services/standardized-projects.service.js';
 import useErrorHandler from '@/composables/useErrorHandler.js'; // Import error handler
+import addressService from '@/services/address.service.js';
 
 // Import components
 // BaseAlert removed as errors are handled by useErrorHandler
@@ -326,6 +341,7 @@ const { handleError } = useErrorHandler(); // Instantiate error handler
 const loading = ref(false);
 const submitting = ref(false);
 const projects = ref([]);
+const selectedAddressId = ref(null);
 // alertMessage and alertVariant removed - handled by useErrorHandler
 const searchQuery = ref('');
 const filterType = ref('all');
@@ -557,6 +573,9 @@ const editProject = (project) => {
     scheduledDate: ''
   });
   
+  // Update selectedAddressId with project's address
+  selectedAddressId.value = project.addressId ?? null;
+  
   // Now populate with project data
   Object.assign(editingProject, {
     id: project.id,
@@ -583,7 +602,8 @@ const updateProject = async () => {
       estimateId: editingProject.estimate ? editingProject.estimate.id : null, // Send only ID
       type: editingProject.type,
       status: editingProject.status,
-      scheduledDate: editingProject.scheduledDate
+      scheduledDate: editingProject.scheduledDate,
+      address_id: selectedAddressId.value
     };
 
     const response = await projectsService.update(editingProject.id, projectData); // Use BaseService update
@@ -693,6 +713,14 @@ const navigateToCreateProject = () => {
 //   // console.log('Project type changed to:', newType);
 //   // Logic removed as computed properties handle UI changes
 // });
+
+// Address options for the select dropdown
+const addressOptions = computed(() =>
+  (editingProject.clientId?.addresses ?? []).map(a => ({
+    value: a.id,
+    label: addressService.formatAddressForDisplay(a)
+  }))
+);
 
 watch(() => editingProject.type, (newType) => {
   // console.log('Editing project type changed to:', newType);

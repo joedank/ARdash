@@ -518,7 +518,11 @@ const loadEstimate = async () => {
       const rawEstimateData = response.data;
       const clientData = rawEstimateData.client; // Keep client separate
       const camelCaseEstimate = toCamelCase(rawEstimateData);
-      camelCaseEstimate.client = clientData; // Re-attach potentially normalized client
+      const camelClient = toCamelCase(clientData);
+      camelClient.address =
+        (camelClient.addresses ?? []).find(a => a.isPrimary) ||
+        (camelClient.addresses ?? [])[0] || null;
+      camelCaseEstimate.client = camelClient;
       
       // Normalize nested items array
       if (Array.isArray(camelCaseEstimate.items)) {

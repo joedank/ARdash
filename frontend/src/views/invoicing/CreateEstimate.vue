@@ -304,7 +304,11 @@ const loadEstimateData = async () => {
       const camelCaseEstimate = toCamelCase(loadedEstimate);
 
       // Reattach the client object
-      camelCaseEstimate.client = clientData;
+      const camelClient = toCamelCase(clientData);
+      camelClient.address =
+        (camelClient.addresses ?? []).find(a => a.isPrimary) ||
+        (camelClient.addresses ?? [])[0] || null;
+      camelCaseEstimate.client = camelClient;
 
       // Recursively normalize nested arrays like items
       if (Array.isArray(camelCaseEstimate.items)) {

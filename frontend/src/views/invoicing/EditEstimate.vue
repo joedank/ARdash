@@ -211,9 +211,8 @@ const isEditing = computed(() => !!estimateId.value); // Define isEditing
 const estimate = ref({
   id: '',
   client: null,
-  clientId: '', // Keep clientId for consistency, even if backend uses client_fk_id
-  client_fk_id: '', // Backend might expect this
-  addressId: null, // Corrected name
+  clientId: '',
+  addressId: null,
   estimateNumber: '',
   dateCreated: '',
   validUntil: '',
@@ -250,15 +249,13 @@ const updateClient = (client) => {
     
     // Check if values are already set to avoid unnecessary updates
     if (estimate.value.clientId !== newClientId || estimate.value.addressId !== newAddressId) {
-      estimate.value.clientId = newClientId; // Keep frontend consistent
-      estimate.value.client_fk_id = newClientId; // Set backend key
-      estimate.value.addressId = newAddressId; // Corrected name
+      estimate.value.clientId = newClientId;
+      estimate.value.addressId = newAddressId;
     }
   } else if (estimate.value.clientId || estimate.value.addressId) {
     // Clear values if client is null and values were previously set
     estimate.value.clientId = '';
-    estimate.value.client_fk_id = '';
-    estimate.value.addressId = null; // Corrected name
+    estimate.value.addressId = null;
   }
 };
 
@@ -279,7 +276,11 @@ const loadEstimate = async () => {
       const camelCaseEstimate = toCamelCase(rawEstimateData);
       
       // Re-assign potentially normalized client data
-      camelCaseEstimate.client = clientData;
+      const camelClient = toCamelCase(clientData);
+      camelClient.address =
+        (camelClient.addresses ?? []).find(a => a.isPrimary) ||
+        (camelClient.addresses ?? [])[0] || null;
+      camelCaseEstimate.client = camelClient;
       
       // Normalize nested items array
       if (Array.isArray(camelCaseEstimate.items)) {
@@ -411,10 +412,15 @@ const updateEstimate = async () => {
   try {
     // Prepare estimate data for API, sending only necessary fields
     const estimateData = {
-      // Send client_fk_id if backend expects it, otherwise send clientId
-      client_fk_id: estimate.value.client_fk_id || estimate.value.clientId, 
-      addressId: estimate.value.addressId, // Corrected name
-      estimateNumber: estimate.value.estimateNumber, // Usually not updatable, but send anyway
+      // Only include clientId if it's actually changing
+      ...(originalEstimate.value && originalEstimate.value.clientId !== estimate.value.clientId
+        ? { clientId: estimate.value.clientId }
+        : {}),
+      // Only include addressId if it has changed
+      ...(originalEstimate.value.addressId !== estimate.value.addressId
+        ? { addressId: estimate.value.addressId }
+        : {}),
+      estimateNumber: estimate.value.estimateNumber,
       dateCreated: estimate.value.dateCreated,
       validUntil: estimate.value.validUntil,
       items: estimate.value.items,
@@ -449,24 +455,15 @@ const updateEstimate = async () => {
 };
 
 // Watch for client changes and update clientId and addressId
-watch(() => estimate.value.client, (newClient) => {
-  if (newClient) {
-    const newClientId = newClient.id || newClient.clientId;
-    const newAddressId = newClient.selectedAddressId || null;
-    
-    // Only update if values have changed to avoid unnecessary updates
-    if (estimate.value.clientId !== newClientId || estimate.value.addressId !== newAddressId) {
-      estimate.value.clientId = newClientId;
-      estimate.value.client_fk_id = newClientId; // Ensure backend key is also set
-      estimate.value.addressId = newAddressId; // Corrected name
-    }
-  } else if (estimate.value.clientId || estimate.value.addressId) {
-    // Clear values if client is null and values were previously set
-    estimate.value.clientId = '';
-    estimate.value.client_fk_id = '';
-    estimate.value.addressId = null; // Corrected name
-  }
-});
+watch(
+  () => estimate.value.client,
+  (newClient) => {
+    if (!newClient) return;
+    estimate.value.clientId = newClient.id || newClient.clientId;
+    estimate.value.addressId = newClient.selectedAddressId || null;
+  },
+  { deep: true }          // <- ensures address changes trigger
+);
 
 // Initialize component
 onMounted(() => {
