@@ -1090,12 +1090,12 @@ async function submitClientForm() {
     
     // If there are deleted addresses, explicitly call deleteClientAddress for each
     // This is for addresses that can't be auto-removed due to reference constraints
-    if (isEditing.value && deletedAddressIds.value.length > 0) {
-      console.log(`Explicitly deleting ${deletedAddressIds.value.length} addresses:`, deletedAddressIds.value);
+    if (isEditing.value && _deleted_address_ids.value.length > 0) {
+      console.log(`Explicitly deleting ${_deleted_address_ids.value.length} addresses:`, _deleted_address_ids.value);
       
       // Include a helper property to tell the backend which addresses to delete
       // The backend will use this to identify addresses that should be removed
-      payload._deletedAddressIds = deletedAddressIds.value;
+      payload._deleted_address_ids = _deleted_address_ids.value;
     }
 
     let response;
@@ -1112,7 +1112,7 @@ async function submitClientForm() {
       }
       
       // Clear the deleted address IDs after successful update
-      deletedAddressIds.value = [];
+      _deleted_address_ids.value = [];
       
       await fetchClients(); // Refresh the list
       
@@ -1165,7 +1165,7 @@ function editAddress(index) {
 }
 
 // Track deleted addresses to ensure they're removed from the database
-const deletedAddressIds = ref([]);
+const _deleted_address_ids = ref([]);
 
 function removeAddress(index) {
   // Prevent deleting the last primary address
@@ -1180,7 +1180,7 @@ function removeAddress(index) {
   if (removedAddress.id && typeof removedAddress.id === 'string' && 
       removedAddress.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
     console.log(`Marking address ${removedAddress.id} for deletion`);
-    deletedAddressIds.value.push(removedAddress.id);
+    _deleted_address_ids.value.push(removedAddress.id);
   }
 
   // If the removed address was primary, and there are still addresses left,

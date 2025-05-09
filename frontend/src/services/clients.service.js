@@ -178,8 +178,20 @@ class ClientsService {
     }
 
     try {
+      // Make a copy of the data to avoid modifying the original
+      const dataCopy = { ...data };
+      
+      // Extract _deleted_address_ids before conversion if it exists (it's already snake_case)
+      const deletedAddressIds = dataCopy._deleted_address_ids;
+      delete dataCopy._deleted_address_ids;
+      
       // Convert camelCase to snake_case for backend, including all nested address objects
-      const snakeCaseData = toSnakeCase(data);
+      const snakeCaseData = toSnakeCase(dataCopy);
+      
+      // Add back _deleted_address_ids if it existed (avoid double conversion)
+      if (deletedAddressIds) {
+        snakeCaseData._deleted_address_ids = deletedAddressIds;
+      }
       
       // Log the payload being sent, useful for debugging
       console.log('Updating client with data:', JSON.stringify(snakeCaseData));

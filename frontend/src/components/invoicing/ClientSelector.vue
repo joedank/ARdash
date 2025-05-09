@@ -57,24 +57,38 @@
         </div>
         
         <!-- Address Selection -->
-        <div v-if="clientAddresses.length > 0" class="mt-3">
+        <div v-if="selectedClient" class="mt-3">
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Address
           </label>
           
-          <select 
-            v-if="clientAddresses.length > 1"
-            v-model="selectedAddressId"
-            class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
-          >
-            <option v-for="address in clientAddresses" :key="address.id" :value="address.id">
-              {{ address.name }} - {{ formatAddressForDisplay(address) }}
-            </option>
-          </select>
+          <div v-if="isLoading" class="text-sm text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-md p-2 flex items-center justify-center">
+            <svg class="animate-spin h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="ml-2">Loading addresses...</span>
+          </div>
           
-          <div v-else class="text-sm text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-md p-2">
-            <p class="font-medium">{{ clientAddresses[0].name }}</p>
-            <p>{{ formatAddressForDisplay(clientAddresses[0]) }}</p>
+          <div v-else-if="clientAddresses.length > 0">
+            <select 
+              v-if="clientAddresses.length > 1"
+              v-model="selectedAddressId"
+              class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
+            >
+              <option v-for="address in clientAddresses" :key="address.id" :value="address.id">
+                {{ address.name }} - {{ formatAddressForDisplay(address) }}
+              </option>
+            </select>
+            
+            <div v-else class="text-sm text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-md p-2">
+              <p class="font-medium">{{ clientAddresses[0].name }}</p>
+              <p>{{ formatAddressForDisplay(clientAddresses[0]) }}</p>
+            </div>
+          </div>
+          
+          <div v-else class="text-sm text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-md p-2">
+            No addresses available for this client.
           </div>
         </div>
       </div>
@@ -301,7 +315,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watchEffect, onMounted } from 'vue';
 import clientsService from '@/services/clients.service';
 import { normalizeClient } from '@/utils/casing';
 
@@ -425,56 +439,36 @@ const filteredClients = computed(() => {
   });
 });
 
-// Watch for model value changes
-watch(() => props.modelValue, (newValue) => {
-  // Avoid recursive updates by checking if the values are already equal
+// Use a single watchEffect to handle updates and prevent double-firing
+watchEffect(() => {
+  // Handle model value changes
+  const newValue = props.modelValue;
   if (JSON.stringify(selectedClient.value) !== JSON.stringify(newValue)) {
     selectedClient.value = newValue;
     
-    // Set default address if available
-    if (newValue && newValue.addresses && newValue.addresses.length > 0) {
-      // Find primary address first (rely on normalized isPrimary)
-      const primaryAddress = newValue.addresses.find(addr => addr.isPrimary);
-      if (primaryAddress) {
-        selectedAddressId.value = primaryAddress.id;
-      } else {
-        // Otherwise use the first address
-        selectedAddressId.value = newValue.addresses[0].id;
-      }
+    // Set address based on provided selectedAddressId if available
+    if (newValue?.selectedAddressId) {
+      selectedAddressId.value = newValue.selectedAddressId;
+    } else if (newValue?.addresses?.length) {
+      const primary = newValue.addresses.find(a => a.isPrimary);
+      selectedAddressId.value = primary ? primary.id : newValue.addresses[0].id;
     } else {
       selectedAddressId.value = null;
     }
   }
-});
-
-// Watch for selected client changes
-watch(selectedClient, (newValue) => {
-  // Only emit update if there's an actual change
-  if (JSON.stringify(props.modelValue) !== JSON.stringify(newValue)) {
-    if (newValue) {
-      // Add selected address to the client object
-      const clientWithAddress = {
-        ...newValue,
-        selectedAddressId: selectedAddressId.value
-      };
-      emit('update:modelValue', clientWithAddress);
-    } else {
-      emit('update:modelValue', null);
+  
+  // Handle updates to selectedClient and selectedAddressId
+  if (selectedClient.value) {
+    const currentModel = props.modelValue || {};
+    const updatedModel = {
+      ...selectedClient.value,
+      selectedAddressId: selectedAddressId.value
+    };
+    if (JSON.stringify(currentModel) !== JSON.stringify(updatedModel)) {
+      emit('update:modelValue', updatedModel);
     }
-  }
-});
-
-// Watch for selected address changes
-watch(selectedAddressId, (newValue) => {
-  if (selectedClient.value && newValue) {
-    // Prevent recursive updates by checking if already updated
-    if (selectedClient.value.selectedAddressId !== newValue) {
-      // Update model with the new selected address
-      emit('update:modelValue', {
-        ...selectedClient.value,
-        selectedAddressId: newValue
-      });
-    }
+  } else if (props.modelValue !== null) {
+    emit('update:modelValue', null);
   }
 });
 

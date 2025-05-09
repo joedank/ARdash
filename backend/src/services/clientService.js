@@ -181,7 +181,15 @@ class ClientService {
       }
       
       // Extract addresses and deleted address IDs from data
-      const { addresses, _deletedAddressIds, ...clientData } = data;
+      const {
+  addresses,
+  _deleted_address_ids: deletedAddressIdsSnake,
+  ...clientData
+} = data;
+const deletedAddressIds = deletedAddressIdsSnake || [];
+
+// Log warning if deprecated camelCase key received
+if (data._deletedAddressIds) logger.warn('Deprecated camelCase key _deletedAddressIds received - use snake_case _deleted_address_ids instead');
       
       // Update client properties
       await client.update(clientData, { transaction });
@@ -257,11 +265,11 @@ class ClientService {
         }
         
         // Handle explicit address deletions from frontend (when user clicks trash icon)
-        if (_deletedAddressIds && Array.isArray(_deletedAddressIds) && _deletedAddressIds.length > 0) {
-          logger.info(`Client ${id} has ${_deletedAddressIds.length} addresses explicitly marked for deletion`);
+        if (deletedAddressIds && Array.isArray(deletedAddressIds) && deletedAddressIds.length > 0) {
+          logger.info(`Client ${id} has ${deletedAddressIds.length} addresses explicitly marked for deletion`);
           
           // Process each deleted address using the safe address service
-          for (const addressId of _deletedAddressIds) {
+          for (const addressId of deletedAddressIds) {
             const result = await safeAddressService.safeDeleteAddress(addressId, transaction);
             
             if (result.success) {
@@ -302,7 +310,7 @@ class ClientService {
         // Also handle implicit address removals (addresses that were in the DB but not in the form)
         const implicitlyRemovedAddresses = existingAddresses.filter(addr => 
           !processedAddressIds.includes(addr.id) && 
-          !(_deletedAddressIds && _deletedAddressIds.includes(addr.id))
+          !(deletedAddressIds && deletedAddressIds.includes(addr.id))
         );
         
         if (implicitlyRemovedAddresses.length > 0) {

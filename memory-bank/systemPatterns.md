@@ -185,6 +185,32 @@ for (const f of files) {
   - The fix was verified by testing login and communities page functionality
   - The browser network tab confirmed requests use correct paths without duplication
 
+### API Boundary Case Normalization Pattern
+
+- **Problem**: Frontend case conversion utilities (toSnakeCase) transform camelCase property names to snake_case, but backend destructuring expects specific casing, causing mismatches
+- **Pattern**: Destructure with support for both case styles using property aliases and fallback mechanism
+- **Solution**: Accept both camel and snake case versions at API boundaries with clear normalization
+
+```javascript
+// Handle both camelCase and snake_case naming conventions
+const {
+  addresses,
+  _deleted_address_ids: deletedAddressIdsSnake,  // Handle snake_case (from frontend toSnakeCase)
+  _deletedAddressIds: deletedAddressIdsCamel,    // Handle camelCase (potential direct API call)
+  ...clientData
+} = data;
+const deletedAddressIds = deletedAddressIdsSnake || deletedAddressIdsCamel || [];
+```
+
+- **Key Aspects**:
+  - Destructuring with property aliases creates clear mapping for both naming conventions
+  - Fallback assignment with OR operator (`||`) creates a normalized variable for subsequent code
+  - Empty array default ensures the variable is always a valid array even if both are undefined
+  - Works transparently with both frontend (snake_case) and direct API calls (camelCase)
+  - All subsequent code uses the normalized variable name for consistency
+  - Pattern can be applied anywhere destructuring is used at API boundaries
+  - Follows the project's rule for snake_case at API boundaries while maintaining compatibility
+
 ### Multiple Threshold NLP Matching Pattern
 
 - **Problem**: Simple binary matching thresholds don't provide enough flexibility for AI-driven work type suggestions

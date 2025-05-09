@@ -4,9 +4,11 @@ const clientsController = require('../controllers/clients.controller');
 const addressesController = require('../controllers/addresses.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { validateUuid, validateMultipleUuids } = require('../middleware/uuidValidator');
+const validateKeys = require('../middleware/validateKeys');
 
-// Apply authentication middleware to all routes
+// Apply authentication and key validation middleware to all routes
 router.use(authenticate);
+router.use(validateKeys);
 
 // Client Management
 // GET /api/clients - Get all clients

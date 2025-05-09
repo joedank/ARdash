@@ -4,7 +4,8 @@
 - Monitor PDF generation to ensure settings persist correctly
 - Consider expanding the validation utilities for other data types
 - Evaluate if other components could benefit from similar empty value handling
-- Review other settings components for consistency in validation approach[2025-04-30 11:30] - **Fixed External LLM Response Processing API Mismatch (Updated)**
+- Review other settings components for consistency in validation approach
+- Audit API endpoints that destructure request data to ensure proper handling of both camelCase and snake_case parameters[2025-04-30 11:30] - **Fixed External LLM Response Processing API Mismatch (Updated)**
 
 **Issues Identified:**
 

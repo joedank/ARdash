@@ -1,4 +1,4 @@
-const { ClientAddress } = require('../models');
+const { ClientAddress, Estimate, Project, Invoice, sequelize } = require('../models');
 const logger = require('../utils/logger');
 
 /**
@@ -141,31 +141,61 @@ class AddressService {
    * @returns {Promise<boolean>} - Success indicator
    */
   async deleteAddress(addressId) {
+    const transaction = await sequelize.transaction();
     try {
-      const address = await ClientAddress.findByPk(addressId);
+      const address = await ClientAddress.findByPk(addressId, { transaction });
       
       if (!address) {
+        await transaction.rollback();
         throw new Error(`Address ${addressId} not found`);
       }
       
-      await address.destroy();
+      // Check for dependent records before deletion
+      const deps = await Promise.all([
+        Estimate.count({ where: { address_id: addressId }, transaction }),
+        Project.count({ where: { address_id: addressId }, transaction }),
+        Invoice.count({ where: { address_id: addressId }, transaction })
+      ]);
+      const [estimates, projects, invoices] = deps;
+      if ([estimates, projects, invoices].some(c => c > 0)) {
+        await transaction.rollback();
+        const err = new Error('DEPENDENT_RECORDS');
+        err.data = { estimates, projects, invoices };
+        throw err;
+      }
+      
+      await address.destroy({ transaction });
       
       // If this was a primary address, set another address as primary
       if (address.is_primary) {
         const otherAddress = await ClientAddress.findOne({
           where: { client_id: address.client_id },
-          order: [['created_at', 'DESC']]
+          order: [['created_at', 'DESC']],
+          transaction
         });
         
         if (otherAddress) {
-          await otherAddress.update({ is_primary: true });
+          await otherAddress.update({ is_primary: true }, { transaction });
         }
       }
       
+      await transaction.commit();
       return true;
     } catch (error) {
+      if (!transaction.finished) await transaction.rollback();
       logger.error(`Error deleting address ${addressId}:`, error);
-      throw error;
+      if (error.message === 'DEPENDENT_RECORDS') {
+        return Promise.reject({
+          success: false,
+          message: 'Cannot delete address; linked records exist',
+          data: error.data || {}
+        });
+      }
+      return Promise.reject({
+        success: false,
+        message: 'Failed to delete address',
+        data: null
+      });
     }
   }
 

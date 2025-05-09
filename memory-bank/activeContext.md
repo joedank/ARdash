@@ -28,6 +28,7 @@ This document captures the current work focus, recent changes, active decisions,
 
 ## Current Focus
 
+- ✅ Fixed Client Address Deletion Casing Mismatch at API Boundary
 - ✅ Enhanced Work Type Detection with Separate Thresholds for Suggestions vs New Creation
 - ✅ Implemented Multiple Confidence Thresholds for Fragment Processing (0.35/0.60)  
 - ✅ Fixed Router Integration in SuggestedChip Component for Work Type Creation
@@ -469,6 +470,8 @@ This document captures the current work focus, recent changes, active decisions,
 ## Next Steps
 
 - ✅ **Documented Migration Best Practices**: Created standardized patterns for idempotent migrations with proper function signatures
+- ✅ **Fixed Address Deletion Issue**: Updated `addressService.js` to check for dependent records before deletion and provide descriptive error messages.
+- ✅ **Fixed Address Display in Estimates**: Updated `ClientSelector.vue` to honor the estimate's linked `selectedAddressId` instead of defaulting to the primary address.
 - **Implement CI Check**: Create CI check to validate migration function signatures and prevent regression
 - **Monitor Performance**: Track the performance impact of the new job queues, Redis cache, and HNSW index
 - **Refine Frontend Polling**: Improve the frontend UI for the asynchronous estimate generation (e.g., add progress indicators, cancellation options)
@@ -478,6 +481,9 @@ This document captures the current work focus, recent changes, active decisions,
 - **Fix Timeout Interval**: Update embedQueue.waitUntilFinished to clear the interval on resolve to prevent memory leaks
 - **Implement Progress Reporting**: Add job.updateProgress() calls in the estimate worker for better UI feedback
 - **Add Redis Outage Guards**: Implement additional error handling for cases where Redis is unavailable during job submission
+- **Enhance Address Deletion**: Consider adding a `reassignTo` parameter in `deleteAddress` to update dependent records before deletion, with user confirmation.
+- **Add Cascading Update Prompt**: Implement a confirmation dialog in `EditEstimate.vue` for cascading address updates to related projects if required by business rules.
+- **Update Unit Tests**: Add regression tests for `ClientSelector.vue` to cover `selectedAddressId` propagation and single emit behavior.
 - Implement AI-driven conversation workflow for smarter inspection-to-estimate conversion
 - Develop catalog deduplication with both trigram (pg_trgm) and vector similarity (pgvector) matching
 - Create user interfaces for handling potential duplicate detection with confidence scoring
