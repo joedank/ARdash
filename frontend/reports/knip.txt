@@ -1,0 +1,14 @@
+Unused devDependencies (5)
+@types/leaflet  package.json:33:6
+autoprefixer    package.json:35:6
+depcheck        package.json:36:6
+leaflet         package.json:38:6
+unimported      package.json:39:6
+Unlisted dependencies (4)
+date-fns          src/components/form/BaseDateTimePicker.vue   
+@floating-ui/dom  src/components/overlays/BasePopover.vue      
+lodash/debounce   src/views/communities/CommunitiesListView.vue
+date-fns          src/views/communities/CommunityDetailView.vue
+Unresolved imports (2)
+@/components/estimates/LLMEstimateInput.vue  src/views/invoicing/EstimatesList.updated.vue:9:29 
+@/components/estimates/ExternalLLMInput.vue  src/views/invoicing/EstimatesList.updated.vue:10:29

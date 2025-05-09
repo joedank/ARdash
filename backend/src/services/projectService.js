@@ -316,13 +316,27 @@ class ProjectService {
     }
 
     // Update the project
-    await project.update({
+    const updateData = {
       client_id: client_id || project.client_id,
       type: type || project.type,
       status: status || project.status,
       scheduled_date: scheduled_date || project.scheduled_date,
       condition: condition !== undefined ? condition : project.condition
-    });
+    };
+
+    // Include address_id if provided
+    if (data.address_id) {
+      const address = await ClientAddress.findByPk(data.address_id);
+      if (!address) {
+        throw new ValidationError('Address not found');
+      }
+      if (address.client_id !== (client_id || project.client_id)) {
+        throw new ValidationError('Address does not belong to this client');
+      }
+      updateData.address_id = data.address_id;
+    }
+
+    await project.update(updateData);
 
     // Return the updated project with client info
     return await this.getProjectWithDetails(projectId);
