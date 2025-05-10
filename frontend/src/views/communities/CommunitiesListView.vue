@@ -6,39 +6,48 @@
       <p class="text-gray-600 dark:text-gray-400">Manage mobile home communities and their advertisements</p>
     </div>
 
-    <!-- Search and Actions Bar -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-      <div class="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-        <!-- Search Input -->
-        <div class="relative w-full sm:w-64">
-          <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="Search communities..."
-            @input="debouncedSearch"
-            class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+    <!-- Search and Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
+      <div class="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+        <div class="flex-1">
+          <BaseFormGroup label="Search Communities" input-id="search-communities" class="mb-0">
+            <BaseInput
+              id="search-communities"
+              v-model="searchQuery"
+              placeholder="Search by name, city, or address"
+              @input="debouncedSearch"
+            >
+              <template #suffix>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </template>
+            </BaseInput>
+          </BaseFormGroup>
         </div>
-
-        <!-- Filter Dropdown -->
-        <select
-          v-model="activeFilter"
-          @change="loadCommunities"
-          class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="all">All Communities</option>
-          <option value="active">Active Only</option>
-          <option value="inactive">Inactive Only</option>
-        </select>
+        <div class="w-full md:w-48">
+          <BaseFormGroup label="Status" input-id="status-filter" class="mb-0">
+            <BaseSelect
+              id="status-filter"
+              v-model="activeFilter"
+              :options="statusOptions"
+              @update:modelValue="handleFilter"
+            />
+          </BaseFormGroup>
+        </div>
+        <div class="w-full md:w-auto">
+          <BaseButton
+            variant="primary"
+            @click="openCreateModal"
+            class="w-full md:w-auto flex items-center justify-center md:justify-start space-x-2"
+          >
+            <span>Add Community</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 01-2 0v-3H6a1 1 0 010-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+            </svg>
+          </BaseButton>
+        </div>
       </div>
-
-      <!-- Add Community Button -->
-      <BaseButton
-        variant="primary"
-        @click="openCreateModal"
-      >
-        Add Community
-      </BaseButton>
     </div>
 
     <!-- Loading State -->
@@ -53,7 +62,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="communities.length === 0" class="py-12 flex flex-col items-center justify-center text-center">
+    <div v-else-if="filteredCommunities.length === 0" class="py-12 flex flex-col items-center justify-center text-center">
       <p class="text-gray-500 dark:text-gray-400 mb-4">
         <span v-if="searchQuery">No communities found matching "{{ searchQuery }}"</span>
         <span v-else>No communities found. Create your first community to get started.</span>
@@ -65,7 +74,7 @@
     <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <transition-group name="fade" appear>
         <BaseCard
-          v-for="community in communities"
+          v-for="community in filteredCommunities"
           :key="community.id"
           variant="bordered"
           hover
@@ -420,7 +429,7 @@ import BaseBadge from '@/components/data-display/BaseBadge.vue';
 import BaseInput from '@/components/form/BaseInput.vue';
 import BaseTextarea from '@/components/form/BaseTextarea.vue';
 import BaseFormGroup from '@/components/form/BaseFormGroup.vue';
-import BaseSelect from '@/components/form/BaseSelect.vue';
+import BaseSelect from '@/components/form/BaseSelect.vue';.vue';
 
 const router = useRouter();
 const { handleError, successToast } = useErrorHandler();
@@ -444,9 +453,9 @@ const totalItems = ref(0);
 
 // Options
 const statusOptions = [
-  { value: 'all', label: 'All Status' },
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' }
+  { value: 'all', label: 'All Communities' },
+  { value: 'active', label: 'Active Only' },
+  { value: 'inactive', label: 'Inactive Only' }
 ];
 
 const newCommunity = reactive({
@@ -543,15 +552,35 @@ const loadCommunities = async () => {
   }
 };
 
-const debouncedFetch = debounce(loadCommunities, 300);
+// Create debounced search function 
+const searchCommunities = async () => {
+  if (!searchQuery.value.trim()) {
+    loadCommunities();
+    return;
+  }
+  
+  loading.value = true;
+  error.value = null;
 
-const handleSearch = () => {
-  currentPage.value = 1;
-  debouncedFetch();
+  try {
+    const result = await communityService.searchCommunities(searchQuery.value);
+    communities.value = result || [];
+    totalItems.value = communities.value.length;
+  } catch (err) {
+    handleError(err, 'Failed to search communities.');
+    error.value = 'Failed to search communities. Please try again.';
+    communities.value = [];
+    totalItems.value = 0;
+  } finally {
+    loading.value = false;
+  }
 };
+
+const debouncedSearch = debounce(searchCommunities, 300);
 
 const handleFilter = () => {
   currentPage.value = 1;
+  loadCommunities();
 };
 
 const handlePageChange = (newPage) => {
@@ -728,520 +757,4 @@ tr {
 }
 
 /* Remove old styles that aren't needed anymore */
-</style>.value];
-        await communityService.selectAdType(created.id, selectedAdType.id);
-      }
-    }
-
-    successToast('Community created successfully');
-    showCreateModal.value = false;
-    loadCommunities();
-  } catch (err) {
-    handleError(err, 'Failed to create community.');
-  } finally {
-    createLoading.value = false;
-  }
-};
-
-const viewCommunity = (id) => {
-  router.push({ name: 'community-detail', params: { id } });
-};
-
-const toggleActiveStatus = async (community) => {
-  try {
-    const newStatus = !community.isActive;
-
-    // If trying to activate, check if the community has ad types
-    if (newStatus) {
-      // Fetch the community details to check for ad types
-      const communityDetails = await communityService.getCommunityById(community.id);
-
-      // Check if the community has ad types
-      if (!communityDetails.adTypes || communityDetails.adTypes.length === 0) {
-        handleError(new Error('Cannot activate a community without ad types'), 'Cannot activate a community without ad types. Please add at least one ad type first.');
-        return;
-      }
-
-      // Check if the community has a selected ad type
-      if (!communityDetails.selectedAdTypeId) {
-        handleError(new Error('Cannot activate a community without a selected ad type'), 'Cannot activate a community without a selected ad type. Please select an ad type first.');
-        return;
-      }
-    }
-
-    const updated = await communityService.setActiveStatus(community.id, newStatus);
-
-    // Update the community in the list
-    const index = communities.value.findIndex(c => c.id === community.id);
-    if (index !== -1) {
-      communities.value[index] = updated;
-    }
-
-    successToast(`Community ${newStatus ? 'activated' : 'deactivated'} successfully`);
-  } catch (err) {
-    handleError(err, 'Failed to update community status.');
-  }
-};
-
-const formatPhone = (phone) => {
-  if (!phone) return '';
-
-  // Basic US phone number formatting
-  const cleaned = ('' + phone).replace(/\D/g, '');
-  const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
-
-  if (match) {
-    return '(' + match[1] + ') ' + match[2] + '-' + match[3];
-  }
-
-  return phone;
-};
-
-// Lifecycle hooks
-onMounted(() => {
-  loadCommunities();
-});
-</script>
-
-<style scoped>
-/* Table hover effects */
-tr {
-  transition: background-color 0.15s ease;
-}
-
-/* Remove old styles that aren't needed anymore */
-</style>d mb-4">
-          <BaseTooltip
-            content="Ad type required"
-            position="top"
-            :disabled="!(newAdTypes.length === 0 || selectedAdTypeIndex === null)"
-          >
-            <BaseButton
-              type="button"
-              :variant="newCommunity.isActive ? 'danger' : 'primary'"
-              :disabled="newAdTypes.length === 0 || selectedAdTypeIndex === null"
-              @click="toggleNewCommunityActiveStatus"
-              class="w-full md:w-auto"
-            >
-              <span v-if="newCommunity.isActive">Set as Inactive</span>
-              <span v-else>Set as Active</span>
-            </BaseButton>
-          </BaseTooltip>
-        </div>
-
-        <div class="flex justify-end space-x-3 pt-4">
-          <BaseButton
-            type="button"
-            variant="secondary"
-            @click="showCreateModal = false"
-          >
-            Cancel
-          </BaseButton>
-          <BaseButton
-            type="submit"
-            variant="primary"
-            :loading="createLoading"
-            :disabled="createLoading"
-          >
-            Create Community
-          </BaseButton>
-        </div>
-      </form>
-    </BaseModal>
-  </div>
-</template>
-
-<script setup>
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import communityService from '@/services/community.service';
-import debounce from 'lodash/debounce';
-
-// UI Components
-import BaseCard from '@/components/data-display/BaseCard.vue';
-import BaseButton from '@/components/base/BaseButton.vue';
-import BaseSkeletonLoader from '@/components/data-display/BaseSkeletonLoader.vue';
-import BaseModal from '@/components/overlays/BaseModal.vue';
-import BaseTooltip from '@/components/overlays/BaseTooltip.vue';
-
-// Form Components
-import BaseInput from '@/components/form/BaseInput.vue';
-import BaseTextarea from '@/components/form/BaseTextarea.vue';
-import BaseFormGroup from '@/components/form/BaseFormGroup.vue';
-
-const router = useRouter();
-
-// State
-const communities = ref([]); // Initialize as empty array to prevent undefined errors
-const loading = ref(true);
-const error = ref(null);
-const searchQuery = ref('');
-const activeFilter = ref('all');
-const showCreateModal = ref(false);
-const createLoading = ref(false);
-const newAdTypes = ref([]);
-const selectedAdTypeIndex = ref(null);
-
-const newCommunity = reactive({
-  name: '',
-  address: '',
-  city: '',
-  state: '',
-  phone: '',
-  spaces: null,
-  newsletterLink: '',
-  generalNotes: '',
-  adSpecialistName: '',
-  adSpecialistEmail: '',
-  adSpecialistPhone: '',
-  isActive: false
-});
-
-    // Methods
-    const loadCommunities = async () => {
-      loading.value = true;
-      error.value = null;
-
-      try {
-        let filters = {};
-
-        if (activeFilter.value === 'active') {
-          filters.isActive = true;
-        } else if (activeFilter.value === 'inactive') {
-          filters.isActive = false;
-        }
-
-        const result = await communityService.getAllCommunities(filters);
-        // Ensure communities is always an array, even if the API returns null or undefined
-        communities.value = result || [];
-      } catch (err) {
-        console.error('Failed to load communities:', err);
-        error.value = 'Failed to load communities. Please try again.';
-        // Reset communities to empty array on error
-        communities.value = [];
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const searchCommunities = async () => {
-      if (!searchQuery.value.trim()) {
-        loadCommunities();
-        return;
-      }
-
-      loading.value = true;
-      error.value = null;
-
-      try {
-        const result = await communityService.searchCommunities(searchQuery.value);
-        // Ensure communities is always an array, even if the API returns null or undefined
-        communities.value = result || [];
-      } catch (err) {
-        console.error('Failed to search communities:', err);
-        error.value = 'Failed to search communities. Please try again.';
-        // Reset communities to empty array on error
-        communities.value = [];
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const debouncedSearch = debounce(searchCommunities, 300);
-
-    const addNewAdType = () => {
-      newAdTypes.value.push({
-        name: '',
-        width: '',
-        height: '',
-        cost: '',
-        termMonths: '',
-        startDate: '',
-        endDate: '',
-        deadlineDate: ''
-      });
-
-      // If this is the first ad type, automatically select it
-      if (newAdTypes.value.length === 1) {
-        selectedAdTypeIndex.value = 0;
-      }
-
-      // If we're adding an ad type and isActive was disabled, check if we can enable it now
-      if (newAdTypes.value.length > 0 && !newCommunity.isActive) {
-        // We don't automatically set isActive to true, but we make it possible to check it
-      }
-    };
-
-    const removeAdType = (index) => {
-      newAdTypes.value.splice(index, 1);
-
-      // If we removed the selected ad type, reset the selection
-      if (selectedAdTypeIndex.value === index) {
-        selectedAdTypeIndex.value = newAdTypes.value.length > 0 ? 0 : null;
-      } else if (selectedAdTypeIndex.value > index) {
-        // If we removed an ad type before the selected one, adjust the index
-        selectedAdTypeIndex.value--;
-      }
-
-      // If we removed all ad types, disable isActive
-      if (newAdTypes.value.length === 0 || selectedAdTypeIndex.value === null) {
-        newCommunity.isActive = false;
-      }
-    };
-
-    const toggleNewCommunityActiveStatus = () => {
-      // Only allow toggling if there's at least one ad type and one is selected
-      if (newAdTypes.value.length > 0 && selectedAdTypeIndex.value !== null) {
-        newCommunity.isActive = !newCommunity.isActive;
-      }
-    };
-
-    const openCreateModal = () => {
-      // Reset form fields
-      Object.keys(newCommunity).forEach(key => {
-        if (key === 'isActive') {
-          newCommunity[key] = false;
-        } else if (key === 'spaces') {
-          newCommunity[key] = null;
-        } else {
-          newCommunity[key] = '';
-        }
-      });
-
-      // Reset ad types
-      newAdTypes.value = [];
-      selectedAdTypeIndex.value = null;
-
-      showCreateModal.value = true;
-    };
-
-    const createCommunity = async () => {
-      createLoading.value = true;
-
-      try {
-        // Validate that we have at least one ad type if isActive is true
-        if (newCommunity.isActive && newAdTypes.value.length === 0) {
-          throw new Error('A community must have at least one ad type to be active');
-        }
-
-        // If trying to set as active, ensure there's a selected ad type
-        if (newCommunity.isActive && selectedAdTypeIndex.value === null && newAdTypes.value.length > 0) {
-          throw new Error('Please select an ad type to set the community as active');
-        }
-
-        // Create the community first
-        const created = await communityService.createCommunity(newCommunity);
-
-        // If we have ad types, create them
-        if (newAdTypes.value.length > 0) {
-          const adTypePromises = newAdTypes.value.map(adType => {
-            return communityService.createAdType(created.id, adType);
-          });
-
-          const createdAdTypes = await Promise.all(adTypePromises);
-
-          // If we have a selected ad type, set it
-          if (selectedAdTypeIndex.value !== null && createdAdTypes[selectedAdTypeIndex.value]) {
-            const selectedAdType = createdAdTypes[selectedAdTypeIndex.value];
-            await communityService.selectAdType(created.id, selectedAdType.id);
-          }
-        }
-
-        communities.value.push(created);
-        showCreateModal.value = false;
-
-        // If we were filtering, make sure the new community shows up
-        loadCommunities();
-      } catch (err) {
-        console.error('Failed to create community:', err);
-        alert('Failed to create community: ' + (err.response?.data?.message || err.message));
-      } finally {
-        createLoading.value = false;
-      }
-    };
-
-    const viewCommunity = (id) => {
-      router.push({ name: 'community-detail', params: { id } });
-    };
-
-    const toggleActiveStatus = async (community) => {
-      try {
-        const newStatus = !community.isActive;
-
-        // If trying to activate, check if the community has ad types
-        if (newStatus) {
-          // Fetch the community details to check for ad types
-          const communityDetails = await communityService.getCommunityById(community.id);
-
-          // Check if the community has ad types
-          if (!communityDetails.adTypes || communityDetails.adTypes.length === 0) {
-            alert('Cannot activate a community without ad types. Please add at least one ad type first.');
-            return;
-          }
-
-          // Check if the community has a selected ad type
-          if (!communityDetails.selectedAdTypeId) {
-            alert('Cannot activate a community without a selected ad type. Please select an ad type first.');
-            return;
-          }
-        }
-
-        const updated = await communityService.setActiveStatus(community.id, newStatus);
-
-        // Update the community in the list
-        const index = communities.value.findIndex(c => c.id === community.id);
-        if (index !== -1) {
-          communities.value[index] = updated;
-        }
-      } catch (err) {
-        console.error('Failed to update community status:', err);
-        alert('Failed to update community status: ' + (err.response?.data?.message || err.message));
-      }
-    };
-
-    const formatPhone = (phone) => {
-      if (!phone) return '';
-
-      // Basic US phone number formatting
-      const cleaned = ('' + phone).replace(/\D/g, '');
-      const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
-
-      if (match) {
-        return '(' + match[1] + ') ' + match[2] + '-' + match[3];
-      }
-
-      return phone;
-    };
-
-    // Lifecycle hooks
-    onMounted(() => {
-      loadCommunities();
-    });
-
-
-</script>
-
-<style scoped>
-/* Animation for card transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-/* Hover effects for cards */
-.card-hover-effect {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card-hover-effect:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-/* Modal styles - will be updated in next phase */
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-}
-
-.modal-container {
-  background-color: white;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
-}
-
-.modal-header {
-  padding: 15px 20px;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #757575;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-row {
-  display: flex;
-  gap: 15px;
-}
-
-.form-row .form-group {
-  flex: 1;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 500;
-}
-
-input, select, textarea {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.checkbox-group {
-  display: flex;
-  align-items: center;
-}
-
-.checkbox-group input {
-  width: auto;
-  margin-right: 8px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.spinner-small {
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top: 2px solid white;
-  width: 16px;
-  height: 16px;
-  animation: spin 1s linear infinite;
-  display: inline-block;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
 </style>
