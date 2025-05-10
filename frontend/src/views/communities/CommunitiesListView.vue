@@ -728,6 +728,88 @@ tr {
 }
 
 /* Remove old styles that aren't needed anymore */
+</style>.value];
+        await communityService.selectAdType(created.id, selectedAdType.id);
+      }
+    }
+
+    successToast('Community created successfully');
+    showCreateModal.value = false;
+    loadCommunities();
+  } catch (err) {
+    handleError(err, 'Failed to create community.');
+  } finally {
+    createLoading.value = false;
+  }
+};
+
+const viewCommunity = (id) => {
+  router.push({ name: 'community-detail', params: { id } });
+};
+
+const toggleActiveStatus = async (community) => {
+  try {
+    const newStatus = !community.isActive;
+
+    // If trying to activate, check if the community has ad types
+    if (newStatus) {
+      // Fetch the community details to check for ad types
+      const communityDetails = await communityService.getCommunityById(community.id);
+
+      // Check if the community has ad types
+      if (!communityDetails.adTypes || communityDetails.adTypes.length === 0) {
+        handleError(new Error('Cannot activate a community without ad types'), 'Cannot activate a community without ad types. Please add at least one ad type first.');
+        return;
+      }
+
+      // Check if the community has a selected ad type
+      if (!communityDetails.selectedAdTypeId) {
+        handleError(new Error('Cannot activate a community without a selected ad type'), 'Cannot activate a community without a selected ad type. Please select an ad type first.');
+        return;
+      }
+    }
+
+    const updated = await communityService.setActiveStatus(community.id, newStatus);
+
+    // Update the community in the list
+    const index = communities.value.findIndex(c => c.id === community.id);
+    if (index !== -1) {
+      communities.value[index] = updated;
+    }
+
+    successToast(`Community ${newStatus ? 'activated' : 'deactivated'} successfully`);
+  } catch (err) {
+    handleError(err, 'Failed to update community status.');
+  }
+};
+
+const formatPhone = (phone) => {
+  if (!phone) return '';
+
+  // Basic US phone number formatting
+  const cleaned = ('' + phone).replace(/\D/g, '');
+  const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+
+  if (match) {
+    return '(' + match[1] + ') ' + match[2] + '-' + match[3];
+  }
+
+  return phone;
+};
+
+// Lifecycle hooks
+onMounted(() => {
+  loadCommunities();
+});
+</script>
+
+<style scoped>
+/* Table hover effects */
+tr {
+  transition: background-color 0.15s ease;
+}
+
+/* Remove old styles that aren't needed anymore */
 </style>d mb-4">
           <BaseTooltip
             content="Ad type required"
