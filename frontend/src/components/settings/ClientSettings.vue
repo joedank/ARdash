@@ -1412,13 +1412,6 @@ function handleAddressReferences(data) {
       });
     }
     
-    if (references.preAssessments && references.preAssessments.length > 0) {
-      referenceMessage += `\n\n- ${references.preAssessments.length} pre-assessment(s):`;
-      references.preAssessments.forEach(pa => {
-        referenceMessage += `\n  • Pre-assessment with status: ${pa.status}`;
-      });
-    }
-    
     // Add explanation about what happened
     referenceMessage += `\n\nThe address has been maintained in the system but marked as non-primary. You must update the references listed above before this address can be deleted.`;
     

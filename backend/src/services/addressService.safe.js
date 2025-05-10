@@ -79,20 +79,7 @@ class SafeAddressService {
         hasAnyReferences = true;
       }
 
-      // Check pre-assessments
-      const preAssessmentReferences = await sequelize.query(
-        `SELECT id, status FROM pre_assessments WHERE client_address_id = :addressId`,
-        {
-          replacements: { addressId },
-          type: sequelize.QueryTypes.SELECT,
-          transaction: t
-        }
-      );
-      
-      if (preAssessmentReferences.length > 0) {
-        references.preAssessments = preAssessmentReferences;
-        hasAnyReferences = true;
-      }
+      // pre-assessments check removed - feature deprecated
       
       // If the address is referenced anywhere
       if (hasAnyReferences) {
