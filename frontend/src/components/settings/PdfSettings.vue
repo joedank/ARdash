@@ -104,7 +104,12 @@
                   </div>
                 </div>
                 <div v-if="logoPreview" class="mt-1">
-                  <img :src="logoPreview" alt="Company Logo Preview" class="h-16 w-auto object-contain" />
+                  <img 
+                    :src="logoPreview" 
+                    alt="Company Logo Preview" 
+                    class="h-16 w-auto object-contain"
+                    @error="handleImageError"
+                  />
                 </div>
               </div>
             </div>
@@ -365,7 +370,7 @@
 </template>
 
 <script setup>
-import { toCamelCase, toSnakeCase } from '@/utils/casing';
+import { toCamelCase, toSnakeCase, snakeToCamel } from '@/utils/casing';
 import { ref, onMounted } from 'vue';
 import ColorPicker from 'primevue/colorpicker';
 import settingsService from '@/services/settings.service';
@@ -422,14 +427,18 @@ const saveStatus = ref(null);
 onMounted(async () => {
   try {
     const response = await settingsService.getAllSettings();
+    console.log('Settings response:', response); // Debug log
     
     if (response && response.success && response.data) {
       // Populate settings from response, converting keys to camelCase
       const camelCaseSettings = {};
       for (const setting of response.data) {
-        const camelKey = toCamelCase(setting.key); // Convert snake_case key to camelCase
+        console.log('Setting:', setting.key, '=', setting.value); // Debug log
+        const camelKey = snakeToCamel(setting.key); // Convert snake_case key to camelCase
+        console.log('Converted key:', setting.key, '->', camelKey); // Debug log
         if (camelKey in settings.value) { // Check if the camelCase key exists in our ref
           camelCaseSettings[camelKey] = setting.value;
+          console.log('Assigned value to:', camelKey); // Debug log
         }
       }
       // Assign the converted settings to the ref
@@ -437,7 +446,27 @@ onMounted(async () => {
       
       // Set logo preview if available (using camelCase key)
       if (settings.value.companyLogoPath) {
-        logoPreview.value = `${BACKEND_URL}/uploads/logos/${settings.value.companyLogoPath}`;
+        const logoUrl = `${BACKEND_URL}/uploads/logos/${settings.value.companyLogoPath}`;
+        console.log('Logo URL:', logoUrl); // Debug log
+        
+        // Test if the image loads successfully
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; // Handle CORS
+        img.onload = () => {
+          logoPreview.value = logoUrl;
+          console.log('Logo loaded successfully');
+        };
+        img.onerror = () => {
+          console.error('Failed to load logo:', logoUrl);
+          // Don't set preview if image fails to load
+          logoPreview.value = '';
+          // Show error message but don't automatically clear the stored path
+          uploadStatus.value = {
+            type: 'error',
+            message: 'The logo file could not be loaded. Please try uploading a new logo.'
+          };
+        };
+        img.src = logoUrl;
       }
     }
   } catch (err) {
@@ -536,6 +565,16 @@ const handleLogoRemove = () => {
 // Handle color change from the ColorPicker
 const handleColorChange = (color, fieldName) => {
   settings.value[fieldName] = normalizeHexColor(color);
+};
+
+// Handle image loading error
+const handleImageError = (event) => {
+  console.error('Failed to load logo preview image:', event.target.src);
+  logoPreview.value = '';
+  uploadStatus.value = {
+    type: 'error',
+    message: 'Error loading logo preview. The file may have been deleted.'
+  };
 };
 
 // Save settings

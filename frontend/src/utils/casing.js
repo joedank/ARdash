@@ -4,6 +4,17 @@
  */
 
 /**
+ * Converts a single snake_case string to camelCase
+ *
+ * @param {string} str - String to convert
+ * @returns {string} - camelCase string
+ */
+export const snakeToCamel = (str) => {
+  if (typeof str !== 'string') return str;
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+};
+
+/**
  * Converts an object's keys from snake_case to camelCase
  * Works recursively on nested objects and arrays
  *
@@ -11,7 +22,12 @@
  * @returns {Object|Array} - New object or array with camelCase keys
  */
 export const toCamelCase = (obj) => {
-  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj === null) return obj;
+  
+  // Handle non-object types (including strings)
+  if (typeof obj !== 'object') {
+    return snakeToCamel(obj);
+  }
 
   if (Array.isArray(obj)) {
     return obj.map(item => toCamelCase(item));
@@ -25,7 +41,7 @@ export const toCamelCase = (obj) => {
     }
 
     // Convert snake_case to camelCase
-    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+    const camelKey = snakeToCamel(key);
     result[camelKey] = toCamelCase(obj[key]);
     return result;
   }, {});

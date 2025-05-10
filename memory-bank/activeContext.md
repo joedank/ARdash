@@ -28,6 +28,8 @@ This document captures the current work focus, recent changes, active decisions,
 
 ## Current Focus
 
+- ✅ Fixed Client Address Deletion Error from Pre-Assessments Table Dependencies  
+- ✅ Removed Deprecated Pre-Assessments Feature from Codebase and Database
 - ✅ Fixed Client Address Deletion Casing Mismatch at API Boundary
 - ✅ Enhanced Work Type Detection with Separate Thresholds for Suggestions vs New Creation
 - ✅ Implemented Multiple Confidence Thresholds for Fragment Processing (0.35/0.60)  
@@ -112,7 +114,25 @@ This document captures the current work focus, recent changes, active decisions,
 - ⏳ Fixing Redis connection configuration for BullMQ workers
 - ⏳ Testing the full estimate job generation pipeline
 
-## Recent Achievements
+## Recent Achievements  
+
+### Fixed Client Address Deletion and Removed Pre-Assessments Feature
+
+- **Identified Issue**: Address deletion was failing with transaction abort due to SQL query for non-existent `status` column in deprecated `pre_assessments` table
+- **Root Cause**: The `SafeAddressService.safeDeleteAddress` method was querying the pre_assessments table which had been deprecated but not fully removed
+- **Implementation Details**:
+  - Removed the pre-assessment check from `addressService.safe.js` that was causing the SQL error
+  - Removed pre-assessment references from `ClientSettings.vue` frontend component
+  - Created migration to drop the pre_assessments table completely
+  - Dropped the foreign key constraint from projects table to pre_assessments
+  - Dropped the pre_assessment_id column from projects table  
+  - Fixed migration file to use proper Sequelize syntax instead of non-existent `getForeignKeys` method
+  - Updated migration to handle cases where table/constraints might already be removed
+- **Results**:
+  - Client addresses can now be deleted successfully without transaction errors
+  - All references to the deprecated pre_assessments feature have been removed
+  - Database schema is cleaner without orphaned tables
+  - Migration system now properly handles already-applied changes
 
 ### Enhanced Work Type Detection with Multiple Confidence Thresholds
 

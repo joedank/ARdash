@@ -1,8 +1,0 @@
-LOAD DATABASE
-    FROM sqlite:///Volumes/4TB/Users/josephmcmyne/myProjects/management/database.sqlite
-    INTO postgresql://postgres:postgres@localhost:5432/management_db
-
-WITH include drop, create tables, create indexes, reset sequences
-     set work_mem to '128MB', maintenance_work_mem to '512 MB';
-
--- Let's start with a simpler configuration to get it working

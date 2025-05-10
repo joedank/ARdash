@@ -36,7 +36,7 @@
 
 ## Database Migration Best Practices
 
-### Idempotent Migration Pattern
+### Idempotent Migration Pattern  
 
 - **Problem**: Database migrations fail when run multiple times (such as during database restoration) or when database state doesn't match expectations
 - **Pattern**: Make all migrations idempotent by checking for existing objects before attempting to create/modify
@@ -88,14 +88,46 @@
   `);
   ```
 
+  **5. Table and Constraint Removal**
+  ```javascript
+  // Check for table existence before dropping
+  const tableExists = await queryInterface.sequelize.query(
+    "SELECT EXISTS (SELECT FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'pre_assessments')",
+    { type: Sequelize.QueryTypes.SELECT }
+  );
+  
+  if (tableExists[0].exists) {
+    // Check for foreign key constraints
+    const constraints = await queryInterface.sequelize.query(
+      "SELECT conname FROM pg_constraint WHERE confrelid = 'pre_assessments'::regclass",
+      { type: Sequelize.QueryTypes.SELECT }
+    );
+    
+    // Remove all foreign key constraints
+    for (const constraint of constraints) {
+      const tableName = await queryInterface.sequelize.query(
+        `SELECT conrelid::regclass::text FROM pg_constraint WHERE conname = '${constraint.conname}'`,
+        { type: Sequelize.QueryTypes.SELECT }
+      );
+      
+      await queryInterface.removeConstraint(tableName[0].conrelid, constraint.conname);
+    }
+    
+    // Drop the table
+    await queryInterface.dropTable('pre_assessments');
+  }
+  ```
+
 - **Key Aspects**:
-  - Always verify object existence before creation/modification
+  - Always verify object existence before creation/modification  
   - Use PostgreSQL DO blocks with explicit existence checks for constraints
   - Use `DROP IF EXISTS` before creating objects to ensure clean state
   - Handle legacy data issues (like NULL timestamps in NOT NULL columns)
   - Use transaction-based approach for atomicity of related changes
   - Add detailed logging to help diagnose issues
   - Implement proper error handling with specific error messages
+  - Check for dependent objects (foreign keys) before removing tables
+  - Make migrations resilient to partial application states
 
 ### Function Signatures
 
