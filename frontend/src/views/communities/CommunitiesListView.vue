@@ -378,7 +378,357 @@
         </div>
 
         <!-- Active Status Section -->
-        <div class="flex justify-end mb-4">
+        <div class="flex justify-end space-x-3 pt-4">
+          <BaseButton
+            type="button"
+            variant="secondary"
+            @click="showCreateModal = false"
+          >
+            Cancel
+          </BaseButton>
+          <BaseButton
+            type="submit"
+            variant="primary"
+            :loading="createLoading"
+            :disabled="createLoading"
+          >
+            Create Community
+          </BaseButton>
+        </div>
+      </form>
+    </BaseModal>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { debounce } from 'lodash-es';
+import communityService from '@/services/community.service';
+import useErrorHandler from '@/composables/useErrorHandler.js';
+import { useToast } from '@/composables/useToast.js';
+
+// UI Components
+import BaseCard from '@/components/data-display/BaseCard.vue';
+import BaseButton from '@/components/base/BaseButton.vue';
+import BaseSkeletonLoader from '@/components/data-display/BaseSkeletonLoader.vue';
+import BaseModal from '@/components/overlays/BaseModal.vue';
+import BaseTooltip from '@/components/overlays/BaseTooltip.vue';
+import BaseBadge from '@/components/data-display/BaseBadge.vue';
+
+// Form Components
+import BaseInput from '@/components/form/BaseInput.vue';
+import BaseTextarea from '@/components/form/BaseTextarea.vue';
+import BaseFormGroup from '@/components/form/BaseFormGroup.vue';
+import BaseSelect from '@/components/form/BaseSelect.vue';
+
+const router = useRouter();
+const { handleError, successToast } = useErrorHandler();
+const toast = useToast();
+
+// State
+const communities = ref([]);
+const loading = ref(true);
+const error = ref(null);
+const searchQuery = ref('');
+const activeFilter = ref('all');
+const showCreateModal = ref(false);
+const createLoading = ref(false);
+const newAdTypes = ref([]);
+const selectedAdTypeIndex = ref(null);
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalItems = ref(0);
+
+// Options
+const statusOptions = [
+  { value: 'all', label: 'All Status' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' }
+];
+
+const newCommunity = reactive({
+  name: '',
+  address: '',
+  city: '',
+  state: '',
+  phone: '',
+  spaces: null,
+  newsletterLink: '',
+  generalNotes: '',
+  adSpecialistName: '',
+  adSpecialistEmail: '',
+  adSpecialistPhone: '',
+  isActive: false
+});
+
+// Computed Properties
+const filteredCommunities = computed(() => {
+  let filtered = [...communities.value];
+
+  // Apply search filter
+  if (searchQuery.value) {
+    const lowerQuery = searchQuery.value.toLowerCase();
+    filtered = filtered.filter(community =>
+      community.name?.toLowerCase().includes(lowerQuery) ||
+      community.city?.toLowerCase().includes(lowerQuery) ||
+      community.address?.toLowerCase().includes(lowerQuery)
+    );
+  }
+
+  // Apply status filter 
+  if (activeFilter.value === 'active') {
+    filtered = filtered.filter(community => community.isActive);
+  } else if (activeFilter.value === 'inactive') {
+    filtered = filtered.filter(community => !community.isActive);
+  }
+
+  totalItems.value = filtered.length;
+  return filtered;
+});
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(totalItems.value / itemsPerPage.value));
+});
+
+const paginatedCommunities = computed(() => {
+  if (!filteredCommunities.value.length) {
+    return [];
+  }
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredCommunities.value.slice(start, end);
+});
+
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+  
+  // Always show first page
+  pages.push(1);
+  
+  // Show pages around current
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.push(i);
+  }
+  
+  // Always show last page if more than 1 page
+  if (total > 1) {
+    pages.push(total);
+  }
+  
+  // Remove duplicates and sort
+  return [...new Set(pages)].sort((a, b) => a - b);
+});
+
+// Methods
+const loadCommunities = async () => {
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const result = await communityService.getAllCommunities();
+    communities.value = result || [];
+    totalItems.value = communities.value.length;
+  } catch (err) {
+    handleError(err, 'Failed to load communities.');
+    error.value = 'Failed to load communities. Please try again.';
+    communities.value = [];
+    totalItems.value = 0;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const debouncedFetch = debounce(loadCommunities, 300);
+
+const handleSearch = () => {
+  currentPage.value = 1;
+  debouncedFetch();
+};
+
+const handleFilter = () => {
+  currentPage.value = 1;
+};
+
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage;
+};
+
+const addNewAdType = () => {
+  newAdTypes.value.push({
+    name: '',
+    width: '',
+    height: '',
+    cost: '',
+    termMonths: '',
+    startDate: '',
+    endDate: '',
+    deadlineDate: ''
+  });
+
+  // If this is the first ad type, automatically select it
+  if (newAdTypes.value.length === 1) {
+    selectedAdTypeIndex.value = 0;
+  }
+};
+
+const removeAdType = (index) => {
+  newAdTypes.value.splice(index, 1);
+
+  // If we removed the selected ad type, reset the selection
+  if (selectedAdTypeIndex.value === index) {
+    selectedAdTypeIndex.value = newAdTypes.value.length > 0 ? 0 : null;
+  } else if (selectedAdTypeIndex.value > index) {
+    // If we removed an ad type before the selected one, adjust the index
+    selectedAdTypeIndex.value--;
+  }
+
+  // If we removed all ad types, disable isActive
+  if (newAdTypes.value.length === 0 || selectedAdTypeIndex.value === null) {
+    newCommunity.isActive = false;
+  }
+};
+
+const toggleNewCommunityActiveStatus = () => {
+  // Only allow toggling if there's at least one ad type and one is selected
+  if (newAdTypes.value.length > 0 && selectedAdTypeIndex.value !== null) {
+    newCommunity.isActive = !newCommunity.isActive;
+  }
+};
+
+const openCreateModal = () => {
+  // Reset form fields
+  Object.keys(newCommunity).forEach(key => {
+    if (key === 'isActive') {
+      newCommunity[key] = false;
+    } else if (key === 'spaces') {
+      newCommunity[key] = null;
+    } else {
+      newCommunity[key] = '';
+    }
+  });
+
+  // Reset ad types
+  newAdTypes.value = [];
+  selectedAdTypeIndex.value = null;
+
+  showCreateModal.value = true;
+};
+
+const createCommunity = async () => {
+  createLoading.value = true;
+
+  try {
+    // Validate that we have at least one ad type if isActive is true
+    if (newCommunity.isActive && newAdTypes.value.length === 0) {
+      throw new Error('A community must have at least one ad type to be active');
+    }
+
+    // If trying to set as active, ensure there's a selected ad type
+    if (newCommunity.isActive && selectedAdTypeIndex.value === null && newAdTypes.value.length > 0) {
+      throw new Error('Please select an ad type to set the community as active');
+    }
+
+    // Create the community first
+    const created = await communityService.createCommunity(newCommunity);
+
+    // If we have ad types, create them
+    if (newAdTypes.value.length > 0) {
+      const adTypePromises = newAdTypes.value.map(adType => {
+        return communityService.createAdType(created.id, adType);
+      });
+
+      const createdAdTypes = await Promise.all(adTypePromises);
+
+      // If we have a selected ad type, set it
+      if (selectedAdTypeIndex.value !== null && createdAdTypes[selectedAdTypeIndex.value]) {
+        const selectedAdType = createdAdTypes[selectedAdTypeIndex.value];
+        await communityService.selectAdType(created.id, selectedAdType.id);
+      }
+    }
+
+    successToast('Community created successfully');
+    showCreateModal.value = false;
+    loadCommunities();
+  } catch (err) {
+    handleError(err, 'Failed to create community.');
+  } finally {
+    createLoading.value = false;
+  }
+};
+
+const viewCommunity = (id) => {
+  router.push({ name: 'community-detail', params: { id } });
+};
+
+const toggleActiveStatus = async (community) => {
+  try {
+    const newStatus = !community.isActive;
+
+    // If trying to activate, check if the community has ad types
+    if (newStatus) {
+      // Fetch the community details to check for ad types
+      const communityDetails = await communityService.getCommunityById(community.id);
+
+      // Check if the community has ad types
+      if (!communityDetails.adTypes || communityDetails.adTypes.length === 0) {
+        handleError(new Error('Cannot activate a community without ad types'), 'Cannot activate a community without ad types. Please add at least one ad type first.');
+        return;
+      }
+
+      // Check if the community has a selected ad type
+      if (!communityDetails.selectedAdTypeId) {
+        handleError(new Error('Cannot activate a community without a selected ad type'), 'Cannot activate a community without a selected ad type. Please select an ad type first.');
+        return;
+      }
+    }
+
+    const updated = await communityService.setActiveStatus(community.id, newStatus);
+
+    // Update the community in the list
+    const index = communities.value.findIndex(c => c.id === community.id);
+    if (index !== -1) {
+      communities.value[index] = updated;
+    }
+
+    successToast(`Community ${newStatus ? 'activated' : 'deactivated'} successfully`);
+  } catch (err) {
+    handleError(err, 'Failed to update community status.');
+  }
+};
+
+const formatPhone = (phone) => {
+  if (!phone) return '';
+
+  // Basic US phone number formatting
+  const cleaned = ('' + phone).replace(/\D/g, '');
+  const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+
+  if (match) {
+    return '(' + match[1] + ') ' + match[2] + '-' + match[3];
+  }
+
+  return phone;
+};
+
+// Lifecycle hooks
+onMounted(() => {
+  loadCommunities();
+});
+</script>
+
+<style scoped>
+/* Table hover effects */
+tr {
+  transition: background-color 0.15s ease;
+}
+
+/* Remove old styles that aren't needed anymore */
+</style>d mb-4">
           <BaseTooltip
             content="Ad type required"
             position="top"
