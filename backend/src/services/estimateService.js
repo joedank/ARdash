@@ -563,7 +563,6 @@ class EstimateService {
               'additional_work',
               'assessment_id',
               'converted_to_job_id',
-              'pre_assessment_id',
               'created_at',
               'updated_at'
             ]
