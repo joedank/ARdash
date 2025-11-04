@@ -256,11 +256,22 @@ const formError = ref('');
 const updateClient = (client) => {
   // The client object passed from ClientSelector now includes selectedAddressId
   // and should already be normalized to camelCase
-  if (client && client.clientId) { // Check for client.clientId (camelCase)
-    estimate.value.clientId = client.clientId; // Use clientId from the normalized client object
-    estimate.value.addressId = client.selectedAddressId || null;
-    errors.value.client = ''; // Clear client error if selected
+  if (client) { // Just check if client exists
+    // Try to get the client ID from various possible properties
+    const clientId = client.clientId || client.id || client.client_id;
+    
+    if (clientId) {
+      estimate.value.client = client; // Update the client object itself for display
+      estimate.value.clientId = clientId; // Use the extracted client ID
+      estimate.value.addressId = client.selectedAddressId || null;
+      errors.value.client = ''; // Clear client error if selected
+    } else {
+      estimate.value.client = null;
+      estimate.value.clientId = '';
+      estimate.value.addressId = null;
+    }
   } else {
+    estimate.value.client = null; // Clear the client object
     estimate.value.clientId = '';
     estimate.value.addressId = null;
   }
@@ -506,12 +517,6 @@ const saveEstimateToServer = async (status) => {
     isSubmitting.value = true;
     formError.value = '';
 
-    // Debug client information before submission
-    console.log('Before preparing estimate data:');
-    console.log('estimate.value.client:', estimate.value.client);
-    console.log('estimate.value.clientId:', estimate.value.clientId);
-    console.log('estimate.value.addressId:', estimate.value.addressId);
-
     // Prepare estimate data for API using standardized approach
     const estimateData = {
       clientId: estimate.value.clientId,
@@ -535,11 +540,9 @@ const saveEstimateToServer = async (status) => {
     let response;
     if (isEditing.value) {
       // Update existing estimate
-      console.log("Updating estimate:", estimateId.value, "with data:", estimateData);
       response = await standardizedEstimatesService.update(estimateId.value, estimateData);
     } else {
       // Create new estimate
-      console.log("Creating estimate with data:", estimateData);
       response = await standardizedEstimatesService.create(estimateData);
     }
 

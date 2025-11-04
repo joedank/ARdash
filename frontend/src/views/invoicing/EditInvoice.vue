@@ -150,6 +150,75 @@
           </div>
         </div>
       </div>
+
+      <!-- Payments Section -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="mb-4">
+          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Payments</h2>
+          
+          <!-- Payment History -->
+          <div v-if="invoice.payments && invoice.payments.length > 0" class="mb-4">
+            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Payment History</h3>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Method</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Notes</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr v-for="payment in invoice.payments" :key="payment.id">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {{ formatDate(payment.paymentDate) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {{ formatPaymentMethod(payment.paymentMethod) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      ${{ formatNumber(payment.amount) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {{ payment.notes || '-' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        type="button"
+                        @click.stop="editPayment(payment)"
+                        class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        @click.stop="deletePayment(payment.id)"
+                        class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Add Payment Button -->
+          <button
+            type="button"
+            @click.stop="showAddPaymentModal = true"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Payment
+          </button>
+        </div>
+      </div>
       
       <!-- Error Alert -->
       <div v-if="formError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-md p-4">
@@ -189,6 +258,112 @@
       </div>
     </form>
   </div>
+
+  <!-- Payment Modal -->
+  <teleport to="body">
+    <div v-if="showAddPaymentModal || showEditPaymentModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 transition-opacity"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+          <div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">
+              {{ showEditPaymentModal ? 'Edit Payment' : 'Add Payment' }}
+            </h3>
+            
+            <form @submit.prevent="submitPayment" class="space-y-4">
+              <!-- Payment Amount -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Amount</label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span class="text-gray-500 dark:text-gray-400">$</span>
+                  </div>
+                  <input
+                    type="number"
+                    v-model="paymentData.amount"
+                    min="0.01"
+                    step="0.01"
+                    class="pl-7 block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
+                    placeholder="Enter payment amount"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <!-- Payment Date -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Date</label>
+                <input
+                  type="date"
+                  v-model="paymentData.date"
+                  class="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
+                  required
+                />
+              </div>
+              
+              <!-- Payment Method -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
+                <select
+                  v-model="paymentData.method"
+                  class="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
+                  required
+                >
+                  <option value="">Select payment method</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="check">Check</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              
+              <!-- Notes -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes (Optional)</label>
+                <textarea
+                  v-model="paymentData.notes"
+                  rows="3"
+                  class="block w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
+                  placeholder="Add any notes about this payment..."
+                ></textarea>
+              </div>
+              
+              <!-- Error Message -->
+              <div v-if="paymentError" class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-md p-3">
+                <p class="text-sm text-red-700 dark:text-red-400">{{ paymentError }}</p>
+              </div>
+              
+              <!-- Buttons -->
+              <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button
+                  type="submit"
+                  :disabled="isSubmittingPayment"
+                  class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 sm:text-sm"
+                >
+                  <span v-if="isSubmittingPayment" class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Processing...
+                  </span>
+                  <span v-else>{{ showEditPaymentModal ? 'Update Payment' : 'Add Payment' }}</span>
+                </button>
+                <button
+                  type="button"
+                  @click="closePaymentModal"
+                  class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </teleport>
 </template>
 
 <script setup>
@@ -213,6 +388,7 @@ const invoice = ref({
   dateCreated: '',
   dateDue: '',
   items: [],
+  payments: [],
   subtotal: 0,
   taxTotal: 0,
   discountAmount: 0,
@@ -235,6 +411,19 @@ const errors = ref({
 const isSubmitting = ref(false);
 const isLoading = ref(true);
 const formError = ref('');
+
+// Payment-related state
+const showAddPaymentModal = ref(false);
+const showEditPaymentModal = ref(false);
+const paymentData = ref({
+  amount: '',
+  date: new Date().toISOString().split('T')[0],
+  method: '',
+  notes: ''
+});
+const editingPaymentId = ref('');
+const isSubmittingPayment = ref(false);
+const paymentError = ref('');
 
 // Update client ID and address ID when client is selected
 const updateClient = (client) => {
@@ -424,6 +613,137 @@ const updateInvoice = async () => {
   } finally {
     isSubmitting.value = false;
   }
+};
+
+// Payment-related methods
+const editPayment = (payment) => {
+  console.log('Editing payment:', payment);
+  editingPaymentId.value = payment.id;
+  
+  // Format the payment date for the date input (YYYY-MM-DD format)
+  let formattedDate = '';
+  if (payment.paymentDate) {
+    const date = new Date(payment.paymentDate);
+    formattedDate = date.toISOString().split('T')[0];
+  }
+  
+  paymentData.value = {
+    amount: payment.amount,
+    date: formattedDate,
+    method: payment.paymentMethod,
+    notes: payment.notes || ''
+  };
+  
+  console.log('Set paymentData to:', paymentData.value);
+  showEditPaymentModal.value = true;
+};
+
+const deletePayment = async (paymentId) => {
+  if (!confirm('Are you sure you want to delete this payment?')) {
+    return;
+  }
+
+  try {
+    const response = await invoicesService.deletePayment(invoiceId.value, paymentId);
+    
+    if (response && response.success && response.data) {
+      // Update local invoice data
+      invoice.value = response.data;
+    } else {
+      paymentError.value = response?.message || 'Failed to delete payment. Please try again.';
+    }
+  } catch (err) {
+    console.error('Error deleting payment:', err);
+    paymentError.value = err.message || 'An unexpected error occurred. Please try again.';
+  }
+};
+
+const submitPayment = async () => {
+  try {
+    isSubmittingPayment.value = true;
+    paymentError.value = '';
+    
+    // Validate payment amount
+    const amount = parseFloat(paymentData.value.amount);
+    if (isNaN(amount) || amount <= 0) {
+      paymentError.value = 'Please enter a valid payment amount.';
+      return;
+    }
+    
+    // Prepare payment payload
+    const paymentPayload = {
+      amount: paymentData.value.amount,
+      paymentDate: paymentData.value.date,
+      paymentMethod: paymentData.value.method,
+      notes: paymentData.value.notes
+    };
+    
+    // Debug logging
+    console.log('Payment form data:', paymentData.value);
+    console.log('Payment payload being sent:', paymentPayload);
+    
+    let response;
+    if (showEditPaymentModal.value) {
+      // Update existing payment
+      response = await invoicesService.updatePayment(invoiceId.value, editingPaymentId.value, paymentPayload);
+    } else {
+      // Add new payment
+      response = await invoicesService.addPayment(invoiceId.value, paymentPayload);
+    }
+    
+    console.log('Payment API response:', response);
+    
+    if (response && response.success && response.data) {
+      // Update local invoice data
+      invoice.value = response.data;
+      
+      // Close modal and reset form
+      closePaymentModal();
+    } else {
+      paymentError.value = response?.message || 'Failed to save payment. Please try again.';
+    }
+  } catch (err) {
+    console.error('Error saving payment:', err);
+    paymentError.value = err.message || 'An unexpected error occurred. Please try again.';
+  } finally {
+    isSubmittingPayment.value = false;
+  }
+};
+
+const closePaymentModal = () => {
+  showAddPaymentModal.value = false;
+  showEditPaymentModal.value = false;
+  editingPaymentId.value = '';
+  paymentData.value = {
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    method: '',
+    notes: ''
+  };
+  paymentError.value = '';
+};
+
+// Helper methods for payment display
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString();
+};
+
+const formatPaymentMethod = (method) => {
+  if (!method) return '-';
+  const methodMap = {
+    'cash': 'Cash',
+    'check': 'Check',
+    'credit_card': 'Credit Card',
+    'bank_transfer': 'Bank Transfer',
+    'other': 'Other'
+  };
+  return methodMap[method] || method;
+};
+
+const formatNumber = (number) => {
+  if (!number) return '0.00';
+  return parseFloat(number).toFixed(2);
 };
 
 // Watch for client changes and update clientId and addressId

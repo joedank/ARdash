@@ -94,6 +94,27 @@ class InvoicesService {
   }
 
   /**
+   * Update payment
+   * @param {string} invoiceId - Invoice ID
+   * @param {string} paymentId - Payment ID
+   * @param {Object} paymentData - Payment data
+   * @returns {Promise} Response data with updated invoice
+   */
+  async updatePayment(invoiceId, paymentId, paymentData) {
+    return apiService.put(`/invoices/${invoiceId}/payments/${paymentId}`, paymentData);
+  }
+
+  /**
+   * Delete payment
+   * @param {string} invoiceId - Invoice ID
+   * @param {string} paymentId - Payment ID
+   * @returns {Promise} Response data with updated invoice
+   */
+  async deletePayment(invoiceId, paymentId) {
+    return apiService.delete(`/invoices/${invoiceId}/payments/${paymentId}`);
+  }
+
+  /**
    * Get invoice PDF
    * @param {string} invoiceId - Invoice ID
    * @returns {Promise<Blob>} PDF file as blob

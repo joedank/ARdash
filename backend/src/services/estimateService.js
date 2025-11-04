@@ -844,7 +844,7 @@ class EstimateService {
           taxRate: item.taxRate
         })),
         notes: estimate.notes,
-        terms: estimate.terms, // Consider using default invoice terms instead?
+        // terms: estimate.terms, // Don't copy estimate terms - let createInvoice set proper invoice terms
         discountAmount: estimate.discountAmount,
         status: 'draft', // Start invoice as draft
         generatePdf: true // Generate PDF upon creation

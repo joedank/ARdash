@@ -1,34 +1,34 @@
-# Use Node.js with ARM64 support for Apple Silicon
-FROM node:20-alpine
+# Debian-based image for smoother native modules and headless browsers
+FROM node:20-bullseye-slim
 
-# Install dependencies for Puppeteer, healthcheck, wait-for-it script, and build tools
-RUN apk --no-cache add \
+# Install system dependencies (Puppeteer/Chromium, build tools, fonts, healthcheck utils)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
     curl \
     netcat-openbsd \
     python3 \
-    make \
-    g++ \
+    build-essential \
     chromium \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
+    libnss3 \
+    libfreetype6 \
+    libharfbuzz0b \
     ca-certificates \
-    ttf-freefont \
+    fonts-freefont-ttf \
     fontconfig \
-    dbus
+    dbus \
+  && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for Puppeteer
+# Set environment for Puppeteer to use system Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies and add bcryptjs as an alternative to bcrypt
-RUN npm install && npm install bcryptjs
+# Install dependencies (lockfile currently out-of-sync with peers)
+RUN npm install
 
 # Copy project files
 COPY . .

@@ -28,6 +28,15 @@ This document captures the current work focus, recent changes, active decisions,
 
 ## Current Focus
 
+### BetterReplacementsManager MacOS Application Improvements
+
+- ✅ Fixed UI Redundancy: Removed duplicate shortcut display from navigation title in DetailView
+- ✅ Enhanced Toolbar Design: Converted stethoscope icon to settings gear icon and aligned to right using .primaryAction placement
+- Simplified interface by eliminating redundant selected shortcut display next to toolbar buttons
+- Improved toolbar organization with settings button properly separated from main action buttons
+
+### Previous Construction Management Focus
+
 - ✅ Fixed Client Address Deletion Error from Pre-Assessments Table Dependencies  
 - ✅ Removed Deprecated Pre-Assessments Feature from Codebase and Database
 - ✅ Fixed Client Address Deletion Casing Mismatch at API Boundary

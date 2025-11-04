@@ -1,19 +1,18 @@
-# Use Node.js with ARM64 support for Apple Silicon
-# Multi-stage build to properly handle Vite in development
+# Use Debian-based Node image for smoother native binary support in dev
+FROM node:20-bullseye-slim AS builder
 
-# Stage 1: Build stage with all dependencies
-FROM node:20-alpine AS builder
-
-# Install netcat for wait-for-it script
-RUN apk --no-cache add netcat-openbsd
+# Install netcat for wait-for-it and common tools
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends netcat-openbsd \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install ALL dependencies including dev dependencies
-RUN npm ci
+# Install ALL dependencies including dev dependencies deterministically
+RUN npm ci --include=optional
 
 # Copy project files
 COPY . .

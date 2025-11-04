@@ -23,8 +23,8 @@ show_usage() {
   echo "  frontend    Vue.js frontend"
   echo ""
   echo "Examples:"
-  echo "  $0 up              # Start all services"
-  echo "  $0 logs backend    # View backend logs"
+  echo "  $0 up               # Start all services"
+  echo "  $0 logs backend     # View backend logs"
   echo "  $0 restart frontend # Restart frontend"
 }
 
@@ -32,48 +32,58 @@ show_usage() {
 SERVICE="${2}"
 COMMAND="$1"
 
+# Prefer modern 'docker compose' if available; fallback to legacy 'docker-compose'
+if docker compose version >/dev/null 2>&1; then
+  DC="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  DC="docker-compose"
+else
+  echo -e "${RED}Docker Compose not found. Install Docker Desktop or docker-compose.${NC}"
+  exit 1
+fi
+
 case "$COMMAND" in
   up)
     if [ -z "$SERVICE" ]; then
       echo -e "${BLUE}Starting all services...${NC}"
-      docker-compose up -d
+      ${DC} up -d
     else
       echo -e "${BLUE}Starting ${SERVICE}...${NC}"
-      docker-compose up -d ${SERVICE}
+      ${DC} up -d ${SERVICE}
     fi
     ;;
     
   down)
     echo -e "${BLUE}Stopping all services...${NC}"
-    docker-compose down
+    ${DC} down
     ;;
     
   restart)
     if [ -z "$SERVICE" ]; then
       echo -e "${BLUE}Restarting all services...${NC}"
       # Stop and then start in detached mode
-      docker-compose stop
-      docker-compose up -d
+      ${DC} stop
+      ${DC} up -d
     else
       echo -e "${BLUE}Restarting ${SERVICE}...${NC}"
       # Stop specific service and then start in detached mode
-      docker-compose stop ${SERVICE}
-      docker-compose up -d ${SERVICE}
+      ${DC} stop ${SERVICE}
+      ${DC} up -d ${SERVICE}
     fi
     ;;
     
   status)
     echo -e "${BLUE}=== Service Status ===${NC}"
-    docker-compose ps
+    ${DC} ps
     ;;
     
   logs)
     if [ -z "$SERVICE" ]; then
       echo -e "${BLUE}Showing logs for all services...${NC}"
-      docker-compose logs -f
+      ${DC} logs -f
     else
       echo -e "${BLUE}Showing logs for ${SERVICE}...${NC}"
-      docker-compose logs -f ${SERVICE}
+      ${DC} logs -f ${SERVICE}
     fi
     ;;
     

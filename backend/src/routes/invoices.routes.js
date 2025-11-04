@@ -34,6 +34,12 @@ router.post('/:id/mark-viewed', validateUuid('id'), invoicesController.markInvoi
 // POST /api/invoices/:id/payments - Add payment to invoice
 router.post('/:id/payments', validateUuid('id'), invoicesController.addPayment);
 
+// PUT /api/invoices/:id/payments/:paymentId - Update payment
+router.put('/:id/payments/:paymentId', validateUuid('id'), validateUuid('paymentId'), invoicesController.updatePayment);
+
+// DELETE /api/invoices/:id/payments/:paymentId - Delete payment
+router.delete('/:id/payments/:paymentId', validateUuid('id'), validateUuid('paymentId'), invoicesController.deletePayment);
+
 // GET /api/invoices/:id/pdf - Generate invoice PDF
 router.get('/:id/pdf', validateUuid('id'), invoicesController.getInvoicePdf); // Updated to use the new retrieval method
 

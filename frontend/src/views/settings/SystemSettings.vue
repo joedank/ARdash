@@ -70,6 +70,42 @@
             </div>
           </div>
         </div>
+
+        <div>
+          <h4 class="font-medium text-gray-800 dark:text-white mb-3">Development Settings</h4>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">These affect local development only. Changes require restarting the frontend dev server.</p>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-gray-700 dark:text-gray-300">Enable Hot Module Reload (HMR)</span>
+                <p class="text-sm text-gray-500 dark:text-gray-400">When disabled, the app uses full page reloads and avoids WebSocket issues.</p>
+              </div>
+              <BaseToggleSwitch v-model="devForm.enableHmr" />
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <BaseFormGroup label="HMR Host" input-id="hmrHost" helper-text="Usually 'localhost'">
+                <BaseInput id="hmrHost" v-model="devForm.hmrHost" placeholder="localhost" />
+              </BaseFormGroup>
+              <BaseFormGroup label="HMR Port" input-id="hmrPort" helper-text="Default 5173">
+                <BaseInput id="hmrPort" v-model.number="devForm.hmrPort" type="number" placeholder="5173" />
+              </BaseFormGroup>
+            </div>
+
+            <BaseFormGroup label="Origin (optional)" input-id="devOrigin" helper-text="e.g., http://localhost:5173">
+              <BaseInput id="devOrigin" v-model="devForm.devOrigin" placeholder="http://localhost:5173" />
+            </BaseFormGroup>
+
+            <div class="flex gap-3">
+              <BaseButton type="button" variant="secondary" @click="copyEnvSnippet">Copy .env snippet</BaseButton>
+              <BaseButton type="button" variant="secondary" @click="copyRestartCmd">Copy restart command</BaseButton>
+            </div>
+
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              Paste the snippet into <code>.env.development</code> (or set environment variables) and then run the restart command.
+            </p>
+          </div>
+        </div>
       </div>
       
       <div class="flex justify-end">
@@ -86,7 +122,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted, watch } from 'vue';
 import BaseCard from '../../components/data-display/BaseCard.vue';
 import BaseInput from '../../components/form/BaseInput.vue';
 import BaseButton from '../../components/base/BaseButton.vue';
@@ -103,6 +139,14 @@ const systemForm = reactive({
   passwordComplexity: 'medium',
   requireTwoFactor: false,
   autoLogout: true
+});
+
+// Dev settings (local development only)
+const devForm = reactive({
+  enableHmr: true,
+  hmrHost: 'localhost',
+  hmrPort: 5173,
+  devOrigin: 'http://localhost:5173'
 });
 
 // Language options
@@ -139,4 +183,32 @@ async function saveSystemSettings() {
     systemLoading.value = false;
   }
 }
+
+// Helpers: copy env snippet and restart command to clipboard
+function copyEnvSnippet() {
+  const lines = [];
+  lines.push(`VITE_HMR_ENABLED=${devForm.enableHmr ? 'true' : 'false'}`);
+  if (devForm.hmrHost) lines.push(`VITE_HMR_HOST=${devForm.hmrHost}`);
+  if (devForm.hmrPort) lines.push(`VITE_HMR_PORT=${devForm.hmrPort}`);
+  if (devForm.devOrigin) lines.push(`VITE_DEV_ORIGIN=${devForm.devOrigin}`);
+  const text = lines.join('\n') + '\n';
+  navigator.clipboard.writeText(text);
+}
+
+function copyRestartCmd() {
+  const cmd = 'docker compose restart frontend';
+  navigator.clipboard.writeText(cmd);
+}
+
+// Persist dev settings locally for convenience (does not auto-apply to Vite)
+onMounted(() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('devSettings') || '{}');
+    Object.assign(devForm, saved);
+  } catch {}
+});
+
+watch(devForm, (val) => {
+  localStorage.setItem('devSettings', JSON.stringify(val));
+}, { deep: true });
 </script>

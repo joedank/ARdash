@@ -172,6 +172,11 @@ services:
       - /Volumes/4TB/Users/josephmcmyne/myProjects/management/wait-for-it.sh:/app/wait-for-it.sh
     environment:
       - VITE_API_URL=http://localhost:3000
+      - VITE_HMR_ENABLED=true
+      - VITE_HMR_HOST=localhost
+      - VITE_HMR_PORT=5173
+      - VITE_HMR_CLIENT_PORT=5173
+      - VITE_DEV_ORIGIN=http://localhost:5173
     depends_on:
       backend:
         condition: service_healthy

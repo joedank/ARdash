@@ -1,6 +1,40 @@
-# Technical Context: Construction Management Web Application
+# Technical Context: Construction Management Web Application & BetterReplacementsManager
 
-## Technologies Used
+## BetterReplacementsManager Technologies
+
+### Primary Frameworks
+- **SwiftUI**: Core UI framework for the macOS application using modern declarative syntax
+- **AppKit**: For macOS-specific functionality not available in SwiftUI
+- **Combine**: For reactive programming and data flow
+- **Foundation**: Core Apple frameworks for system integration
+
+### UI Architecture
+- **NavigationSplitView**: Master-detail layout for sidebar and content areas
+- **ObservableObject**: State management pattern for reactive UI updates
+- **@Published**: Properties for automatic UI refresh
+- **Toolbar**: Custom toolbar with proper placement attributes (.navigation, .primaryAction)
+
+### Core Components
+- **ToolbarButtons**: Custom view containing all toolbar actions
+- **DetailView**: Content area for editing text replacements
+- **DraggableTextReplacementListView**: Sidebar with multi-selection support
+- **ImportManager**: Central state management for text replacements
+- **AutomationManager**: Handles system integration operations
+
+### Espanso Integration
+- **EspansoService**: Direct YAML file manipulation for Espanso configuration
+- **Process Management**: Automatic Espanso restart after configuration changes
+- **File Operations**: Direct access to Espanso's configuration directory
+
+### UI Design Patterns
+- **Clean Navigation**: Removed redundant navigation titles for cleaner interface
+- **Toolbar Organization**: Settings button properly aligned to right using .primaryAction
+- **Native macOS Feel**: Following macOS Human Interface Guidelines
+- **Minimal Interface**: Focus on functionality without redundant information
+
+---
+
+## Construction Management Web Application Technologies
 ### Database Extensions
 - **work_type_materials**: Bidirectional mapping between work types and material products
   - Maps work types to their required materials with quantity calculations

@@ -1,5 +1,5 @@
 <template>
-  <div class="estimates-list"> <!-- Root element starts -->
+  <div class="estimates-list">
     <div class="mb-6 flex justify-between items-center">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Estimates</h1>
@@ -8,18 +8,15 @@
         </p>
       </div>
       <div class="flex gap-3">
-        <ActionMenu
-          buttonText="Create Estimate"
-          :icon="true"
-          :actions="createEstimateActions"
-          @action="handleAction"
+        <router-link
+          to="/invoicing/create-estimate"
+          class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          <template #icon>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-          </template>
-        </ActionMenu>
+          <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Create Estimate
+        </router-link>
 
         <router-link
           to="/invoicing/invoices"
@@ -59,7 +56,7 @@
           >
             <option value="">All Clients</option>
             <option v-for="client in clients" :key="client.id" :value="client.id">
-              {{ client.displayName }} <!-- Use camelCase -->
+              {{ client.displayName }}
             </option>
           </select>
         </div>
@@ -100,7 +97,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         <p class="mt-2 text-gray-500 dark:text-gray-400">No estimates found. Create your first estimate to get started.</p>
-        <div class="mt-4 flex justify-center space-x-4">
+        <div class="mt-4 flex justify-center">
           <router-link
             to="/invoicing/create-estimate"
             class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -109,14 +106,6 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
             Create Estimate
-          </router-link>          <router-link
-            to="/invoicing/assessment-to-estimate"
-            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            Create From Assessment
           </router-link>
         </div>
       </div>
@@ -141,8 +130,8 @@
                   {{ estimate.estimateNumber }}
                 </div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">{{ estimate.client?.displayName || 'N/A' }}</td> <!-- Use camelCase -->
-              <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(estimate.dateCreated) }}</td> <!-- Use dateCreated instead of createdAt -->
+              <td class="px-6 py-4 whitespace-nowrap">{{ estimate.client?.displayName || 'N/A' }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">{{ formatDate(estimate.dateCreated) }}</td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="getStatusClass(estimate.status)" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                   {{ estimate.status }}
@@ -155,7 +144,8 @@
                   :to="`/invoicing/estimate/${estimate.id}`"
                   class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                 >View</router-link>
-                <span v-else class="text-gray-400">View</span>                <router-link
+                <span v-else class="text-gray-400">View</span>
+                <router-link
                   v-if="estimate && estimate.id && estimate.status === 'draft'"
                   :to="`/invoicing/edit-estimate/${estimate.id}`"
                   class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
@@ -176,164 +166,31 @@
           @update:current-page="handlePageChange"
         />
       </div>
-    </div> <!-- End of Estimate List div -->
-
-    <!-- Generator Modal -->
-    <Transition name="modal-fade">
-      <div v-if="showGeneratorModal" class="fixed inset-0 z-40 overflow-y-auto">
-        <!-- Background overlay with transition -->
-        <Transition name="overlay-fade">
-          <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
-        </Transition>
-
-        <!-- Modal content with transition -->
-        <Transition name="modal-slide">
-          <div class="flex min-h-screen items-center justify-center p-4">
-            <div class="relative w-full max-w-4xl">
-              <!-- Close Button -->
-              <button
-                @click="showGeneratorModal = false"
-                class="absolute right-2 top-2 rounded-full bg-white p-1 text-gray-400 hover:text-gray-500 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300"
-              >
-                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-
-              <!-- Unified LLM Estimate Generator -->
-              <EstimateGeneratorContainer
-                @close="showGeneratorModal = false"
-                :assessmentData="selectedAssessmentData"
-                @clearAssessment="selectedAssessmentData = null"
-              />
-            </div>
-          </div>
-        </Transition>
-      </div>
-    </Transition>
-
-    <!-- Assessment Selection Modal for External LLM -->
-    <div v-if="showAssessmentSelectionModal" class="fixed inset-0 z-40 overflow-y-auto">
-      <!-- Modal Background Overlay -->
-      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
-
-      <!-- Modal Content Container -->
-      <div class="flex min-h-screen items-center justify-center p-4">
-        <div class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
-          <!-- Header -->
-          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Select Assessment</h3>
-            <button
-              @click="showAssessmentSelectionModal = false"
-              class="rounded-full p-1 text-gray-400 hover:text-gray-500 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none"
-            >
-              <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="px-6 py-4">
-            <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              Select an assessment to include context in your AI estimate generator. This will help generate more accurate estimates.
-            </p>
-            <div v-if="loadingAssessmentProjects" class="text-center py-4">
-              <svg class="animate-spin h-6 w-6 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading assessment projects...</p>
-            </div>
-
-            <div v-else>
-              <div class="mb-4">
-                <label for="assessment-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Assessment Project
-                </label>
-                <select
-                  id="assessment-select"
-                  v-model="selectedAssessmentId"
-                  class="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="">Continue without assessment data</option>
-                  <option v-for="project in assessmentProjects" :key="project.id" :value="project.id">
-                    {{ project.client?.displayName || 'Unknown Client' }} - {{ formatDate(project.scheduledDate) }} <!-- Use camelCase -->
-                  </option>
-                </select>
-
-                <div v-if="assessmentProjects.length === 0" class="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
-                  No assessment projects found. You can proceed without assessment data.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-right space-x-2">
-            <button
-              @click="showAssessmentSelectionModal = false"
-              class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancel
-            </button>
-            <button
-              @click="proceedToAIGenerator"
-              :disabled="loadingAssessmentData"
-              class="px-3 py-1.5 bg-blue-600 border border-transparent rounded text-sm text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >            <span v-if="loadingAssessmentData">
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Loading...
-              </span>
-              <span v-else>Continue</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div> <!-- End of Assessment Selection Modal -->
-
-  </div> <!-- Root element ends -->
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 // Standardized Services
 import estimateService from '@/services/standardized-estimates.service.js'
-// Assuming standardized services exist for clients and projects
 import clientService from '@/services/clients.service.js'
-import projectsService from '@/services/standardized-projects.service.js'
 import { formatDate, formatCurrency } from '@/utils/formatters'
-import useErrorHandler from '@/composables/useErrorHandler.js' // Import error handler
-import EstimateGeneratorContainer from '../../components/estimates/generator/EstimateGeneratorContainer.vue'
-import ActionMenu from '@/components/common/ActionMenu.vue'
+import useErrorHandler from '@/composables/useErrorHandler.js'
 import BasePagination from '@/components/navigation/BasePagination.vue'
 
 const router = useRouter()
-const { handleError } = useErrorHandler() // Instantiate error handler
+const { handleError } = useErrorHandler()
 const isLoading = ref(true)
 const estimates = ref([])
 const clients = ref([])
-// LLM generator state
-const showGeneratorModal = ref(false)
 
 // Pagination state
-const currentPage = ref(1) // for BasePagination
+const currentPage = ref(1)
 const pageSize = ref(10)
 const totalItems = ref(0)
 const totalPages = ref(0)
-
-// Assessment selection for external LLM
-const showAssessmentSelectionModal = ref(false)
-const assessmentProjects = ref([])
-const loadingAssessmentProjects = ref(false)
-const selectedAssessmentId = ref('')
-const selectedAssessmentData = ref(null)
-const loadingAssessmentData = ref(false)
 
 const filters = ref({
   status: '',
@@ -348,41 +205,9 @@ const handlePageChange = (newPage) => {
   loadEstimates();
 }
 
-// Define actions for the Create Estimate dropdown menu
-const createEstimateActions = computed(() => [
-  {
-    text: 'New Blank Estimate',
-    to: '/invoicing/create-estimate',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>'
-  },
-  {
-    text: 'From Assessment',
-    to: '/invoicing/assessment-to-estimate',
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>'
-  },
-  { divider: true },
-  {
-    text: 'Use AI Estimate Generator',
-    action: () => {
-      // First show assessment selection modal
-      loadAssessmentProjects();
-      showAssessmentSelectionModal.value = true;
-    },
-    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>'
-  },
-]);
-
-// Handle action from the ActionMenu component
-const handleAction = (action) => {
-  if (action.action && typeof action.action === 'function') {
-    action.action();
-  }
-};
-
 const loadEstimates = async () => {
   isLoading.value = true
   try {
-    // Use currentPage directly
     const calculatedPage = currentPage.value - 1; // Convert to 0-based for API
     const response = await estimateService.listEstimates(filters.value, calculatedPage, pageSize.value)
     console.log('Raw estimates response data:', response.data)
@@ -392,8 +217,7 @@ const loadEstimates = async () => {
       // Verify we have actual estimate data by checking for estimate-specific properties
       if (Array.isArray(response.data)) {
         // Backend returned an array instead of paginated data structure
-        // IMPORTANT FIX: Only include items that are definitely estimates by checking for estimate-specific properties
-        // This prevents mixing with other entity types like clients, invoices, etc.
+        // Only include items that are definitely estimates by checking for estimate-specific properties
         const filteredEstimates = response.data.filter(item => {
           // Check for estimate-specific properties to ensure we only get estimates
           return (item.estimateNumber || item.estimate_number) &&
@@ -434,7 +258,6 @@ const loadEstimates = async () => {
     } else if (response.success && Array.isArray(response.data)) {
       // Handle case where response.data might be the array directly
       estimates.value = response.data
-      // Can't set pagination metadata in this case
       totalItems.value = estimates.value.length
       totalPages.value = 1
     } else {
@@ -443,8 +266,8 @@ const loadEstimates = async () => {
       totalItems.value = 0
       totalPages.value = 1
     }
-  } catch (err) { // Use err convention for error object
-    handleError(err, 'Failed to load estimates.') // Use handleError
+  } catch (err) {
+    handleError(err, 'Failed to load estimates.')
     estimates.value = []
     totalItems.value = 0
     totalPages.value = 1
@@ -455,7 +278,7 @@ const loadEstimates = async () => {
 
 const loadClients = async () => {
   try {
-    const response = await clientService.getAllClients() // Correct method name
+    const response = await clientService.getAllClients()
     if (response.success) {
       clients.value = response.data
     } else {
@@ -482,84 +305,8 @@ onMounted(() => {
   loadEstimates()
   loadClients()
 })
-
-// Load assessment projects for selection
-const loadAssessmentProjects = async () => {
-  loadingAssessmentProjects.value = true
-  try {
-    // Using standardized projectsService
-    const response = await projectsService.getAll({ type: 'assessment' }) // Use BaseService method
-
-    if (response.success && response.data) {
-      // Filter for assessment projects with appropriate status using camelCase
-      assessmentProjects.value = response.data
-        .filter(p => p.type === 'assessment' && ['pending', 'in_progress'].includes(p.status))
-        .sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate)) // Use camelCase
-    } else {
-      handleError(new Error(response.message || 'Failed to load assessment projects'), 'Failed to load assessment projects.')
-      assessmentProjects.value = []
-    }
-  } catch (err) {
-    handleError(err, 'Failed to load assessment projects.')
-    assessmentProjects.value = []
-  } finally {
-    loadingAssessmentProjects.value = false
-  }
-}
-
-// Fetch assessment data and proceed to AI generator
-const proceedToAIGenerator = async () => {
-  // If no assessment is selected, simply proceed
-  if (!selectedAssessmentId.value) {
-    showAssessmentSelectionModal.value = false
-    showGeneratorModal.value = true
-    return
-  }
-
-  // Otherwise, fetch the assessment data first
-  loadingAssessmentData.value = true
-  try {
-    const response = await estimateService.getAssessmentData(selectedAssessmentId.value)
-
-    if (response.success && response.data) {
-      selectedAssessmentData.value = response.data.rawAssessmentData
-    } else {
-      handleError(new Error(response.message || 'Failed to load assessment data'), 'Failed to load assessment data.')
-      selectedAssessmentData.value = null
-    }
-  } catch (err) {
-    handleError(err, 'Error fetching assessment data.')
-    selectedAssessmentData.value = null
-  } finally {
-    loadingAssessmentData.value = false
-
-    // Proceed to AI generator
-    showAssessmentSelectionModal.value = false
-    showGeneratorModal.value = true
-  }
-}
 </script>
 
 <style scoped>
-.modal-fade-enter-active,
-.modal-fade-leave-active,
-.overlay-fade-enter-active,
-.overlay-fade-leave-active,
-.modal-slide-enter-active,
-.modal-slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to,
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.modal-slide-enter-from,
-.modal-slide-leave-to {
-  transform: translateY(-20px);
-  opacity: 0;
-}
+/* No custom styles needed */
 </style>

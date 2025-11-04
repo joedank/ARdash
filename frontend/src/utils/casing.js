@@ -85,19 +85,13 @@ export const toSnakeCase = (obj) => {
 export const normalizeClient = (client) => {
   if (!client) return null;
 
-  // Debug client data
-  console.log('normalizeClient input:', client);
-
   // Handle inconsistent ID field names
   const clientId = client.client_id || client.client_fk_id || client.id;
 
   // Handle display name in both formats (camelCase and snake_case)
   const displayName = client.displayName || client.display_name || client.name;
 
-  // Debug display name
-  console.log('Using display name:', displayName);
-
-  return {
+  const normalized = {
     id: clientId,
     clientId: clientId, // Add clientId property to match what the invoice form expects
     displayName: displayName, // Use the detected display name
@@ -129,6 +123,8 @@ export const normalizeClient = (client) => {
     createdAt: client.createdAt || client.created_at,
     updatedAt: client.updatedAt || client.updated_at
   };
+  
+  return normalized;
 };
 
 /**

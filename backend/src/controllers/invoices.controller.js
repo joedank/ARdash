@@ -237,6 +237,48 @@ const addPayment = async (req, res) => {
 };
 
 /**
+ * Update payment
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const updatePayment = async (req, res) => {
+  try {
+    const { id, paymentId } = req.params;
+    const paymentData = req.body;
+
+    // Validate required fields
+    if (!paymentData.amount) {
+      return res.status(400).json(error('Payment amount is required'));
+    }
+
+    const invoice = await invoiceService.updatePayment(id, paymentId, paymentData);
+
+    return res.status(200).json(success(invoice, 'Payment updated successfully'));
+  } catch (err) {
+    logger.error(`Error updating payment ${req.params.paymentId} for invoice ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to update payment', { message: err.message }));
+  }
+};
+
+/**
+ * Delete payment
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const deletePayment = async (req, res) => {
+  try {
+    const { id, paymentId } = req.params;
+
+    const invoice = await invoiceService.deletePayment(id, paymentId);
+
+    return res.status(200).json(success(invoice, 'Payment deleted successfully'));
+  } catch (err) {
+    logger.error(`Error deleting payment ${req.params.paymentId} for invoice ${req.params.id}:`, err);
+    return res.status(500).json(error('Failed to delete payment', { message: err.message }));
+  }
+};
+
+/**
  * Get invoice PDF file
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -314,6 +356,8 @@ module.exports = {
   markInvoiceAsSent,
   markInvoiceAsViewed,
   addPayment,
+  updatePayment,
+  deletePayment,
   getInvoicePdf,
   getNextInvoiceNumber
 };

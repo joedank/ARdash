@@ -1,6 +1,36 @@
-# Product Context: Construction Management Web Application
+# Product Context: Construction Management Web Application & BetterReplacementsManager
 
-## Why This Project Exists
+## Overview
+
+This memory bank now covers multiple products:
+1. Construction Management Web Application - A comprehensive construction management platform
+2. BetterReplacementsManager - A macOS application for managing text replacements
+
+## BetterReplacementsManager
+
+### Why This Product Exists
+
+BetterReplacementsManager addresses the need for a user-friendly macOS interface for managing text replacements through Espanso. It bridges the gap between Espanso's file-based configuration and macOS users' expectations for native GUI applications, providing advanced organization and automation capabilities.
+
+### Problems It Solves
+
+- **Configuration Complexity**: Espanso uses YAML files that can be intimidating for non-technical users. BetterReplacementsManager provides a familiar macOS interface
+- **Cross-Platform Management**: Enables consistent text replacements across different operating systems while providing a native macOS experience
+- **Security**: Unlike system-level approaches requiring Full Disk Access, the Espanso-based solution improves security and user trust
+- **Advanced Features**: Leverages Espanso's powerful features like forms, scripts, and conditional replacements through an intuitive interface
+
+### User Experience Goals
+
+- **Clean Interface**: Minimalist design that eliminates redundancy and focuses on functionality
+- **Native macOS Experience**: Uses standard macOS UI patterns and conventions
+- **Efficient Workflow**: Streamlined toolbar organization with clear separation of actions
+- **Intuitive Settings**: Properly aligned settings icon with expected macOS placement
+
+---
+
+## Construction Management Web Application
+
+### Why This Project Exists
 
 This project exists to streamline the construction management process, particularly focusing on the workflow from initial property assessment to estimate generation and project management. This product solves the problem of inconsistent estimates and workflow fragmentation in construction management. It unifies estimate logic and user experience, making it possible for both new and legacy estimate generation pages to work with the same backend and frontend code. A core goal is to ensure all estimate features use shared code and data structures for maintainability and reliability. By digitizing and automating key aspects of construction management, we aim to reduce manual effort, improve accuracy, and enhance client communication.
 

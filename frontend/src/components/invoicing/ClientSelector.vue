@@ -77,7 +77,7 @@
               class="w-full rounded-md border-gray-300 dark:border-gray-700 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-700 dark:text-white"
             >
               <option v-for="address in clientAddresses" :key="address.id" :value="address.id">
-                {{ address.name }} - {{ formatAddressForDisplay(address) }}
+                {{ address.name }} - {{ formatAddressShort(address) }}
               </option>
             </select>
             
@@ -315,7 +315,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watchEffect, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import clientsService from '@/services/clients.service';
 import { normalizeClient } from '@/utils/casing';
 
@@ -358,7 +358,7 @@ const emit = defineEmits(['update:modelValue']);
 
 // State
 const clients = ref([]);
-const selectedClient = ref(props.modelValue);
+const selectedClient = computed(() => props.modelValue);
 const isModalOpen = ref(false);
 const isLoading = ref(false);
 const searchQuery = ref('');
@@ -396,13 +396,17 @@ const addNewClient = async () => {
     const response = await clientsService.createClient(newClientForm.value);
     
     if (response && response.success) {
-      // After creation, reload the clients and close the form
-      await loadClients();
+      // After creation, close the form
       isAddingClient.value = false;
       
       // Select the newly created client
       if (response.data) {
-        selectClient(response.data);
+        // Add to the clients list for immediate availability
+        const normalizedNewClient = normalizeClient(response.data);
+        clients.value.unshift(normalizedNewClient);
+        
+        // Select the client
+        selectClient(normalizedNewClient);
       }
     } else {
       console.error('Error creating client:', response);
@@ -439,38 +443,28 @@ const filteredClients = computed(() => {
   });
 });
 
-// Use a single watchEffect to handle updates and prevent double-firing
-watchEffect(() => {
-  // Handle model value changes
-  const newValue = props.modelValue;
-  if (JSON.stringify(selectedClient.value) !== JSON.stringify(newValue)) {
-    selectedClient.value = newValue;
-    
-    // Set address based on provided selectedAddressId if available
-    if (newValue?.selectedAddressId) {
-      selectedAddressId.value = newValue.selectedAddressId;
-    } else if (newValue?.addresses?.length) {
-      const primary = newValue.addresses.find(a => a.isPrimary);
-      selectedAddressId.value = primary ? primary.id : newValue.addresses[0].id;
-    } else {
-      selectedAddressId.value = null;
-    }
-  }
-  
-  // Handle updates to selectedClient and selectedAddressId
-  if (selectedClient.value) {
-    const currentModel = props.modelValue || {};
-    const updatedModel = {
-      ...selectedClient.value,
-      selectedAddressId: selectedAddressId.value
+// Watch for selectedAddressId changes to emit updates
+watch(selectedAddressId, (newAddressId) => {
+  if (props.modelValue && newAddressId !== props.modelValue.selectedAddressId) {
+    const updatedClient = {
+      ...props.modelValue,
+      selectedAddressId: newAddressId
     };
-    if (JSON.stringify(currentModel) !== JSON.stringify(updatedModel)) {
-      emit('update:modelValue', updatedModel);
-    }
-  } else if (props.modelValue !== null) {
-    emit('update:modelValue', null);
+    emit('update:modelValue', updatedClient);
   }
 });
+
+// Initialize selectedAddressId when modelValue changes
+watch(() => props.modelValue, (newValue) => {
+  if (newValue?.selectedAddressId) {
+    selectedAddressId.value = newValue.selectedAddressId;
+  } else if (newValue?.addresses?.length) {
+    const primary = newValue.addresses.find(a => a.isPrimary);
+    selectedAddressId.value = primary ? primary.id : newValue.addresses[0].id;
+  } else {
+    selectedAddressId.value = null;
+  }
+}, { immediate: true });
 
 // Format client type for display
 const formatClientType = (type) => {
@@ -482,16 +476,37 @@ const formatClientType = (type) => {
   return type;
 };
 
-// Format address for display
+// Format address for display (full version)
 const formatAddressForDisplay = (address) => {
   if (!address) return '';
   
+  // Handle both camelCase and snake_case field names
+  const streetAddress = address.streetAddress || address.street_address;
+  const postalCode = address.postalCode || address.postal_code;
+  
   const parts = [
-    address.streetAddress, // Rely on normalized streetAddress
+    streetAddress,
     address.city,
     address.state,
-    address.postalCode, // Rely on normalized postalCode
+    postalCode,
     address.country
+  ].filter(Boolean);
+  
+  return parts.join(', ');
+};
+
+// Format address for dropdown display (shorter version to avoid duplication with name)
+const formatAddressShort = (address) => {
+  if (!address) return '';
+  
+  // Handle both camelCase and snake_case field names
+  const streetAddress = address.streetAddress || address.street_address;
+  
+  // Just show street address and city for the dropdown
+  const parts = [
+    streetAddress,
+    address.city,
+    address.state
   ].filter(Boolean);
   
   return parts.join(', ');
@@ -504,15 +519,11 @@ const loadClients = async () => {
     const response = await clientsService.getAllClients();
     
     if (response && response.success && response.data) {
-      console.log('Client data before normalization:', response.data);
-      
       // Set clientId property for each client for backend compatibility
       clients.value = response.data.map(client => {
-        console.log('Processing client:', client);
-        return normalizeClient(client);
+        const normalized = normalizeClient(client);
+        return normalized;
       });
-      
-      console.log('Clients after normalization:', clients.value);
     } else {
       console.error('Error loading clients:', response);
     }
@@ -525,37 +536,44 @@ const loadClients = async () => {
 
 const selectClient = (client) => {
   // Check if this client is already selected to avoid unnecessary updates
-  if (selectedClient.value && selectedClient.value.id === client.id) {
+  if (props.modelValue && props.modelValue.id === client.id) {
     isModalOpen.value = false;
     return;
   }
   
-  // For debugging
-  console.log('Client being selected:', client);
   // Normalize client data to ensure consistent field naming
   const normalizedClient = normalizeClient(client);
-  console.log('After normalization:', normalizedClient);
-  selectedClient.value = normalizedClient;
   
   // Set default address if client has addresses
-  if (client && client.addresses && client.addresses.length > 0) {
+  let defaultAddressId = null;
+  if (normalizedClient && normalizedClient.addresses && normalizedClient.addresses.length > 0) {
     // Find primary address first
-    const primaryAddress = client.addresses.find(addr => (addr.isPrimary || addr.is_primary));
+    const primaryAddress = normalizedClient.addresses.find(addr => addr.isPrimary);
     if (primaryAddress) {
-      selectedAddressId.value = primaryAddress.id;
+      defaultAddressId = primaryAddress.id;
     } else {
       // Otherwise use the first address
-      selectedAddressId.value = client.addresses[0].id;
+      defaultAddressId = normalizedClient.addresses[0].id;
     }
-  } else {
-    selectedAddressId.value = null;
   }
+  
+  // Set the selected address ID
+  selectedAddressId.value = defaultAddressId;
+  
+  // Create the final client object to emit
+  const clientToEmit = {
+    ...normalizedClient,
+    selectedAddressId: defaultAddressId
+  };
+  
+  // Emit the normalized client with selected address
+  emit('update:modelValue', clientToEmit);
   
   isModalOpen.value = false;
 };
 
 const resetSelection = () => {
-  selectedClient.value = null;
+  emit('update:modelValue', null);
   selectedAddressId.value = null;
 };
 
@@ -570,7 +588,7 @@ const openSelector = () => {
 // Load clients on mount
 onMounted(() => {
   // If we have a selected client but not a full list, preload the clients
-  if (selectedClient.value && clients.value.length === 0) {
+  if (props.modelValue && clients.value.length === 0) {
     loadClients();
   }
 });

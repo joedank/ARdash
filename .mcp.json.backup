@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "Context7": {
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ],
+      "command": "npx"
+    },
+    "browser-tools": {
+      "args": [
+        "/Volumes/4TB/Users/josephmcmyne/myProjects/mcp/browser-tools-mcp/browser-tools-mcp/dist/mcp-server.js"
+      ],
+      "command": "node"
+    },
+    "chrome-devtools": {
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ],
+      "command": "npx"
+    },
+    "postgres": {
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres:postgres@localhost:5432/management_db"
+      ],
+      "command": "npx"
+    },
+    "think": {
+      "command": "/Volumes/4TB/Users/josephmcmyne/myProjects/mcp/mcp-think-tool/venv/bin/mcp-think-tool"
+    }
+  }
+}

@@ -9,21 +9,43 @@
     <!-- Search and Filters -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
       <div class="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
-        <div class="flex-1">
+        <div class="flex-1 relative">
           <BaseFormGroup label="Search Communities" input-id="search-communities" class="mb-0">
-            <BaseInput
-              id="search-communities"
-              v-model="searchQuery"
-              placeholder="Search by name, city, or address"
-              @input="debouncedSearch"
-            >
-              <template #suffix>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </template>
-            </BaseInput>
+            <div class="flex items-center gap-2">
+              <BaseInput
+                id="search-communities"
+                v-model="searchQuery"
+                placeholder="Search by name, city, or address"
+                @input="debouncedSearch"
+              />
+              <button
+                type="button"
+                class="flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                aria-label="Open sorting options"
+                @click="toggleSortPanel($event)"
+              >
+                <i class="pi pi-sort-alt text-base"></i>
+              </button>
+            </div>
           </BaseFormGroup>
+          <Popover ref="sortPanel">
+            <div class="space-y-4 w-72">
+              <div>
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200">Sort Communities</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Arrange results by the number of available spaces.
+                </p>
+              </div>
+              <SelectButton
+                v-model="sortOption"
+                :options="sortOptions"
+                option-label="label"
+                option-value="value"
+                class="w-full"
+                @change="handleSortChange"
+              />
+            </div>
+          </Popover>
         </div>
         <div class="w-full md:w-48">
           <BaseFormGroup label="Status" input-id="status-filter" class="mb-0">
@@ -429,7 +451,9 @@ import BaseBadge from '@/components/data-display/BaseBadge.vue';
 import BaseInput from '@/components/form/BaseInput.vue';
 import BaseTextarea from '@/components/form/BaseTextarea.vue';
 import BaseFormGroup from '@/components/form/BaseFormGroup.vue';
-import BaseSelect from '@/components/form/BaseSelect.vue';.vue';
+import BaseSelect from '@/components/form/BaseSelect.vue';
+import Popover from 'primevue/popover';
+import SelectButton from 'primevue/selectbutton';
 
 const router = useRouter();
 const { handleError, successToast } = useErrorHandler();
@@ -445,6 +469,12 @@ const showCreateModal = ref(false);
 const createLoading = ref(false);
 const newAdTypes = ref([]);
 const selectedAdTypeIndex = ref(null);
+const sortPanel = ref(null);
+const sortOption = ref('spacesDesc');
+const sortOptions = [
+  { label: 'Spaces (High to Low)', value: 'spacesDesc' },
+  { label: 'Spaces (Low to High)', value: 'spacesAsc' }
+];
 
 // Pagination
 const currentPage = ref(1);
@@ -457,6 +487,14 @@ const statusOptions = [
   { value: 'active', label: 'Active Only' },
   { value: 'inactive', label: 'Inactive Only' }
 ];
+
+const toggleSortPanel = (event) => {
+  sortPanel.value?.toggle(event);
+};
+
+const handleSortChange = () => {
+  sortPanel.value?.hide();
+};
 
 const newCommunity = reactive({
   name: '',
@@ -492,6 +530,21 @@ const filteredCommunities = computed(() => {
     filtered = filtered.filter(community => community.isActive);
   } else if (activeFilter.value === 'inactive') {
     filtered = filtered.filter(community => !community.isActive);
+  }
+
+  // Apply sorting by spaces
+  if (sortOption.value === 'spacesDesc') {
+    filtered.sort((a, b) => {
+      const aSpaces = Number(a.spaces) || 0;
+      const bSpaces = Number(b.spaces) || 0;
+      return bSpaces - aSpaces;
+    });
+  } else if (sortOption.value === 'spacesAsc') {
+    filtered.sort((a, b) => {
+      const aSpaces = Number(a.spaces) || 0;
+      const bSpaces = Number(b.spaces) || 0;
+      return aSpaces - bSpaces;
+    });
   }
 
   totalItems.value = filtered.length;
@@ -564,6 +617,7 @@ const searchCommunities = async () => {
 
   try {
     const result = await communityService.searchCommunities(searchQuery.value);
+    console.log('Server search results for query:', searchQuery.value, 'Results:', result);
     communities.value = result || [];
     totalItems.value = communities.value.length;
   } catch (err) {

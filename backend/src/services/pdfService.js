@@ -164,7 +164,8 @@ class PDFService {
         'company_website', 'company_logo_path', 'primary_color', 'pdf_background_color',
         'pdf_secondary_color', 'pdf_table_border_color', 'pdf_page_margin',
         'pdf_header_margin', 'pdf_footer_margin', 'pdf_watermark_text',
-        'pdf_invoice_footer', 'pdf_estimate_footer'
+        'pdf_invoice_footer', 'pdf_estimate_footer', 'default_invoice_terms', 
+        'default_estimate_terms', 'invoice_due_days', 'estimate_valid_days'
       ];
       
       // Use the bulk settings retrieval method instead of individual queries
@@ -184,6 +185,25 @@ class PDFService {
       settings.pdf_estimate_footer = settings.pdf_estimate_footer || 'Thank you for considering our services.';
 
       logger.debug('PDF Settings prepared for generation:', settings);
+
+      // --- Ensure Correct Terms Based on Document Type ---
+      if (!data.terms || 
+          (type === 'invoice' && data.terms.includes('This estimate is valid')) ||
+          (type === 'estimate' && data.terms.includes('Payment is due within'))) {
+        
+        // Use appropriate default terms based on document type
+        if (type === 'invoice') {
+          let terms = settings.default_invoice_terms || 'Payment is due within {due_days} days from the date of invoice.';
+          terms = terms.replace('{due_days}', settings.invoice_due_days || '30');
+          data.terms = terms;
+          logger.info(`Set invoice terms: ${data.terms}`);
+        } else if (type === 'estimate') {
+          let terms = settings.default_estimate_terms || 'This estimate is valid for {valid_days} days from the date issued.';
+          terms = terms.replace('{valid_days}', settings.estimate_valid_days || '30');
+          data.terms = terms;
+          logger.info(`Set estimate terms: ${data.terms}`);
+        }
+      }
 
       // --- Prepare Logo Data URI ---
       let logoDataUri = null;

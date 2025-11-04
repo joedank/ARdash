@@ -51,9 +51,11 @@ class ClientsService {
       const response = await apiService.get(`/clients${queryParams}`);
 
       if (response.success && response.data) {
+        const normalizedData = response.data.map(client => normalizeClient(client));
+        
         return {
           ...response,
-          data: response.data.map(client => normalizeClient(client))
+          data: normalizedData
         };
       }
 
@@ -192,9 +194,6 @@ class ClientsService {
       if (deletedAddressIds) {
         snakeCaseData._deleted_address_ids = deletedAddressIds;
       }
-      
-      // Log the payload being sent, useful for debugging
-      console.log('Updating client with data:', JSON.stringify(snakeCaseData));
       
       const response = await apiService.put(`/clients/${id}`, snakeCaseData);
 

@@ -277,6 +277,15 @@
               <span class="font-medium text-gray-700 dark:text-gray-300">Total:</span>
               <span class="font-bold text-gray-900 dark:text-white">${{ formatNumber(normalizedInvoice.total) }}</span>
             </div>
+            <!-- Payment Information -->
+            <div v-if="totalPaid > 0" class="flex justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">Total Paid:</span>
+              <span class="font-medium text-gray-900 dark:text-white">${{ formatNumber(totalPaid) }}</span>
+            </div>
+            <div v-if="totalPaid > 0" class="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 text-base">
+              <span class="font-medium text-gray-700 dark:text-gray-300">Balance Due:</span>
+              <span class="font-bold" :class="balanceDue <= 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'">${{ formatNumber(balanceDue) }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -399,12 +408,11 @@
                   required
                 >
                   <option value="">Select payment method</option>
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Check">Check</option>
-                  <option value="PayPal">PayPal</option>
-                  <option value="Other">Other</option>
+                  <option value="credit_card">Credit Card</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="check">Check</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
               
@@ -567,6 +575,21 @@ const normalizeInvoice = (data) => {
 // Create a normalized version of the invoice for consistent property access
 const normalizedInvoice = computed(() => {
   return normalizeInvoice(invoice.value);
+});
+
+// Calculate total paid from payments
+const totalPaid = computed(() => {
+  if (!normalizedInvoice.value.payments || !Array.isArray(normalizedInvoice.value.payments)) {
+    return 0;
+  }
+  return normalizedInvoice.value.payments.reduce((sum, payment) => {
+    return sum + (parseFloat(payment.amount) || 0);
+  }, 0);
+});
+
+// Calculate balance due
+const balanceDue = computed(() => {
+  return (normalizedInvoice.value.total || 0) - totalPaid.value;
 });
 
 // State
@@ -782,8 +805,14 @@ const submitPayment = async () => {
       return;
     }
     
-    // Submit payment
-    const response = await invoicesService.addPayment(invoice.value.id, paymentData.value);
+    // Submit payment (map frontend field name to backend)
+    const paymentPayload = {
+      amount: paymentData.value.amount,
+      paymentDate: paymentData.value.date,
+      paymentMethod: paymentData.value.method,
+      notes: paymentData.value.notes
+    };
+    const response = await invoicesService.addPayment(invoice.value.id, paymentPayload);
     
     if (response && response.success && response.data) {
       // Update local invoice data

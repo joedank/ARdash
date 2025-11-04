@@ -15,7 +15,6 @@ import EstimatesList from '../views/invoicing/EstimatesList.vue';
 import CreateEstimate from '../views/invoicing/CreateEstimate.vue';
 import EstimateDetail from '../views/invoicing/EstimateDetail.vue';
 import EditEstimate from '../views/invoicing/EditEstimate.vue';
-import AssessmentToEstimateView from '../views/invoicing/AssessmentToEstimateView.vue';
 
 // Project Management Views
 import ProjectDetail from '../views/projects/ProjectDetail.vue';
@@ -168,22 +167,6 @@ const routes = [
         path: 'edit-estimate/:id',
         name: 'edit-estimate',
         component: EditEstimate
-      },
-      // Assessment to Estimate route
-      {
-        path: 'assessment-to-estimate',
-        name: 'assessment-to-estimate',
-        component: AssessmentToEstimateView
-      },
-      // Estimate Finalization route
-      {
-        path: 'estimate/:id/finalize',
-        name: 'estimate-finalization',
-        component: () => import('../views/invoicing/EstimateFinalization.vue'),
-        meta: {
-          requiresAuth: true,
-          title: 'Finalize Estimate'
-        }
       }
     ]
   },

@@ -232,6 +232,7 @@ class InvoiceService {
    */
   async getInvoiceWithDetails(invoiceId) {
     try {
+      logger.info(`Loading invoice with details for ID: ${invoiceId}`);
       const invoice = await Invoice.findByPk(invoiceId, {
         include: [
           { model: InvoiceItem, as: 'items' },
@@ -253,6 +254,11 @@ class InvoiceService {
       if (!invoice) {
         logger.warn(`Invoice not found with ID: ${invoiceId}`);
         return null;
+      }
+
+      logger.info(`Invoice loaded successfully. Payments count: ${invoice.payments ? invoice.payments.length : 'null'}`);
+      if (invoice.payments && invoice.payments.length > 0) {
+        logger.info(`First payment: ${JSON.stringify(invoice.payments[0])}`);
       }
 
       // Additional logging to debug client information
@@ -538,11 +544,16 @@ class InvoiceService {
         throw new Error('Invoice not found');
       }
 
+      // Convert snake_case keys to camelCase for Sequelize model
+      const createData = { invoiceId };
+      if (paymentData.amount !== undefined) createData.amount = paymentData.amount;
+      if (paymentData.payment_date !== undefined) createData.paymentDate = paymentData.payment_date;
+      if (paymentData.payment_method !== undefined) createData.paymentMethod = paymentData.payment_method;
+      if (paymentData.notes !== undefined) createData.notes = paymentData.notes;
+      if (paymentData.reference_number !== undefined) createData.referenceNumber = paymentData.reference_number;
+
       // Create the payment
-      const payment = await Payment.create({
-        ...paymentData,
-        invoiceId
-      });
+      const payment = await Payment.create(createData);
 
       // Recalculate totals
       await this.calculateInvoiceTotals(invoiceId);
@@ -550,6 +561,107 @@ class InvoiceService {
       return this.getInvoiceWithDetails(invoiceId);
     } catch (error) {
       logger.error(`Error adding payment to invoice ${invoiceId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a payment
+   * @param {string} invoiceId - Invoice ID
+   * @param {string} paymentId - Payment ID
+   * @param {Object} paymentData - Payment data
+   * @returns {Promise<Object>} - Updated invoice
+   */
+  async updatePayment(invoiceId, paymentId, paymentData) {
+    try {
+      logger.info(`updatePayment called with:`, {
+        invoiceId,
+        paymentId,
+        paymentData: JSON.stringify(paymentData, null, 2)
+      });
+
+      const invoice = await Invoice.findByPk(invoiceId);
+
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+
+      const payment = await Payment.findOne({
+        where: { id: paymentId, invoiceId }
+      });
+
+      if (!payment) {
+        throw new Error('Payment not found');
+      }
+
+      logger.info(`Current payment before update:`, {
+        id: payment.id,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+        paymentDate: payment.paymentDate
+      });
+
+      // Convert snake_case keys to camelCase for Sequelize model
+      const updateData = {};
+      if (paymentData.amount !== undefined) updateData.amount = paymentData.amount;
+      if (paymentData.payment_date !== undefined) updateData.paymentDate = paymentData.payment_date;
+      if (paymentData.payment_method !== undefined) updateData.paymentMethod = paymentData.payment_method;
+      if (paymentData.notes !== undefined) updateData.notes = paymentData.notes;
+      if (paymentData.reference_number !== undefined) updateData.referenceNumber = paymentData.reference_number;
+
+      logger.info(`Converted update data:`, updateData);
+
+      // Update the payment
+      await payment.update(updateData);
+
+      logger.info(`Payment after update:`, {
+        id: payment.id,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+        paymentDate: payment.paymentDate
+      });
+
+      // Recalculate totals
+      await this.calculateInvoiceTotals(invoiceId);
+
+      return this.getInvoiceWithDetails(invoiceId);
+    } catch (error) {
+      logger.error(`Error updating payment ${paymentId} for invoice ${invoiceId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a payment
+   * @param {string} invoiceId - Invoice ID
+   * @param {string} paymentId - Payment ID
+   * @returns {Promise<Object>} - Updated invoice
+   */
+  async deletePayment(invoiceId, paymentId) {
+    try {
+      const invoice = await Invoice.findByPk(invoiceId);
+
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+
+      const payment = await Payment.findOne({
+        where: { id: paymentId, invoiceId }
+      });
+
+      if (!payment) {
+        throw new Error('Payment not found');
+      }
+
+      // Delete the payment
+      await payment.destroy();
+
+      // Recalculate totals
+      await this.calculateInvoiceTotals(invoiceId);
+
+      return this.getInvoiceWithDetails(invoiceId);
+    } catch (error) {
+      logger.error(`Error deleting payment ${paymentId} for invoice ${invoiceId}:`, error);
       throw error;
     }
   }

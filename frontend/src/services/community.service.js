@@ -155,7 +155,20 @@ class CommunityService {
   async searchCommunities(query) {
     try {
       const response = await apiClient.get('/communities/search', { params: { q: query } });
-      return toCamelCase(response.data.data);
+      // Handle different response structures
+      let searchData;
+      if (response.data && response.data.data) {
+        // Standard structure: { data: { data: [...] } }
+        searchData = response.data.data;
+      } else if (response.data) {
+        // Alternative structure: { data: [...] }
+        searchData = response.data;
+      } else {
+        // Unexpected structure
+        console.error('Unexpected API response structure for search:', response);
+        return [];
+      }
+      return toCamelCase(searchData);
     } catch (error) {
       console.error(`Error searching communities with query "${query}":`, error);
       throw error;
