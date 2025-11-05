@@ -135,7 +135,7 @@
 
 <script setup>
 import { computed, ref } from 'vue';
-import * as XLSX from 'xlsx';
+import { Workbook } from 'exceljs';
 import { unparse } from 'papaparse';
 
 const props = defineProps({
@@ -344,10 +344,32 @@ const downloadCSV = () => {
   document.body.removeChild(link);
 };
 
-const downloadExcel = () => {
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(props.data);
-  XLSX.utils.book_append_sheet(wb, ws, "Data");
-  XLSX.writeFile(wb, "data.xlsx");
+const downloadExcel = async () => {
+  const workbook = new Workbook();
+  const worksheet = workbook.addWorksheet('Data');
+
+  // Add headers
+  worksheet.columns = props.columns.map(col => ({
+    header: col.label,
+    key: col.key,
+    width: 15
+  }));
+
+  // Add data rows
+  props.data.forEach(row => {
+    worksheet.addRow(row);
+  });
+
+  // Generate buffer and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'data.xlsx');
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 </script>
